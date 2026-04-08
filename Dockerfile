@@ -47,9 +47,15 @@ RUN useradd -m -u 1000 -s /bin/bash hpcuser && \
 
 # ---------------------------------------------------------------------------- #
 # Podman storage configuration for rootless overlayfs
+#
+# graphRoot and runRoot are set explicitly under /tmp so that the inner Podman
+# (launched by podman-compose) always uses local node storage, never an NFS
+# or Lustre filesystem that doesn't support overlayfs mounts.
+# These values are also overridable at runtime via CONTAINERS_GRAPHROOT and
+# CONTAINERS_RUNROOT environment variables (set by run-compose).
 # ---------------------------------------------------------------------------- #
 RUN mkdir -p /home/hpcuser/.config/containers && \
-    printf '[storage]\ndriver = "overlay"\n\n[storage.options.overlay]\nmount_program = "/usr/bin/fuse-overlayfs"\n' \
+    printf '[storage]\ndriver = "overlay"\ngraphRoot = "/tmp/podman-inner/storage"\nrunRoot = "/tmp/podman-inner/run"\n\n[storage.options.overlay]\nmount_program = "/usr/bin/fuse-overlayfs"\n' \
         > /home/hpcuser/.config/containers/storage.conf && \
     chown -R hpcuser:hpcuser /home/hpcuser/.config
 

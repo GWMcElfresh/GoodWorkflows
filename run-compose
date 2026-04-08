@@ -147,6 +147,17 @@ setup_tmpdir() {
         mkdir -p "${TMPDIR}"
         info "TMPDIR=${TMPDIR}"
     fi
+
+    # Redirect inner Podman storage (used by podman-compose service launches)
+    # to local scratch so service containers don't hit NFS/overlayfs restrictions.
+    # TMPDIR is /tmp inside the container (forced by slurm_run.sh), so these
+    # paths are always on local node storage.
+    local inner_root="${TMPDIR:-/tmp}/podman-inner"
+    export CONTAINERS_GRAPHROOT="${inner_root}/storage"
+    export CONTAINERS_RUNROOT="${inner_root}/run"
+    mkdir -p "${CONTAINERS_GRAPHROOT}" "${CONTAINERS_RUNROOT}"
+    info "CONTAINERS_GRAPHROOT=${CONTAINERS_GRAPHROOT}"
+    info "CONTAINERS_RUNROOT=${CONTAINERS_RUNROOT}"
 }
 
 # ---------------------------------------------------------------------------- #

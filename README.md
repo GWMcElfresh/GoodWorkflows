@@ -130,6 +130,14 @@ Key parameters you can override via `sbatch --export` or by editing the script:
 | `IMAGE` | `ghcr.io/gwmcelfresh/podmanwrapper:latest` | Container image |
 | `EXTRA_ARGS` | _(empty)_ | Extra flags passed to `run-compose` |
 
+The script also exports these automatically — no manual action needed:
+
+| Variable | Value | Purpose |
+|---|---|---|
+| `CONTAINERS_GRAPHROOT` | `$TMPDIR/podman-<JOBID>/storage` | Forces outer Podman image storage onto local node scratch, avoiding NFS overlayfs errors |
+| `CONTAINERS_RUNROOT` | `$TMPDIR/podman-<JOBID>/run` | Same, for Podman runtime state |
+| `XDG_RUNTIME_DIR` | `$TMPDIR/runtime-<UID>` | Required by rootless Podman |
+
 GPU jobs: uncomment `#SBATCH --gres=gpu:1` and add `--device nvidia.com/gpu=all` to the `podman run` command.
 
 ---
@@ -168,9 +176,12 @@ services:
    ```
    alice:100000:65536
    ```
+   Without these entries, nested rootless Podman (inside the container) will fail.
 2. **`fuse-overlayfs`** – used as the storage driver inside the container when the kernel does not support native overlay in user namespaces.
 3. **`XDG_RUNTIME_DIR`** – must be a writable directory owned by the running user.  `slurm_run.sh` sets this automatically using `$TMPDIR` (SLURM local scratch) or `/tmp/runtime-<UID>`.
 4. **No root privileges required** – `podman run --userns=keep-id` maps the host UID into the container transparently.
+5. **Storage on local scratch, not NFS** – network filesystems (gscratch, NFS, Lustre) do not support overlayfs mounts.  `slurm_run.sh` redirects `CONTAINERS_GRAPHROOT` and `CONTAINERS_RUNROOT` to `$TMPDIR` (local to the compute node) for the outer Podman.  `run-compose` does the same for the inner Podman launched by `podman-compose`.  The `storage.conf` baked into the image provides the same defaults as a fallback.
+6. **Supplemental group access to shared filesystems** – rootless Podman by default only passes UID and primary GID into the container, losing access to paths gated by secondary groups (gscratch, RDS).  `slurm_run.sh` passes `--group-add keep-groups` to preserve all group memberships.  If you submit a job that mounts a path owned by a non-primary group, ensure that group is active before submitting: `newgrp <groupname>` or `sg <groupname> -c "sbatch slurm_run.sh"`.
 
 ---
 
