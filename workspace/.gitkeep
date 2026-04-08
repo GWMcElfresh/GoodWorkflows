@@ -1,0 +1,2 @@
+# This directory is bind-mounted into compose services as /workspace.
+# Place any shared scripts or config files here.
