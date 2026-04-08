@@ -10,12 +10,11 @@ LABEL org.opencontainers.image.title="PodmanWrapper" \
 
 # ---------------------------------------------------------------------------- #
 # System packages
-# Rocky Linux 9 minimal ships coreutils-single and util-linux-core which
-# conflict with the full coreutils and util-linux packages.  Remove them first.
+# Replace Rocky Linux 9 minimal coreutils-single and util-linux-core with full 
+# versions
 # ---------------------------------------------------------------------------- #
 RUN dnf -y update && \
-    dnf -y remove coreutils-single util-linux-core && \
-    dnf -y install \
+    dnf -y install --allowerasing \
         podman \
         fuse-overlayfs \
         slirp4netns \
