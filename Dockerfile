@@ -47,14 +47,9 @@ RUN useradd -m -u 1000 -s /bin/bash hpcuser && \
 # Podman storage configuration for rootless overlayfs
 # ---------------------------------------------------------------------------- #
 RUN mkdir -p /home/hpcuser/.config/containers && \
-    cat > /home/hpcuser/.config/containers/storage.conf <<'EOF'
-[storage]
-driver = "overlay"
-
-[storage.options.overlay]
-mount_program = "/usr/bin/fuse-overlayfs"
-EOF
-chown -R hpcuser:hpcuser /home/hpcuser/.config
+    printf '[storage]\ndriver = "overlay"\n\n[storage.options.overlay]\nmount_program = "/usr/bin/fuse-overlayfs"\n' \
+        > /home/hpcuser/.config/containers/storage.conf && \
+    chown -R hpcuser:hpcuser /home/hpcuser/.config
 
 # ---------------------------------------------------------------------------- #
 # Wrapper entrypoint
