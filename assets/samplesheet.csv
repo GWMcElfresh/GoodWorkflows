@@ -1,0 +1,4 @@
+sample_id,raw_data_path
+SAMPLE_01,/gscratch/CHANGEME/data/SAMPLE_01
+SAMPLE_02,/gscratch/CHANGEME/data/SAMPLE_02
+SAMPLE_03,/gscratch/CHANGEME/data/SAMPLE_03
