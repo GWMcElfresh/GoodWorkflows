@@ -1,0 +1,9 @@
+.nextflow/
+.nextflow*
+work/
+outputs/
+logs/
+data/run/
+data/user/
+*-main/
+*-master/

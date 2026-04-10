@@ -1,215 +1,119 @@
-# PodmanWrapper
+# GoodWorkflows
 
-A lightweight wrapper around **podman-compose** for running multi-container workflows inside a **SLURM** job on an HPC cluster.
-
-## Overview
-
-PodmanWrapper packages `podman-compose` inside a container image and provides a robust CLI entrypoint (`run-compose`) that:
-
-* Sets up a rootless Podman environment automatically
-* Detects SLURM environment variables and configures scratch / runtime directories accordingly
-* Runs a `compose.yaml` pipeline with a single `podman run` command from your SLURM job script
-* Captures logs per run and supports optional cleanup (`--down`)
-
-### Why this instead of multi-job workflows?
-
-| Concern | Multi-job (SLURM arrays) | PodmanWrapper (single job) |
-|---|---|---|
-| Orchestration complexity | High | Low |
-| Cross-node networking | Supported | **Not supported** |
-| Shared filesystem required | Yes | No (named volumes) |
-| Reproducibility | Medium | High (single image) |
-| Startup overhead | High | Low |
-
-Use PodmanWrapper when your pipeline fits on **one node** and you want the simplicity of Docker Compose semantics without Kubernetes.
+A DSL2 **Nextflow** repository for composing reusable single-cell workflows from small modules and running them on **SLURM + Podman** HPC systems.
 
 ---
 
-## Repository Structure
+## Repository layout
 
-```
+```text
 .
-├── Dockerfile              # Container image (Rocky Linux 9 + rootless Podman)
-├── run-compose             # Entrypoint / CLI wrapper script
-├── compose.yaml            # Example 3-stage pipeline
-├── slurm_run.sh            # Example SLURM job script
-├── .env.example            # Template for environment overrides
-├── workspace/              # Bind-mounted into all compose services
-├── .github/
-│   └── workflows/
-│       └── ci.yml          # Lint → Build → Push → Integration test
-└── README.md
+├── main.nf                 # Thin launcher for saved workflows
+├── workflows/              # Higher-level reusable workflows
+├── modules/local/          # Single-step DSL2 modules
+├── configs/                # Base + profile-specific config
+├── data/                   # Default repo-local input location
+├── outputs/                # Default published results (generated)
+├── work/                   # Nextflow work dir (generated)
+├── logs/                   # Reports and SLURM logs (generated)
+├── slurm_nextflow.sh       # Run the pipeline on HPC
+└── slurm_sync_repo.sh      # Fast clone / update job for HPC checkouts
 ```
+
+## Saved workflows
+
+| Workflow | Purpose |
+|---|---|
+| `full` | `INGEST -> EXPORT_COUNTS -> GENE_HARMONIZE -> SCMODAL_INTEGRATE` |
+| `ingest_export` | Download Seurat objects and export 10x-like counts only |
+
+Select one with `--workflow`.
 
 ---
 
-## Quick Start
+## Defaults
 
-### 1. Build the image
+The repo now uses local, predictable defaults:
+
+- **Input samplesheet:** `./data/samplesheet.csv`
+- **Published outputs:** `./outputs`
+- **Work directory:** `./work`
+- **Reports/logs:** `./logs`
+
+These can still be overridden on the CLI.
+
+---
+
+## Running locally
 
 ```bash
-docker build -t podmanwrapper:local .
-# or
-podman build -t podmanwrapper:local .
+nextflow run main.nf -profile local \
+  --workflow full \
+  --labkey_base_url https://labkey.example.org \
+  --labkey_folder /My/Folder
 ```
 
-### 2. Pull the published image
+For a light structural check without running the heavy science stack:
 
 ```bash
-podman pull ghcr.io/gwmcelfresh/podmanwrapper:latest
+nextflow run main.nf -profile test -stub-run \
+  --workflow ingest_export \
+  --labkey_base_url https://labkey.example.org \
+  --labkey_folder /My/Folder
 ```
 
-### 3. Run locally with Podman
+---
+
+## Running on HPC
+
+### 1. Sync or clone the repo
+
+Recommended: **do this outside the pipeline**, not as a Nextflow module. A pipeline should not mutate its own checkout while it is running.
 
 ```bash
-# Dry-run (prints commands without executing)
-podman run --rm \
-  --userns=keep-id \
-  -v "$PWD":/workspace \
-  -w /workspace \
-  ghcr.io/gwmcelfresh/podmanwrapper:latest \
-  --file compose.yaml \
-  --dry-run
-
-# Live run with cleanup
-podman run --rm \
-  --userns=keep-id \
-  -v "$PWD":/workspace \
-  -w /workspace \
-  ghcr.io/gwmcelfresh/podmanwrapper:latest \
-  --file compose.yaml \
-  --project-name mypipeline \
-  --down
+sbatch slurm_sync_repo.sh
 ```
 
-### 4. Submit to SLURM
+Or target a specific scratch location:
 
 ```bash
-# Copy and customise the environment file
-cp .env.example .env
-
-# Submit
-sbatch slurm_run.sh
+sbatch --export=ALL,SYNC_TARGET_DIR=/gscratch/mygroup/GoodWorkflows slurm_sync_repo.sh
 ```
 
-Monitor job output:
+### 2. Launch the pipeline
+
 ```bash
-tail -f logs/slurm-<JOBID>.out
+sbatch slurm_nextflow.sh \
+  --workflow full \
+  --labkey_base_url https://labkey.example.org \
+  --labkey_folder /My/Folder
+```
+
+Optional: fast-forward the checkout immediately before launch:
+
+```bash
+sbatch --export=ALL,SYNC_REPO_BEFORE_RUN=true slurm_nextflow.sh --workflow full
 ```
 
 ---
 
-## `run-compose` CLI Reference
+## Notes on repo sync strategy
 
-```
-Usage: run-compose [OPTIONS]
+A lightweight **git sync job** is the best fit here:
 
-Options:
-  -f, --file FILE          Compose file to use          (default: compose.yaml)
-  -p, --project-name NAME  Project name                 (default: basename of workdir)
-  -w, --workdir DIR        Working directory             (default: $PWD)
-  -e, --env-file FILE      Optional .env file to load
-  -l, --log-dir DIR        Log directory                 (default: <workdir>/logs)
-  -d, --down               Run 'podman-compose down' after workflow exits
-  -n, --dry-run            Print commands; do not execute
-  -h, --help               Show this help and exit
-```
+- ✅ simple and transparent
+- ✅ works well on HPC scratch filesystems
+- ✅ keeps the pipeline code versioned in Git
+- ❌ safer than a self-updating Nextflow process inside the running workflow
 
-Logs are written to `<log-dir>/<project>-<timestamp>/compose.log`.
+So the implemented pattern is:
 
----
-
-## SLURM Script Reference (`slurm_run.sh`)
-
-Key parameters you can override via `sbatch --export` or by editing the script:
-
-| Variable | Default | Description |
-|---|---|---|
-| `COMPOSE_FILE` | `compose.yaml` | Compose file path |
-| `PROJECT_NAME` | `basename $PWD` | Podman-compose project name |
-| `IMAGE` | `ghcr.io/gwmcelfresh/podmanwrapper:latest` | Container image |
-| `EXTRA_ARGS` | _(empty)_ | Extra flags passed to `run-compose` |
-
-The script also exports these automatically — no manual action needed:
-
-| Variable | Value | Purpose |
-|---|---|---|
-| `CONTAINERS_GRAPHROOT` | `$TMPDIR/podman-<JOBID>/storage` | Forces outer Podman image storage onto local node scratch, avoiding NFS overlayfs errors |
-| `CONTAINERS_RUNROOT` | `$TMPDIR/podman-<JOBID>/run` | Same, for Podman runtime state |
-| `XDG_RUNTIME_DIR` | `$TMPDIR/runtime-<UID>` | Required by rootless Podman |
-
-GPU jobs: uncomment `#SBATCH --gres=gpu:1` and add `--device nvidia.com/gpu=all` to the `podman run` command.
-
----
-
-## Example Compose Pipeline
-
-The bundled `compose.yaml` defines three services that run sequentially:
-
-```
-preprocess → model → postprocess
-```
-
-All three share a named `data` volume — no external network is required.
-
-| Stage | Reads from | Writes to |
-|---|---|---|
-| `preprocess` | `/data/input` | `/data/interim` |
-| `model` | `/data/interim` | `/data/output` |
-| `postprocess` | `/data/output` | `/data/results` |
-
-To add real input data, place files in `workspace/` or map a host directory to `/data/input` via an extra `-v` flag:
-
-```yaml
-services:
-  preprocess:
-    volumes:
-      - /scratch/myproject/raw:/data/input:ro
-      - data:/data
-```
-
----
-
-## Rootless Podman – Assumptions
-
-1. **Host subuid/subgid mapping** – the cluster administrator must add entries for each user in `/etc/subuid` and `/etc/subgid`.  A typical entry looks like:
-   ```
-   alice:100000:65536
-   ```
-   Without these entries, nested rootless Podman (inside the container) will fail.
-2. **`fuse-overlayfs`** – used as the storage driver inside the container when the kernel does not support native overlay in user namespaces.
-3. **`XDG_RUNTIME_DIR`** – must be a writable directory owned by the running user.  `slurm_run.sh` sets this automatically using `$TMPDIR` (SLURM local scratch) or `/tmp/runtime-<UID>`.
-4. **No root privileges required** – `podman run --userns=keep-id` maps the host UID into the container transparently.
-5. **Storage on local scratch, not NFS** – network filesystems (gscratch, NFS, Lustre) do not support overlayfs mounts.  `slurm_run.sh` redirects `CONTAINERS_GRAPHROOT` and `CONTAINERS_RUNROOT` to `$TMPDIR` (local to the compute node) for the outer Podman.  `run-compose` does the same for the inner Podman launched by `podman-compose`.  The `storage.conf` baked into the image provides the same defaults as a fallback.
-6. **Supplemental group access to shared filesystems** – rootless Podman by default only passes UID and primary GID into the container, losing access to paths gated by secondary groups (gscratch, RDS).  `slurm_run.sh` passes `--group-add keep-groups` to preserve all group memberships.  If you submit a job that mounts a path owned by a non-primary group, ensure that group is active before submitting: `newgrp <groupname>` or `sg <groupname> -c "sbatch slurm_run.sh"`.
-
----
-
-## Limitations
-
-* **Single node only** – services share a named volume which lives on one node's filesystem.
-* **No cross-node networking** – CNI / Netavark is not configured for multi-host mode.
-* **Air-gapped clusters** – pre-pull the image with `podman save / load` or mirror to a local registry.
-* **Storage driver** – `fuse-overlayfs` requires the `fuse` kernel module.  Some very locked-down clusters may need `--storage-driver=vfs` (slower).
-
----
-
-## CI/CD
-
-The GitHub Actions workflow (`.github/workflows/ci.yml`) performs:
-
-1. **Lint** – Hadolint (Dockerfile), ShellCheck (`run-compose`, `slurm_run.sh`), `docker compose config`
-2. **Build & Push** – multi-platform image pushed to `ghcr.io/gwmcelfresh/podmanwrapper` on every push to `main`
-3. **Integration Test** – runs the full `compose.yaml` pipeline using `podman-compose` on the CI runner
-
-Image tags:
-* `latest` – tip of `main`
-* `sha-<short-sha>` – every commit
-* `<branch>` – branch builds
-* `<semver>` – on tagged releases
+1. `git clone` once on HPC
+2. use `slurm_sync_repo.sh` or `scripts/sync_repo.sh` to fast-forward to the latest `main`
+3. launch `slurm_nextflow.sh`
 
 ---
 
 ## License
 
-MIT – see [LICENSE](LICENSE).
+MIT – see `LICENSE`.
