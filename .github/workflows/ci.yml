@@ -6,131 +6,198 @@ on:
   pull_request:
     branches: ["main"]
   workflow_dispatch:
+    inputs:
+      run_container_smoke:
+        description: "Prime cached module images and run container smoke checks"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
-  packages: write   # needed to push to ghcr.io
+  packages: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  CI_LABKEY_BASE_URL: https://labkey.example.org
+  CI_LABKEY_FOLDER: /Example/Folder
 
 jobs:
-  # -------------------------------------------------------------------------- #
-  # Lint
-  # -------------------------------------------------------------------------- #
-  lint:
-    name: Lint
+  lint_and_validate:
+    name: Lint and validate
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v5
-
-      - name: Lint Dockerfile (hadolint)
-        uses: hadolint/hadolint-action@v3.1.0
-        with:
-          dockerfile: Dockerfile
-          # Relax rules that don't apply to HPC images
-          ignore: DL3033,DL3041,DL3013
 
       - name: Install shellcheck
-        run: sudo apt-get install -y shellcheck
-
-      - name: Lint run-compose (shellcheck)
-        run: shellcheck -S warning run-compose
-
-      - name: Lint slurm_run.sh (shellcheck)
-        run: shellcheck -S warning slurm_run.sh
-
-      - name: Validate compose.yaml (docker compose config)
         run: |
-          docker compose -f compose.yaml config --quiet
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
 
-  # -------------------------------------------------------------------------- #
-  # Build & push container image
-  # -------------------------------------------------------------------------- #
-  build:
-    name: Build & Push Image
+      - name: ShellCheck HPC and CI helpers
+        run: |
+          shellcheck -S warning \
+            slurm_nextflow.sh \
+            slurm_sync_repo.sh \
+            scripts/*.sh \
+            scripts/ci/*.sh
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Cache Nextflow runtime
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nextflow
+            ~/.gradle/caches
+          key: nextflow-${{ runner.os }}-${{ hashFiles('main.nf', 'nextflow.config', 'configs/*.config', 'workflows/*.nf', 'modules/local/**/*.nf') }}
+          restore-keys: |
+            nextflow-${{ runner.os }}-
+
+      - name: Install Nextflow
+        run: |
+          curl -s https://get.nextflow.io | bash
+          sudo mv nextflow /usr/local/bin/nextflow
+          nextflow -version
+
+      - name: Validate Nextflow profiles
+        run: |
+          nextflow config -profile test > /dev/null
+          nextflow config -profile local > /dev/null
+          nextflow config -profile slurm > /dev/null
+
+  workflow_smoke_tests:
+    name: Workflow smoke tests
     runs-on: ubuntu-latest
-    needs: lint
+    needs: lint_and_validate
+    strategy:
+      fail-fast: false
+      matrix:
+        workflow: [ingest_export, full]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Log in to GitHub Container Registry
-        if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+      - name: Set up Java
+        uses: actions/setup-java@v4
         with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          distribution: temurin
+          java-version: '17'
 
-      - name: Extract Docker metadata (tags, labels)
-        id: meta
-        uses: docker/metadata-action@v5
+      - name: Cache Nextflow runtime
+        uses: actions/cache@v4
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable={{is_default_branch}}
+          path: |
+            ~/.nextflow
+            ~/.gradle/caches
+          key: nextflow-${{ runner.os }}-${{ hashFiles('main.nf', 'nextflow.config', 'configs/*.config', 'workflows/*.nf', 'modules/local/**/*.nf') }}
+          restore-keys: |
+            nextflow-${{ runner.os }}-
 
-      - name: Build (and push on non-PR events)
-        uses: docker/build-push-action@v5
+      - name: Install Nextflow
+        run: |
+          curl -s https://get.nextflow.io | bash
+          sudo mv nextflow /usr/local/bin/nextflow
+          nextflow -version
+
+      - name: Run workflow smoke test
+        run: bash scripts/ci/run_nextflow_smoke_tests.sh workflow ${{ matrix.workflow }}
+
+      - name: Upload workflow test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          context: .
-          file: ./Dockerfile
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          name: workflow-${{ matrix.workflow }}-artifacts
+          path: test-results/workflow/${{ matrix.workflow }}/
 
-  # -------------------------------------------------------------------------- #
-  # Integration test – run the compose pipeline locally with podman
-  # -------------------------------------------------------------------------- #
-  integration:
-    name: Integration Test
+  module_smoke_tests:
+    name: Module smoke tests
     runs-on: ubuntu-latest
-    needs: build
-    # Only run on pushes (not on PRs from forks that can't pull the image)
-    if: github.event_name != 'pull_request'
+    needs: lint_and_validate
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [ingest, export_counts, gene_harmonize, scmodal_integrate]
 
     steps:
       - name: Checkout
         uses: actions/checkout@v5
 
-      - name: Install podman-compose
-        run: pip3 install podman-compose
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
 
-      - name: Create workspace and input data
-        run: |
-          mkdir -p workspace
-          mkdir -p logs
-          # Create some dummy input files for the preprocess stage
-          echo "sample data 1" > workspace/sample1.txt
-          echo "sample data 2" > workspace/sample2.txt
+      - name: Cache Nextflow runtime
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nextflow
+            ~/.gradle/caches
+          key: nextflow-${{ runner.os }}-${{ hashFiles('main.nf', 'nextflow.config', 'configs/*.config', 'workflows/*.nf', 'modules/local/**/*.nf') }}
+          restore-keys: |
+            nextflow-${{ runner.os }}-
 
-      - name: Run pipeline via run-compose (dry-run)
+      - name: Install Nextflow
         run: |
-          chmod +x run-compose
-          ./run-compose --file compose.yaml --project-name ci-test --dry-run
+          curl -s https://get.nextflow.io | bash
+          sudo mv nextflow /usr/local/bin/nextflow
+          nextflow -version
 
-      - name: Run pipeline via podman-compose (live)
-        run: |
-          podman-compose -f compose.yaml --project-name ci-live up --abort-on-container-exit
+      - name: Run module smoke test
+        run: bash scripts/ci/run_nextflow_smoke_tests.sh module ${{ matrix.module }}
 
-      - name: Verify output artefacts
+      - name: Upload module test artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: module-${{ matrix.module }}-artifacts
+          path: test-results/module/${{ matrix.module }}/
+
+  container_smoke:
+    name: Optional container smoke test
+    runs-on: ubuntu-latest
+    needs: lint_and_validate
+    if: github.event_name == 'workflow_dispatch' && inputs.run_container_smoke
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Restore cached module images
+        uses: actions/cache@v4
+        with:
+          path: .ci/docker-cache
+          key: module-images-${{ runner.os }}-${{ hashFiles('scripts/ci/cache_container_images.sh', 'configs/base.config', 'modules/local/**/*.nf') }}
+          restore-keys: |
+            module-images-${{ runner.os }}-
+
+      - name: Pull and cache module images
+        run: bash scripts/ci/cache_container_images.sh
+
+      - name: Smoke test rdiscvr image
         run: |
-          echo "Checking for report.json..."
-          # podman-compose stores volumes under /var/lib/containers or similar;
-          # the compose pipeline writes to the named 'data' volume.
-          # For CI we check that podman-compose exited successfully (step above).
-          echo "Pipeline completed successfully"
+          docker run --rm ghcr.io/bimberlabinternal/rdiscvr:latest \
+            Rscript -e "suppressPackageStartupMessages({library(Rdiscvr); library(Seurat)}); cat('rdiscvr ok\n')"
+
+      - name: Smoke test cellmembrane image
+        run: |
+          docker run --rm ghcr.io/bimberlabinternal/cellmembrane:latest \
+            Rscript -e "suppressPackageStartupMessages({library(Seurat); library(Matrix)}); cat('cellmembrane ok\n')"
+
+      - name: Smoke test scmodal image
+        run: |
+          docker run --rm ghcr.io/gwmcelfresh/scmodal-cuda:latest \
+            python3 -c "import scmodal, torch, scanpy, anndata; print('scmodal ok', torch.__version__)"
+

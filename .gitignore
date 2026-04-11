@@ -3,6 +3,8 @@
 work/
 outputs/
 logs/
+test-results/
+.ci/docker-cache/
 data/run/
 data/user/
 *-main/

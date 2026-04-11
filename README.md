@@ -114,6 +114,17 @@ So the implemented pattern is:
 
 ---
 
+## CI testing strategy
+
+GitHub Actions now validates the repository in two layers:
+
+1. **Workflow smoke tests** — runs `main.nf` with `-profile test -stub-run` for both `full` and `ingest_export`
+2. **Module smoke tests** — runs each module wrapper under `tests/modules/` so every module is exercised independently
+
+The `test` profile disables containers and uses the local executor so CI can validate DSL2 wiring quickly without requiring HPC infrastructure.
+
+For container-dependent validation, the repo also includes `scripts/ci/cache_container_images.sh`, which can pre-pull and cache the module images into `.ci/docker-cache/` during GitHub Actions runs.
+
 ## License
 
 MIT – see `LICENSE`.
