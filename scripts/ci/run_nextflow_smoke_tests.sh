@@ -18,11 +18,12 @@ rm -rf "${TEST_ROOT}"
 mkdir -p "${TEST_ROOT}"
 
 run_nextflow() {
-    nextflow run "$1" \
+    nextflow \
+        -log "${TEST_ROOT}/nextflow.log" \
+        run "$1" \
         -profile test \
         -stub-run \
         -ansi-log false \
-        -log "${TEST_ROOT}/nextflow.log" \
         -work-dir "${TEST_ROOT}/work" \
         -with-report "${TEST_ROOT}/report.html" \
         -with-trace "${TEST_ROOT}/trace.txt" \
