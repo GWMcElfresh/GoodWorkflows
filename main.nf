@@ -7,8 +7,9 @@ nextflow.enable.dsl = 2
 
 include { FULL_PIPELINE } from './workflows/full_pipeline.nf'
 include { INGEST_EXPORT_PIPELINE } from './workflows/ingest_export.nf'
+include { INGEST_TABULATE_PIPELINE } from './workflows/ingest_tabulate.nf'
 
-def supportedWorkflows = ['full', 'ingest_export']
+def supportedWorkflows = ['full', 'ingest_export', 'ingest_tabulate']
 
 def helpMessage() {
     log.info """
@@ -21,6 +22,7 @@ def helpMessage() {
     Saved workflows:
       --workflow full           Full pipeline: ingest -> export -> harmonize -> scMODAL
       --workflow ingest_export  Fetch Seurat RDS and export 10x-like counts only
+            --workflow ingest_tabulate  Fetch Seurat RDS + metadata and build subjectIdTable
 
     Defaults:
       --input FILE              Samplesheet CSV   [default: ${params.input}]
@@ -33,11 +35,16 @@ def helpMessage() {
 
     Optional:
       --species_order STR       Multi-species order [default: ${params.species_order}]
+        --tabulate_id_cols STR    CSV of id columns [default: ${params.tabulate_id_cols}]
+        --tabulate_celltype_cols STR  CSV of cell-type columns [default: ${params.tabulate_celltype_cols}]
+        --tabulate_parent_col STR Parent lineage column [default: ${params.tabulate_parent_col}]
+        --tabulate_celltype_parent_map STR  Cell-type:parentValue map [default: ${params.tabulate_celltype_parent_map}]
       --help                    Show this message
 
     Examples:
       nextflow run main.nf -profile slurm --workflow full --labkey_base_url https://labkey.example.org --labkey_folder /My/Folder
       nextflow run main.nf -profile slurm --workflow ingest_export --outdir ./outputs/dev
+            nextflow run main.nf -profile slurm --workflow ingest_tabulate --tabulate_id_cols cDNA_ID,SubjectId,Vaccine,Timepoint,Tissue
     """.stripIndent()
 }
 
@@ -56,7 +63,7 @@ if (!params.input) {
     error "Please supply a samplesheet via --input. Run with --help for usage."
 }
 
-if (selectedWorkflow in ['full', 'ingest_export']) {
+if (selectedWorkflow in ['full', 'ingest_export', 'ingest_tabulate']) {
     if (!params.labkey_base_url || !params.labkey_folder) {
         error "Please supply --labkey_base_url and --labkey_folder for prime-seq downloads."
     }
@@ -73,6 +80,9 @@ workflow {
             break
         case 'ingest_export':
             INGEST_EXPORT_PIPELINE(params.input)
+            break
+        case 'ingest_tabulate':
+            INGEST_TABULATE_PIPELINE(params.input)
             break
         default:
             error "Unsupported workflow '${selectedWorkflow}'."

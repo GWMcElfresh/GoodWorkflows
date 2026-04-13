@@ -1,0 +1,11 @@
+barcode,cDNA_ID,SubjectId,Vaccine,Timepoint,Tissue,RIRA_Immune.cellclass,RIRA_TNK_v2.cellclass,RIRA_Myeloid_v3.cellclass
+bc1,SAMPLE_01,SUBJ_01,BCG,Week4,Lung-R,TNK,CD4 T,
+bc2,SAMPLE_01,SUBJ_01,BCG,Week4,Lung-R,TNK,CD8 T,
+bc3,SAMPLE_01,SUBJ_01,BCG,Week4,Lung-R,TNK,CD8 T,
+bc4,SAMPLE_01,SUBJ_01,BCG,Week4,Lung-R,Myeloid,,MacrophageM1
+bc5,SAMPLE_01,SUBJ_01,BCG,Week4,Lung-R,Myeloid,,Neutrophils
+bc6,SAMPLE_01,SUBJ_01,BCG,Week4,Lung-R,Myeloid,,Neutrophils
+bc7,SAMPLE_02,SUBJ_02,BCG,Week4,Lung-L,TNK,CD4 T,
+bc8,SAMPLE_02,SUBJ_02,BCG,Week4,Lung-L,TNK,NK,
+bc9,SAMPLE_02,SUBJ_02,BCG,Week4,Lung-L,Myeloid,,Alv_Mac
+bc10,SAMPLE_02,SUBJ_02,BCG,Week4,Lung-L,Myeloid,,Neutrophils

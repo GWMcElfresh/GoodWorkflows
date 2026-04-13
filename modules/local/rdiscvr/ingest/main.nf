@@ -19,10 +19,12 @@ process INGEST {
 
     output:
     tuple val(meta), path("${meta.id}.rds"), emit: rds
+    tuple val(meta), path("${meta.id}_metadata.csv"), emit: metadata
 
     stub:
     """
     touch "${meta.id}.rds"
+    touch "${meta.id}_metadata.csv"
     """
 
     script:
@@ -72,8 +74,16 @@ process INGEST {
     seurat_obj[["output_file_id"]] <- as.character(output_file_id)
 
     saveRDS(seurat_obj, file = out_path)
+    metadata_path <- paste0(sample_id, "_metadata.csv")
+    metadata_df <- seurat_obj@meta.data
+    metadata_df$sample_id <- sample_id
+    metadata_df$species <- species
+    metadata_df$output_file_id <- as.character(output_file_id)
+    utils::write.csv(metadata_df, file = metadata_path, row.names = TRUE)
+
     message("[INGEST] Cells loaded: ", ncol(seurat_obj))
     message("[INGEST] Genes loaded: ", nrow(seurat_obj))
     message("[INGEST] Saved Seurat object to: ", out_path)
+    message("[INGEST] Saved metadata table to: ", metadata_path)
     """
 }
