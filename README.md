@@ -26,6 +26,7 @@ A DSL2 **Nextflow** repository for composing reusable single-cell workflows from
 |---|---|
 | `full` | `INGEST -> EXPORT_COUNTS -> GENE_HARMONIZE -> SCMODAL_INTEGRATE` |
 | `ingest_export` | Download Seurat objects and export 10x-like counts only |
+| `ingest_tabulate` | Download metadata only and build `subjectIdTable.csv` |
 
 Select one with `--workflow`.
 
@@ -46,12 +47,21 @@ These can still be overridden on the CLI.
 
 ## Running locally
 
+By default, the pipeline now auto-detects the environment:
+
+- On macOS (or systems without SLURM), it uses the `local` executor.
+- On Linux hosts with SLURM available, it uses the `slurm` executor.
+
+So for local Mac testing, no profile flag is required:
+
 ```bash
-nextflow run main.nf -profile local \
+nextflow run main.nf \
   --workflow full \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Folder
 ```
+
+If needed, you can still force behavior explicitly with `-profile local` or `-profile slurm`.
 
 For a light structural check without running the heavy science stack:
 
@@ -89,6 +99,8 @@ sbatch slurm_nextflow.sh \
   --labkey_folder /My/Folder
 ```
 
+The pipeline will auto-select the `slurm` profile on Linux + SLURM nodes, so no explicit `-profile slurm` is required unless you want to force it.
+
 Optional: fast-forward the checkout immediately before launch:
 
 ```bash
@@ -118,7 +130,7 @@ So the implemented pattern is:
 
 GitHub Actions now validates the repository in two layers:
 
-1. **Workflow smoke tests** — runs `main.nf` with `-profile test -stub-run` for both `full` and `ingest_export`
+1. **Workflow smoke tests** — runs `main.nf` with `-profile test -stub-run` for `full`, `ingest_export`, and `ingest_tabulate`
 2. **Module smoke tests** — runs each module wrapper under `tests/modules/` so every module is exercised independently
 
 The `test` profile disables containers and uses the local executor so CI can validate DSL2 wiring quickly without requiring HPC infrastructure.

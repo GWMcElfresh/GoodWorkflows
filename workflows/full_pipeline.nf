@@ -22,7 +22,7 @@ def buildFullPipelineSamplesChannel(samplesheetPath) {
                 species: row.species.toString()
             ]
 
-            tuple(meta)
+            meta
         }
 }
 
@@ -31,6 +31,14 @@ workflow FULL_PIPELINE {
     samplesheet
 
     main:
+    def execName = (session?.config?.executor?.name ?: workflow.profile ?: 'local').toString()
+    if (execName == 'local') {
+        error """
+        The 'full' workflow requires a GPU (SCMODAL_INTEGRATE) and cannot run with the local executor.
+        Use --workflow ingest_tabulate or --workflow ingest_export for local/Mac testing.
+        Run with -profile slurm on HPC for the full pipeline.
+        """.stripIndent()
+    }
     ch_samples = buildFullPipelineSamplesChannel(samplesheet)
 
     INGEST(ch_samples)

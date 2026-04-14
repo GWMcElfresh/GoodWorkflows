@@ -82,7 +82,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        workflow: [ingest_export, full]
+        workflow: [ingest_export, ingest_tabulate, full]
 
     steps:
       - name: Checkout
@@ -127,7 +127,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [ingest, export_counts, gene_harmonize, scmodal_integrate]
+        module: [ingest, ingest_metadata, export_counts, gene_harmonize, scmodal_integrate]
 
     steps:
       - name: Checkout

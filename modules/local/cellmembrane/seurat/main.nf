@@ -57,10 +57,10 @@ process EXPORT_COUNTS {
 
     obs_meta <- seurat_obj[[]]
     obs_meta <- obs_meta[colnames(counts), , drop = FALSE]
-    obs_meta$sample_id <- sample_id
-    obs_meta$species <- sample_species
-    obs_meta$output_file_id <- output_file_id
-    obs_meta$barcode <- colnames(counts)
+    obs_meta\$sample_id <- sample_id
+    obs_meta\$species <- sample_species
+    obs_meta\$output_file_id <- output_file_id
+    obs_meta\$barcode <- colnames(counts)
 
     dir.create(out_dir, showWarnings = FALSE)
     Matrix::writeMM(counts, file = file.path(out_dir, "matrix.mtx"))

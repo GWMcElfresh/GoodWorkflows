@@ -15,7 +15,7 @@ process INGEST {
     publishDir "${params.outdir}/ingest/${meta.id}", mode: 'copy'
 
     input:
-    tuple val(meta)
+    val(meta)
 
     output:
     tuple val(meta), path("${meta.id}.rds"), emit: rds
@@ -42,7 +42,8 @@ process INGEST {
     species        <- "${meta.species}"
     labkey_base    <- Sys.getenv("LABKEY_BASE_URL", unset = "${params.labkey_base_url}")
     labkey_folder  <- Sys.getenv("LABKEY_FOLDER", unset = "${params.labkey_folder}")
-    netrc_path     <- file.path(Sys.getenv("HOME", unset = "/tmp"), ".netrc")
+    netrc_path     <- Sys.getenv("LABKEY_NETRC_FILE",
+                         unset = file.path(Sys.getenv("HOME", unset = "/root"), ".netrc"))
 
     message("[INGEST] Processing sample: ", sample_id)
     message("[INGEST] output_file_id   : ", output_file_id)
@@ -76,9 +77,9 @@ process INGEST {
     saveRDS(seurat_obj, file = out_path)
     metadata_path <- paste0(sample_id, "_metadata.csv")
     metadata_df <- seurat_obj@meta.data
-    metadata_df$sample_id <- sample_id
-    metadata_df$species <- species
-    metadata_df$output_file_id <- as.character(output_file_id)
+    metadata_df\$sample_id <- sample_id
+    metadata_df\$species <- species
+    metadata_df\$output_file_id <- as.character(output_file_id)
     utils::write.csv(metadata_df, file = metadata_path, row.names = TRUE)
 
     message("[INGEST] Cells loaded: ", ncol(seurat_obj))

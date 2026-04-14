@@ -13,10 +13,10 @@
  * cells whose RIRA_Immune.cellclass == "TNK").
  *
  * For every cell-type column the module produces:
- *   - Fraction__<level>   : proportion of cells in that group relative to the
+ *   - Fraction_<level>    : proportion of cells in that group relative to the
  *                           denominator (parent-filtered total for child cols,
  *                           global total for RIRA_Immune.cellclass)
- *   - Count__<level>      : raw barcode count
+ *   - Count_<level>       : raw barcode count
  *   - Total_<col>_Cells   : total denominator for that column (per cDNA_ID)
  *
  * Additionally, because a single cDNA_ID may appear in several cohort files
@@ -54,13 +54,13 @@ process TABULATE {
     #!/usr/bin/env Rscript
     options(warn = 2)
 
-    suppressPackageStartupMessages({
+    suppressWarnings(suppressPackageStartupMessages({
         library(dplyr)
         library(tidyr)
         library(purrr)
         library(stringr)
         library(readr)
-    })
+    }))
 
     # ---------------------------------------------------------------------------
     # Helpers
@@ -102,6 +102,14 @@ process TABULATE {
         ifelse(nzchar(x), x, 'NA')
     }
 
+    normalize_immune_class <- function(x) {
+        x <- as.character(x)
+        dplyr::case_when(
+            x == 'T_NK' ~ 'TNK',
+            TRUE ~ x
+        )
+    }
+
     # ---------------------------------------------------------------------------
     # Read and bind all staged per-sample metadata CSVs.
     # The first column written by write.csv(..., row.names=TRUE) is the barcode.
@@ -116,13 +124,31 @@ process TABULATE {
     for (p in metadata_paths) message('  ', p)
 
     read_meta <- function(path) {
-        df <- readr::read_csv(path, show_col_types = FALSE)
+        # vroom emits a vroom_parse_issue warning for ambiguous column types
+        # (common in wide single-cell metadata CSVs).  Muffle that specific
+        # warning class so it does not get converted to an error by warn=2.
+        df <- withCallingHandlers(
+            readr::read_csv(path, show_col_types = FALSE),
+            vroom_parse_issue = function(w) {
+                message('[TABULATE] Parse note in ', basename(path), ': ', conditionMessage(w))
+                invokeRestart('muffleWarning')
+            }
+        )
         # If the CSV was written with row.names=TRUE the first col is barcodes but
         # has no header; readr names it '...1'.  Normalise to 'barcode'.
         if ('...1' %in% colnames(df)) {
             df <- dplyr::rename(df, barcode = `...1`)
+        } else if ('cellbarcode' %in% colnames(df) && !'barcode' %in% colnames(df)) {
+            df <- dplyr::rename(df, barcode = cellbarcode)
         } else if (!'barcode' %in% colnames(df)) {
             df[['barcode']] <- paste0('bc', seq_len(nrow(df)))
+        }
+        if ('RIRA_Immune_v2.cellclass' %in% colnames(df) &&
+            !'RIRA_Immune.cellclass' %in% colnames(df)) {
+            df[['RIRA_Immune.cellclass']] <- df[['RIRA_Immune_v2.cellclass']]
+        }
+        if ('RIRA_Immune.cellclass' %in% colnames(df)) {
+            df[['RIRA_Immune.cellclass']] <- normalize_immune_class(df[['RIRA_Immune.cellclass']])
         }
         # Tag the source file so we can compute per-cohort totals later.
         df[['source_file']] <- basename(path)
@@ -163,6 +189,15 @@ process TABULATE {
     all_cols_present <- purrr::reduce(purrr::map(raw_list, colnames), intersect)
 
     combined_df <- dplyr::bind_rows(raw_list)
+
+    missing_id_cols <- setdiff(id_cols, colnames(combined_df))
+    if (length(missing_id_cols) > 0) {
+        message('[TABULATE] Skipping missing id columns: ', paste(missing_id_cols, collapse = ', '))
+        id_cols <- intersect(id_cols, colnames(combined_df))
+    }
+    if (!'cDNA_ID' %in% id_cols) {
+        stop('Metadata is missing required cDNA_ID column.')
+    }
 
     # Fill id_cols within each cDNA_ID (they should be constant, but sparse in
     # some CSVs depending on how metadata was written).
@@ -209,8 +244,8 @@ process TABULATE {
     # Core tabulation function
     #
     # Returns a wide data frame keyed on id_cols with columns:
-    #   Fraction__<level>   fraction of cells (relative to denominator)
-    #   Count__<level>      raw barcode count
+    #   Fraction_<level>    fraction of cells (relative to denominator)
+    #   Count_<level>       raw barcode count
     #   Total_<colTag>_Cells total denominator (per cDNA_ID)
     # ---------------------------------------------------------------------------
 
@@ -251,7 +286,7 @@ process TABULATE {
         observed_levels <- sort(unique(as.character(work_df[[celltype_col]])))
 
         completed <- tidyr::crossing(id_frame,
-                                     setNames(list(observed_levels), celltype_col)) %>%
+                         !!!stats::setNames(list(observed_levels), celltype_col)) %>%
             left_join(counts, by = c(id_cols, celltype_col)) %>%
             left_join(totals, by = id_cols) %>%
             mutate(
@@ -273,7 +308,7 @@ process TABULATE {
                 names_from   = level_safe,
                 values_from  = Fraction,
                 values_fill  = 0,
-                names_prefix = paste0(col_tag, '__Fraction__')
+                names_prefix = paste0(col_tag, '_Fraction_')
             )
 
         wide_count <- completed %>%
@@ -282,7 +317,7 @@ process TABULATE {
                 names_from   = level_safe,
                 values_from  = count,
                 values_fill  = 0L,
-                names_prefix = paste0(col_tag, '__Count__')
+                names_prefix = paste0(col_tag, '_Count_')
             )
 
         wide_total <- totals   # already keyed on id_cols

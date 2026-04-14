@@ -1,6 +1,6 @@
 nextflow.enable.dsl = 2
 
-include { INGEST } from '../modules/local/rdiscvr/ingest/main.nf'
+include { INGEST_METADATA } from '../modules/local/rdiscvr/ingest_metadata/main.nf'
 include { TABULATE } from '../modules/local/rdiscvr/tabulate/main.nf'
 
 def buildIngestTabulateSamplesChannel(samplesheetPath) {
@@ -20,7 +20,7 @@ def buildIngestTabulateSamplesChannel(samplesheetPath) {
                 species: row.species.toString()
             ]
 
-            tuple(meta)
+            meta
         }
 }
 
@@ -31,9 +31,9 @@ workflow INGEST_TABULATE_PIPELINE {
     main:
     ch_samples = buildIngestTabulateSamplesChannel(samplesheet)
 
-    INGEST(ch_samples)
+    INGEST_METADATA(ch_samples)
 
-    ch_metadata_csvs = INGEST.out.metadata
+    ch_metadata_csvs = INGEST_METADATA.out.metadata
         .map { _meta, metadata_csv -> metadata_csv }
         .collect()
 
@@ -46,7 +46,6 @@ workflow INGEST_TABULATE_PIPELINE {
     )
 
     emit:
-    rds = INGEST.out.rds
-    metadata = INGEST.out.metadata
+    metadata = INGEST_METADATA.out.metadata
     subject_table = TABULATE.out.subject_table
 }

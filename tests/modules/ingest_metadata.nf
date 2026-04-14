@@ -1,6 +1,6 @@
 nextflow.enable.dsl = 2
 
-include { INGEST } from '../../modules/local/rdiscvr/ingest/main.nf'
+include { INGEST_METADATA } from '../../modules/local/rdiscvr/ingest_metadata/main.nf'
 
 workflow {
     def meta = [
@@ -9,5 +9,5 @@ workflow {
         species: 'human'
     ]
 
-    INGEST(Channel.of(meta))
+    INGEST_METADATA(Channel.of(meta))
 }

@@ -22,7 +22,7 @@ def helpMessage() {
     Saved workflows:
       --workflow full           Full pipeline: ingest -> export -> harmonize -> scMODAL
       --workflow ingest_export  Fetch Seurat RDS and export 10x-like counts only
-            --workflow ingest_tabulate  Fetch Seurat RDS + metadata and build subjectIdTable
+            --workflow ingest_tabulate  Fetch metadata only and build subjectIdTable
 
     Defaults:
       --input FILE              Samplesheet CSV   [default: ${params.input}]

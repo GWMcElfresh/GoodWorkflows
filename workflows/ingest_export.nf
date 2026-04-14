@@ -20,7 +20,7 @@ def buildIngestExportSamplesChannel(samplesheetPath) {
                 species: row.species.toString()
             ]
 
-            tuple(meta)
+            meta
         }
 }
 
