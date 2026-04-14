@@ -33,11 +33,21 @@ workflow FULL_PIPELINE {
     main:
     def execName = (session?.config?.executor?.name ?: workflow.profile ?: 'local').toString()
     if (execName == 'local') {
-        error """
-        The 'full' workflow requires a GPU (SCMODAL_INTEGRATE) and cannot run with the local executor.
-        Use --workflow ingest_tabulate or --workflow ingest_export for local/Mac testing.
-        Run with -profile slurm on HPC for the full pipeline.
-        """.stripIndent()
+        if (!params.scmodal_use_cpu) {
+            error """
+            The 'full' workflow requires a GPU (SCMODAL_INTEGRATE) and cannot run with the local executor.
+            Use --workflow ingest_tabulate or --workflow ingest_export for local/Mac testing.
+            Run with -profile slurm on HPC for the full pipeline.
+            To run smoke tests without GPU (CI only), pass --scmodal_use_cpu true.
+            """.stripIndent()
+        }
+        if (!System.getenv('GITHUB_ACTIONS')) {
+            log.warn """
+            WARNING: --scmodal_use_cpu is true but GITHUB_ACTIONS env is not set.
+            This flag is intended for GitHub Actions CI smoke tests only.
+            SCMODAL_INTEGRATE will run its stub block; outputs have no scientific validity.
+            """.stripIndent()
+        }
     }
     ch_samples = buildFullPipelineSamplesChannel(samplesheet)
 

@@ -2,6 +2,9 @@
 
 A DSL2 **Nextflow** repository for composing reusable single-cell workflows from small modules and running them on **SLURM + Podman** HPC systems.
 
+📖 **[Full documentation →](https://gwmcelfresh.github.io/GoodWorkflows/)**  
+Parameters: [`nextflow_schema.json`](nextflow_schema.json) | Docs source: [`docs/`](docs/)
+
 ---
 
 ## Repository layout
@@ -128,14 +131,16 @@ So the implemented pattern is:
 
 ## CI testing strategy
 
-GitHub Actions now validates the repository in two layers:
+GitHub Actions validates the repository in two layers:
 
-1. **Workflow smoke tests** — runs `main.nf` with `-profile test -stub-run` for `full`, `ingest_export`, and `ingest_tabulate`
-2. **Module smoke tests** — runs each module wrapper under `tests/modules/` so every module is exercised independently
+1. **Workflow smoke tests** — runs `main.nf` with `-profile test -stub-run` for `full`, `ingest_export`, and `ingest_tabulate`. The `full` workflow smoke test additionally passes `--scmodal_use_cpu true` to bypass the local-executor GPU guard; `SCMODAL_INTEGRATE` runs its stub block, which validates DSL2 wiring without requiring a GPU.
+2. **Module smoke tests** — runs each module wrapper under `tests/modules/` so every module is exercised independently.
 
 The `test` profile disables containers and uses the local executor so CI can validate DSL2 wiring quickly without requiring HPC infrastructure.
 
 For container-dependent validation, the repo also includes `scripts/ci/cache_container_images.sh`, which can pre-pull and cache the module images into `.ci/docker-cache/` during GitHub Actions runs.
+
+3. **Docs deploy** — on every push to `main` that touches `docs/`, `mkdocs.yml`, or `nextflow_schema.json`, the docs site is rebuilt and deployed to GitHub Pages.
 
 ## License
 

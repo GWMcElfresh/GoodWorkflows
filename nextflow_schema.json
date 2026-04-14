@@ -1,0 +1,165 @@
+{
+    "$schema": "http://json-schema.org/draft-07/schema",
+    "$id": "https://raw.githubusercontent.com/GWMcElfresh/GoodWorkflows/main/nextflow_schema.json",
+    "title": "GoodWorkflows pipeline parameters",
+    "description": "DSL2 Nextflow pipeline for composing reusable single-cell RNA-seq workflows on SLURM + Podman HPC systems.",
+    "type": "object",
+    "definitions": {
+        "input_output_options": {
+            "title": "Input / output options",
+            "type": "object",
+            "description": "Define where the pipeline should find input and where to store output.",
+            "properties": {
+                "workflow": {
+                    "type": "string",
+                    "default": "full",
+                    "description": "Named workflow to execute.",
+                    "enum": ["full", "ingest_export", "ingest_tabulate"],
+                    "help_text": "Select one of the three saved workflows. 'full' requires GPU/SLURM. 'ingest_export' and 'ingest_tabulate' run locally."
+                },
+                "input": {
+                    "type": "string",
+                    "description": "Path to the samplesheet CSV file. Must contain columns sample_id, output_file_id, and species.",
+                    "default": "${projectDir}/data/samplesheet.csv",
+                    "format": "file-path",
+                    "pattern": "^\\S+\\.csv$"
+                },
+                "outdir": {
+                    "type": "string",
+                    "description": "Directory where published results are written.",
+                    "default": "${projectDir}/outputs",
+                    "format": "directory-path"
+                }
+            }
+        },
+        "labkey_options": {
+            "title": "LabKey / Prime-seq options",
+            "type": "object",
+            "description": "Connection details for the LabKey / Prime-seq server that hosts Seurat objects and cell metadata.",
+            "required": ["labkey_base_url", "labkey_folder"],
+            "properties": {
+                "labkey_base_url": {
+                    "type": "string",
+                    "description": "Base URL of the LabKey server (e.g. https://labkey.example.org)."
+                },
+                "labkey_folder": {
+                    "type": "string",
+                    "description": "LabKey folder path (e.g. /My/Project/Folder)."
+                }
+            }
+        },
+        "species_options": {
+            "title": "Species options",
+            "type": "object",
+            "description": "Control how multi-species data are ordered and harmonized.",
+            "properties": {
+                "species_order": {
+                    "type": "string",
+                    "default": "human,macaque,mouse",
+                    "description": "Comma-separated list of species. Controls the order used during cross-species harmonization and scMODAL integration.",
+                    "help_text": "Each entry must match the 'species' column values in the samplesheet. Only species present in both the samplesheet and this list are integrated."
+                },
+                "export_assay": {
+                    "type": "string",
+                    "default": "RNA",
+                    "description": "Seurat assay name to export as 10x-like count matrix in EXPORT_COUNTS."
+                }
+            }
+        },
+        "tabulation_options": {
+            "title": "Tabulation options",
+            "type": "object",
+            "description": "Controls how cell-level metadata is aggregated into the subject-level summary table.",
+            "properties": {
+                "tabulate_id_cols": {
+                    "type": "string",
+                    "default": "cDNA_ID,SubjectId,Vaccine,Timepoint,Tissue",
+                    "description": "Comma-separated list of subject-level identity columns to carry through to subjectIdTable.csv. cDNA_ID is always included."
+                },
+                "tabulate_celltype_cols": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Extra cell-type columns to tabulate in addition to the standard RIRA columns (RIRA_Immune.cellclass, RIRA_TNK_v2.cellclass, RIRA_Myeloid_v3.cellclass), which are always processed when present."
+                },
+                "tabulate_parent_col": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Parent column used to subset child cell-type columns. Defaults to RIRA_Immune.cellclass when empty."
+                },
+                "tabulate_celltype_parent_map": {
+                    "type": "string",
+                    "default": "",
+                    "description": "Comma-separated celltype_col:parentValue pairs that extend or override the built-in hierarchy (e.g. RIRA_TNK_v2.cellclass:TNK,RIRA_Myeloid_v3.cellclass:Myeloid)."
+                }
+            }
+        },
+        "scmodal_options": {
+            "title": "scMODAL integration options",
+            "type": "object",
+            "description": "Hyperparameters for the SCMODAL_INTEGRATE step of the full pipeline. Only relevant when --workflow full.",
+            "properties": {
+                "scmodal_container": {
+                    "type": "string",
+                    "default": "ghcr.io/gwmcelfresh/scmodal-cuda:latest",
+                    "description": "Container image used for GENE_HARMONIZE and SCMODAL_INTEGRATE. Must include scmodal, torch, scanpy, and anndata."
+                },
+                "scmodal_latent": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 2,
+                    "description": "Dimensionality of the latent embedding produced by scMODAL."
+                },
+                "scmodal_training_steps": {
+                    "type": "integer",
+                    "default": 10000,
+                    "minimum": 1,
+                    "description": "Number of training steps for the scMODAL VAE."
+                },
+                "scmodal_batch_size": {
+                    "type": "integer",
+                    "default": 500,
+                    "minimum": 1,
+                    "description": "Mini-batch size during scMODAL training."
+                },
+                "scmodal_neighbors": {
+                    "type": "integer",
+                    "default": 30,
+                    "minimum": 2,
+                    "description": "Number of nearest neighbours used when building the KNN graph after integration."
+                },
+                "leiden_resolution": {
+                    "type": "number",
+                    "default": 0.5,
+                    "minimum": 0.01,
+                    "description": "Leiden clustering resolution applied to the scMODAL latent graph."
+                },
+                "scmodal_use_cpu": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "CI-only flag. Bypasses the local-executor GPU guard and runs SCMODAL_INTEGRATE as a stub. Intended for GitHub Actions smoke tests only. Produces no scientifically valid output.",
+                    "hidden": true
+                }
+            }
+        },
+        "generic_options": {
+            "title": "Generic options",
+            "type": "object",
+            "properties": {
+                "help": {
+                    "type": "boolean",
+                    "default": false,
+                    "description": "Display help text and exit.",
+                    "hidden": true
+                }
+            }
+        }
+    },
+    "allOf": [
+        {"$ref": "#/definitions/input_output_options"},
+        {"$ref": "#/definitions/labkey_options"},
+        {"$ref": "#/definitions/species_options"},
+        {"$ref": "#/definitions/tabulation_options"},
+        {"$ref": "#/definitions/scmodal_options"},
+        {"$ref": "#/definitions/generic_options"}
+    ]
+}

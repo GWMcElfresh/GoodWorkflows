@@ -3,6 +3,7 @@ set -euo pipefail
 
 TEST_KIND="${1:-}"
 TEST_NAME="${2:-}"
+EXTRA_PIPELINE_ARGS=("${@:3}")
 
 if [[ -z "${TEST_KIND}" || -z "${TEST_NAME}" ]]; then
     echo "Usage: $0 <workflow|module> <name>"
@@ -36,7 +37,7 @@ run_nextflow() {
 
 case "${TEST_KIND}" in
     workflow)
-        run_nextflow "${PROJECT_DIR}/main.nf" --workflow "${TEST_NAME}"
+        run_nextflow "${PROJECT_DIR}/main.nf" --workflow "${TEST_NAME}" "${EXTRA_PIPELINE_ARGS[@]}"
         case "${TEST_NAME}" in
             ingest_export)
                 test -f "${TEST_ROOT}/outputs/ingest/SAMPLE_01/SAMPLE_01.rds"

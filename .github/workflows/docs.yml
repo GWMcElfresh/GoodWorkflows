@@ -1,0 +1,49 @@
+name: Deploy docs
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "docs/**"
+      - "mkdocs.yml"
+      - "nextflow_schema.json"
+      - "README.md"
+  workflow_dispatch:
+
+permissions:
+  contents: write   # mkdocs gh-deploy pushes to gh-pages branch
+
+concurrency:
+  group: docs-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy-docs:
+    name: Build and deploy docs site
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Cache pip dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: docs-pip-${{ runner.os }}-${{ hashFiles('mkdocs.yml') }}
+          restore-keys: |
+            docs-pip-${{ runner.os }}-
+
+      - name: Install MkDocs and plugins
+        run: |
+          pip install \
+            mkdocs-material \
+            pymdown-extensions
+
+      - name: Build and deploy docs
+        run: mkdocs gh-deploy --force --clean
