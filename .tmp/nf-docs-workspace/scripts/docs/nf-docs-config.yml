@@ -1,0 +1,10 @@
+# Keep these exclusions here for future nf-docs releases.
+# The current wrapper script stages a filtered workspace because nf-docs v0.2.1
+# still scans every .nf file before applying these patterns.
+exclude_patterns:
+  - "tests/**/*.nf"
+  - "test-results/**/*.nf"
+  - "work/**/*.nf"
+
+include_hidden_params: false
+strip_readme_badges: true

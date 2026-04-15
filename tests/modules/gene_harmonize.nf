@@ -1,9 +1,10 @@
 nextflow.enable.dsl = 2
 
+include { GENERATE_SYNTHETIC_COUNTS } from './helpers/synthetic_fixtures.nf'
 include { GENE_HARMONIZE } from '../../modules/local/gene_harmonize/main.nf'
 
 workflow {
-    def countDir = file("${baseDir}/../fixtures/sample_counts", checkIfExists: true)
+    GENERATE_SYNTHETIC_COUNTS()
 
-    GENE_HARMONIZE(Channel.of(countDir))
+    GENE_HARMONIZE(GENERATE_SYNTHETIC_COUNTS.out.counts_dir)
 }

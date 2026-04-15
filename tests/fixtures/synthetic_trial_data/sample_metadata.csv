@@ -1,0 +1,93 @@
+"barcode","cDNA_ID","SubjectId","Group","Challenge","Timepoint","Tissue","RCaudalPathScoreLongTerm","Vaccine","CFU_Tissue","TB_Study","species","RIRA_Immune.cellclass","RIRA_TNK_v2.cellclass","RIRA_Myeloid_v3.cellclass","TNK_Type","TandNK_ActivationCore_UCell"
+"bc01_001","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","B cell","","",NA,0.132
+"bc01_002","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","TNK","CD4+ T Cells","","Alpha/Beta",0.648
+"bc01_003","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","TNK","CD8+ T Cells","","Alpha/Beta",0.296
+"bc01_004","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","Myeloid","","MacrophageM1",NA,0.256
+"bc01_005","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","TNK","NK","","Alpha/Beta",0.141
+"bc01_006","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","TNK","CD4+ T Cells","","Alpha/Beta",0.091
+"bc01_007","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","TNK","CD4+ T Cells","","Alpha/Beta",0.409
+"bc01_008","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","Myeloid","","Alv. mac.",NA,0.293
+"bc01_009","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","TNK","CD8+ T Cells","","Alpha/Beta",0.924
+"bc01_010","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","TNK","CD8+ T Cells","","Alpha/Beta",0.835
+"bc01_011","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","TNK","CD4+ T Cells","","Gamma/Delta",0.928
+"bc01_012","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","B cell","","",NA,0.47
+"bc01_013","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","Myeloid","","Alv. mac.",NA,0.655
+"bc01_014","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","TNK","CD4+ T Cells","","Alpha/Beta",0.704
+"bc01_015","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","Myeloid","","Alv. mac.",NA,0.663
+"bc01_016","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","TNK","CD8+ T Cells","","Gamma/Delta",0.865
+"bc01_017","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","Myeloid","","Neutrophils",NA,0.72
+"bc01_018","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","TNK","CD8+ T Cells","","Alpha/Beta",0.642
+"bc01_019","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","B cell","","",NA,0.477
+"bc01_020","SAMPLE_01","SUBJ_01","BCG","Mtb","Day 7","Lung-R",1.1,"BCG (adult)",2.2,"Synthetic Trial A","human","TNK","CD4+ T Cells","","Alpha/Beta",0.17
+"bc02_001","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","B cell","","",NA,0.686
+"bc02_002","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","Myeloid","","MacrophageM1",NA,0.838
+"bc02_003","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","TNK","CD4+ T Cells","","Gamma/Delta",0.562
+"bc02_004","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","Myeloid","","Neutrophils",NA,0.793
+"bc02_005","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","B cell","","",NA,0.911
+"bc02_006","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","Myeloid","","MacrophageM1",NA,0.481
+"bc02_007","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","Myeloid","","MacrophageM1",NA,0.317
+"bc02_008","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","TNK","CD8+ T Cells","","Alpha/Beta",0.654
+"bc02_009","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","TNK","CD8+ T Cells","","Gamma/Delta",0.654
+"bc02_010","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","Myeloid","","Myelocytes",NA,0.731
+"bc02_011","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","TNK","CD4+ T Cells","","Alpha/Beta",0.526
+"bc02_012","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","Myeloid","","Myelocytes",NA,0.615
+"bc02_013","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","Myeloid","","Alv. mac.",NA,0.182
+"bc02_014","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","Myeloid","","Myelocytes",NA,0.621
+"bc02_015","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","Myeloid","","Alv. mac.",NA,0.776
+"bc02_016","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","TNK","NK","","Gamma/Delta",0.372
+"bc02_017","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","TNK","CD8+ T Cells","","Alpha/Beta",0.894
+"bc02_018","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","TNK","NK","","Alpha/Beta",0.742
+"bc02_019","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","Myeloid","","Myelocytes",NA,0.401
+"bc02_020","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","B cell","","",NA,0.129
+"bc02_021","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","Myeloid","","Neutrophils",NA,0.08
+"bc02_022","SAMPLE_02","SUBJ_02","BCG","Mtb","Day 28","Lung-L",0.7,"IV-BCG",1.8,"Synthetic Trial A","human","TNK","NK","","Alpha/Beta",0.479
+"bc03_001","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","TNK","NK","","Alpha/Beta",0.275
+"bc03_002","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","TNK","CD8+ T Cells","","Alpha/Beta",0.437
+"bc03_003","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","TNK","NK","","Gamma/Delta",0.156
+"bc03_004","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","TNK","CD8+ T Cells","","Gamma/Delta",0.338
+"bc03_005","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","Myeloid","","Neutrophils",NA,0.073
+"bc03_006","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","TNK","CD8+ T Cells","","Gamma/Delta",0.382
+"bc03_007","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","B cell","","",NA,0.768
+"bc03_008","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","B cell","","",NA,0.892
+"bc03_009","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","Myeloid","","Neutrophils",NA,0.452
+"bc03_010","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","TNK","NK","","Alpha/Beta",0.433
+"bc03_011","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","Myeloid","","MacrophageM1",NA,0.904
+"bc03_012","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","Myeloid","","Neutrophils",NA,0.401
+"bc03_013","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","TNK","NK","","Alpha/Beta",0.551
+"bc03_014","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","Myeloid","","Promyelocytes",NA,0.692
+"bc03_015","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","TNK","CD4+ T Cells","","Alpha/Beta",0.646
+"bc03_016","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","Myeloid","","Neutrophils",NA,0.716
+"bc03_017","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","Myeloid","","Alv. mac.",NA,0.798
+"bc03_018","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","TNK","CD8+ T Cells","","Alpha/Beta",0.122
+"bc03_019","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","B cell","","",NA,0.359
+"bc03_020","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","Myeloid","","Alv. mac.",NA,0.641
+"bc03_021","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","TNK","CD4+ T Cells","","Alpha/Beta",0.706
+"bc03_022","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","B cell","","",NA,0.453
+"bc03_023","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","TNK","CD4+ T Cells","","Alpha/Beta",0.855
+"bc03_024","SAMPLE_03","SUBJ_03","RhCMV","Mtb","Day 7","BAL",0.5,"RhCMV-TB/6Ag",0.6,"Synthetic Trial B","macaque","B cell","","",NA,0.053
+"bc04_001","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","B cell","","",NA,0.145
+"bc04_002","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","TNK","CD4+ T Cells","","Alpha/Beta",0.493
+"bc04_003","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","Myeloid","","Alv. mac.",NA,0.055
+"bc04_004","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","Myeloid","","Promyelocytes",NA,0.278
+"bc04_005","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","TNK","CD8+ T Cells","","Alpha/Beta",0.617
+"bc04_006","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","B cell","","",NA,0.514
+"bc04_007","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","B cell","","",NA,0.937
+"bc04_008","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","TNK","CD4+ T Cells","","Alpha/Beta",0.361
+"bc04_009","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","Myeloid","","Neutrophils",NA,0.093
+"bc04_010","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","TNK","CD8+ T Cells","","Alpha/Beta",0.865
+"bc04_011","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","TNK","NK","","Alpha/Beta",0.783
+"bc04_012","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","B cell","","",NA,0.597
+"bc04_013","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","TNK","CD8+ T Cells","","Alpha/Beta",0.414
+"bc04_014","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","Myeloid","","Promyelocytes",NA,0.688
+"bc04_015","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","TNK","CD4+ T Cells","","Alpha/Beta",0.757
+"bc04_016","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","B cell","","",NA,0.807
+"bc04_017","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","TNK","CD4+ T Cells","","Alpha/Beta",0.188
+"bc04_018","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","TNK","CD8+ T Cells","","Alpha/Beta",0.443
+"bc04_019","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","B cell","","",NA,0.055
+"bc04_020","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","B cell","","",NA,0.343
+"bc04_021","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","TNK","CD8+ T Cells","","Alpha/Beta",0.67
+"bc04_022","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","TNK","CD8+ T Cells","","Gamma/Delta",0.729
+"bc04_023","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","Myeloid","","Alv. mac.",NA,0.867
+"bc04_024","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","TNK","CD8+ T Cells","","Alpha/Beta",0.493
+"bc04_025","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","TNK","NK","","Alpha/Beta",0.567
+"bc04_026","SAMPLE_04","SUBJ_04","Control","Mtb","Mock","Lung-R",2.8,"Unvaccinated",4.1,"Synthetic Trial B","macaque","TNK","CD4+ T Cells","","Alpha/Beta",0.739

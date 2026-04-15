@@ -1,5 +1,6 @@
 nextflow.enable.dsl = 2
 
+include { GENERATE_SYNTHETIC_RDS } from './helpers/synthetic_fixtures.nf'
 include { EXPORT_COUNTS } from '../../modules/local/cellmembrane/seurat/main.nf'
 
 workflow {
@@ -8,7 +9,12 @@ workflow {
         output_file_id: '100001',
         species: 'human'
     ]
-    def dummyRds = file("${baseDir}/../fixtures/sample.rds", checkIfExists: true)
 
-    EXPORT_COUNTS(Channel.of(tuple(meta, dummyRds)))
+    GENERATE_SYNTHETIC_RDS()
+
+    ch_input = GENERATE_SYNTHETIC_RDS.out.rds.map { syntheticRds ->
+        tuple(meta, syntheticRds)
+    }
+
+    EXPORT_COUNTS(ch_input)
 }
