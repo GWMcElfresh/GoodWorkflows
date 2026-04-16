@@ -10,4 +10,7 @@ data/user/
 *-main/
 *-master/
 testing_space/
+testing_space/*
 example*md
+workspace/
+
