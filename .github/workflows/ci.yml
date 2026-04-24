@@ -44,6 +44,7 @@ jobs:
           shellcheck -S warning \
             slurm_nextflow.sh \
             slurm_sync_repo.sh \
+            template/run.sh \
             scripts/*.sh \
             scripts/ci/*.sh
 
@@ -82,7 +83,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        workflow: [ingest_export, ingest_tabulate, full]
+        workflow: [ingest_export, ingest_tabulate, integration]
 
     steps:
       - name: Checkout
@@ -112,7 +113,7 @@ jobs:
 
       - name: Run workflow smoke test
         run: |
-          if [[ "${{ matrix.workflow }}" == "full" ]]; then
+          if [[ "${{ matrix.workflow }}" == "integration" ]]; then
             bash scripts/ci/run_nextflow_smoke_tests.sh workflow ${{ matrix.workflow }} --scmodal_use_cpu true
           else
             bash scripts/ci/run_nextflow_smoke_tests.sh workflow ${{ matrix.workflow }}
