@@ -55,7 +55,14 @@ export NXF_HOME="${NXF_HOME:-/gscratch/CHANGEME/.nextflow}"
 # Override by setting PIPELINE_ROOT in the environment before calling sbatch.
 
 if [[ -z "${PIPELINE_ROOT:-}" ]]; then
-    _search_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    # Under SLURM, BASH_SOURCE[0] may point to the spool copy of the script,
+    # not the original path. SLURM_SUBMIT_DIR is always the directory sbatch
+    # was invoked from, which is the reliable starting point.
+    if [[ -n "${SLURM_JOB_ID:-}" && -n "${SLURM_SUBMIT_DIR:-}" ]]; then
+        _search_dir="${SLURM_SUBMIT_DIR}"
+    else
+        _search_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    fi
     _found=""
     for _i in 1 2 3 4 5; do
         if [[ -f "${_search_dir}/main.nf" ]]; then
