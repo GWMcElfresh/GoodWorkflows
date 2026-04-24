@@ -20,8 +20,8 @@ set -euo pipefail
 LOG_DIR="${PWD}/logs"
 mkdir -p "$LOG_DIR"
 
-SYNC_SCRIPT="${SYNC_SCRIPT:-$(cd "$(dirname "$0")" && pwd)/scripts/sync_repo.sh}"
-TARGET_DIR="${SYNC_TARGET_DIR:-$PWD}"
+SYNC_SCRIPT="${SYNC_SCRIPT:-${SLURM_SUBMIT_DIR}/scripts/sync_repo.sh}"
+TARGET_DIR="${SYNC_TARGET_DIR:-$SLURM_SUBMIT_DIR}"
 
 if ! command -v git >/dev/null 2>&1; then
     echo "ERROR: git is required for repository sync but is not available in PATH."
