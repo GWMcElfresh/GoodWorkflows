@@ -3,13 +3,12 @@
 #
 # Usage:
 #   sbatch slurm_nextflow.sh
-#   sbatch slurm_nextflow.sh --workflow ingest_export
+#   sbatch slurm_nextflow.sh --workflow integration
 #   sbatch --export=ALL,NXF_WORK=/gscratch/lab/work slurm_nextflow.sh
 #   sbatch --export=ALL,SYNC_REPO_BEFORE_RUN=true slurm_nextflow.sh
 #
-# Recommended HPC pattern:
-#   1) sync the checkout with: sbatch slurm_sync_repo.sh
-#   2) launch the pipeline with this script
+# Tip: this script can be submitted from any working directory because
+# PIPELINE_ROOT is resolved from the script file's own location.
 
 #SBATCH --job-name=nf-orchestrator
 #SBATCH --ntasks=1
@@ -23,6 +22,10 @@
 
 set -euo pipefail
 
+# Resolve pipeline root from this script's own location so the script can be
+# submitted from any working directory (e.g. runs/my_run/).
+PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
+
 NEXTFLOW_BIN="${NEXTFLOW_BIN:-/gscratch/CHANGEME/nextflow}"
 export NXF_HOME="${NXF_HOME:-/gscratch/CHANGEME/.nextflow}"
 
@@ -30,7 +33,7 @@ LOG_DIR="${PWD}/logs"
 mkdir -p "${LOG_DIR}"
 
 NXF_WORK_DISPLAY="${NXF_WORK:-${PWD}/work}"
-SYNC_SCRIPT_PATH="${SYNC_SCRIPT:-${PWD}/scripts/sync_repo.sh}"
+SYNC_SCRIPT_PATH="${SYNC_SCRIPT:-${PIPELINE_ROOT}/scripts/sync_repo.sh}"
 
 echo "=========================================="
 echo " GoodWorkflows Nextflow Orchestrator"
@@ -38,6 +41,7 @@ echo "=========================================="
 echo " SLURM_JOB_ID   : ${SLURM_JOB_ID:-local}"
 echo " SLURM_NODELIST : ${SLURM_NODELIST:-local}"
 echo " Working dir    : ${PWD}"
+echo " Pipeline root  : ${PIPELINE_ROOT}"
 echo " Nextflow bin   : ${NEXTFLOW_BIN}"
 echo " NXF_HOME       : ${NXF_HOME}"
 echo " NXF_WORK       : ${NXF_WORK_DISPLAY}"
@@ -63,7 +67,7 @@ fi
 declare -a NF_ARGS
 NF_ARGS=(
     -log "${LOG_DIR}/nextflow.log"
-    run main.nf
+    run "${PIPELINE_ROOT}/main.nf"
     -profile slurm
     -resume
     -ansi-log false

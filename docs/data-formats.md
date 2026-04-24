@@ -37,7 +37,7 @@ SAMPLE_03,12347,mouse
 ### INGEST — Seurat RDS
 
 **File:** `outputs/ingest/{sample_id}/{sample_id}.rds`  
-**Produced by:** [`ingest_export`](workflows/ingest-export.md), [`full`](workflows/full-pipeline.md)
+**Produced by:** [`ingest_export`](workflows/ingest-export.md), [`integration`](workflows/integration-pipeline.md)
 
 A Seurat v5 RDS object containing:
 
@@ -80,7 +80,7 @@ A flat CSV of cell-level metadata downloaded without the RNA counts. Each row is
 ### EXPORT_COUNTS — 10x-like matrix directory
 
 **Directory:** `outputs/counts/{sample_id}/{sample_id}_counts/`  
-**Produced by:** [`ingest_export`](workflows/ingest-export.md), [`full`](workflows/full-pipeline.md)
+**Produced by:** [`ingest_export`](workflows/ingest-export.md), [`integration`](workflows/integration-pipeline.md)
 
 Compatible with `Seurat::Read10X()`, `scanpy.read_10x_mtx()`, and similar readers.
 
@@ -112,7 +112,7 @@ adata = sc.read_10x_mtx("outputs/counts/SAMPLE_01/SAMPLE_01_counts",
 ### GENE_HARMONIZE — Harmonized AnnData directory
 
 **Directory:** `outputs/harmonized/harmonized_outputs/`  
-**Produced by:** [`full`](workflows/full-pipeline.md)
+**Produced by:** [`integration`](workflows/integration-pipeline.md)
 
 | File | Description |
 |---|---|
@@ -141,7 +141,7 @@ adatas = {
 ### SCMODAL_INTEGRATE — Model outputs
 
 **Directory:** `outputs/scmodal/model_outputs/`  
-**Produced by:** [`full`](workflows/full-pipeline.md) (GPU)
+**Produced by:** [`integration`](workflows/integration-pipeline.md) (GPU)
 
 | File | Description |
 |---|---|

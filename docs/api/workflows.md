@@ -5,7 +5,7 @@ This page documents all workflows in the pipeline.
 ## Contents
 
 - [INGEST_EXPORT_PIPELINE](#ingest-export-pipeline)
-- [FULL_PIPELINE](#full-pipeline)
+- [INTEGRATION_PIPELINE](#integration-pipeline)
 - [INGEST_TABULATE_PIPELINE](#ingest-tabulate-pipeline)
 
 ## INGEST_EXPORT_PIPELINE {#ingest-export-pipeline}
@@ -13,9 +13,9 @@ This page documents all workflows in the pipeline.
 *Defined in `workflows/ingest_export.nf:39`*
 
 
-## FULL_PIPELINE {#full-pipeline}
+## INTEGRATION_PIPELINE {#integration-pipeline}
 
-*Defined in `workflows/full_pipeline.nf:45`*
+*Defined in `workflows/integration_pipeline.nf:45`*
 
 
 ## INGEST_TABULATE_PIPELINE {#ingest-tabulate-pipeline}

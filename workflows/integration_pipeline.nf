@@ -6,7 +6,7 @@ include { GENE_HARMONIZE } from '../modules/local/gene_harmonize/main.nf'
 include { SCMODAL_INTEGRATE } from '../modules/local/nmf_vae/gpu/main.nf'
 
 /**
- * Build the metadata channel consumed by the full multi-species workflow.
+ * Build the metadata channel consumed by the integration multi-species workflow.
  *
  * The samplesheet must define one row per sample with the columns
  * `sample_id`, `output_file_id`, and `species`.
@@ -14,7 +14,7 @@ include { SCMODAL_INTEGRATE } from '../modules/local/nmf_vae/gpu/main.nf'
  * @param samplesheetPath Path to the input samplesheet CSV file.
  * @return Channel emitting one metadata map per sample.
  */
-def buildFullPipelineSamplesChannel(samplesheetPath) {
+def buildIntegrationPipelineSamplesChannel(samplesheetPath) {
     return Channel
         .fromPath(samplesheetPath, checkIfExists: true)
         .splitCsv(header: true, strip: true)
@@ -36,13 +36,13 @@ def buildFullPipelineSamplesChannel(samplesheetPath) {
 }
 
 /**
- * Full pipeline entrypoint.
+ * Integration pipeline entrypoint.
  *
  * Downloads Seurat objects from LabKey, exports raw counts, harmonizes genes
  * across species, and trains scMODAL to create a shared latent embedding.
  * This workflow is GPU-backed and intended for SLURM execution.
  */
-workflow FULL_PIPELINE {
+workflow INTEGRATION_PIPELINE {
     take:
     samplesheet
 
@@ -51,9 +51,9 @@ workflow FULL_PIPELINE {
     if (execName == 'local') {
         if (!params.scmodal_use_cpu) {
             error """
-            The 'full' workflow requires a GPU (SCMODAL_INTEGRATE) and cannot run with the local executor.
+            The 'integration' workflow requires a GPU (SCMODAL_INTEGRATE) and cannot run with the local executor.
             Use --workflow ingest_tabulate or --workflow ingest_export for local/Mac testing.
-            Run with -profile slurm on HPC for the full pipeline.
+            Run with -profile slurm on HPC for the integration pipeline.
             To run smoke tests without GPU (CI only), pass --scmodal_use_cpu true.
             """.stripIndent()
         }
@@ -65,7 +65,7 @@ workflow FULL_PIPELINE {
             """.stripIndent()
         }
     }
-    ch_samples = buildFullPipelineSamplesChannel(samplesheet)
+    ch_samples = buildIntegrationPipelineSamplesChannel(samplesheet)
 
     INGEST(ch_samples)
     EXPORT_COUNTS(INGEST.out.rds)

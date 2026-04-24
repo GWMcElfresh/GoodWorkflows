@@ -1,8 +1,8 @@
-# Full Pipeline
+# Integration Pipeline
 
-`--workflow full`
+`--workflow integration`
 
-The full pipeline downloads Seurat objects from LabKey, exports per-sample count matrices, harmonizes genes across species, and trains a scMODAL variational autoencoder to produce a joint multi-species latent embedding with Leiden clustering.
+The integration pipeline downloads Seurat objects from LabKey, exports per-sample count matrices, harmonizes genes across species, and trains a scMODAL variational autoencoder to produce a joint multi-species latent embedding with Leiden clustering.
 
 !!! warning "GPU required"
     This workflow must run on an HPC cluster via `-profile slurm`. It requires at least one NVIDIA GPU for the `SCMODAL_INTEGRATE` step. It **cannot run** on a local Mac or CPU-only Linux host.
@@ -126,7 +126,7 @@ The seeded metadata fixture used by docs and CI gives a safe preview of the cell
 
 This plot is derived from the synthetic `sample_metadata.csv` bundle and is useful for validating that broad immune-class distributions look sensible before the GPU stage.
 
-For the generated code-level reference, see [API Reference → Workflows](../api/workflows.md#full-pipeline).
+For the generated code-level reference, see [API Reference → Workflows](../api/workflows.md#integration-pipeline).
 
 ---
 
@@ -136,9 +136,9 @@ For the generated code-level reference, see [API Reference → Workflows](../api
 # Sync the repo (recommended before each run)
 sbatch slurm_sync_repo.sh
 
-# Submit the full pipeline
+# Submit the integration pipeline
 sbatch slurm_nextflow.sh \
-  --workflow full \
+  --workflow integration \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Project/Folder
 ```
@@ -146,7 +146,7 @@ sbatch slurm_nextflow.sh \
 Optionally, sync and launch in one step:
 ```bash
 sbatch --export=ALL,SYNC_REPO_BEFORE_RUN=true slurm_nextflow.sh \
-  --workflow full \
+  --workflow integration \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Project/Folder
 ```

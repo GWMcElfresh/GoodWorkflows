@@ -5,11 +5,11 @@
 
 nextflow.enable.dsl = 2
 
-include { FULL_PIPELINE } from './workflows/full_pipeline.nf'
+include { INTEGRATION_PIPELINE } from './workflows/integration_pipeline.nf'
 include { INGEST_EXPORT_PIPELINE } from './workflows/ingest_export.nf'
 include { INGEST_TABULATE_PIPELINE } from './workflows/ingest_tabulate.nf'
 
-def supportedWorkflows = ['full', 'ingest_export', 'ingest_tabulate']
+def supportedWorkflows = ['integration', 'ingest_export', 'ingest_tabulate']
 
 def helpMessage() {
     log.info """
@@ -20,7 +20,7 @@ def helpMessage() {
       nextflow run main.nf -profile slurm [options]
 
     Saved workflows:
-      --workflow full           Full pipeline: ingest -> export -> harmonize -> scMODAL
+      --workflow integration     Full pipeline: ingest -> export -> harmonize -> scMODAL
       --workflow ingest_export  Fetch Seurat RDS and export 10x-like counts only
             --workflow ingest_tabulate  Fetch metadata only and build subjectIdTable
 
@@ -42,7 +42,7 @@ def helpMessage() {
       --help                    Show this message
 
     Examples:
-      nextflow run main.nf -profile slurm --workflow full --labkey_base_url https://labkey.example.org --labkey_folder /My/Folder
+      nextflow run main.nf -profile slurm --workflow integration --labkey_base_url https://labkey.example.org --labkey_folder /My/Folder
       nextflow run main.nf -profile slurm --workflow ingest_export --outdir ./outputs/dev
             nextflow run main.nf -profile slurm --workflow ingest_tabulate --tabulate_id_cols cDNA_ID,SubjectId,Vaccine,Timepoint,Tissue
     """.stripIndent()
@@ -53,7 +53,7 @@ if (params.help) {
     exit 0
 }
 
-def selectedWorkflow = (params.workflow ?: 'full').toString().trim()
+def selectedWorkflow = (params.workflow ?: 'integration').toString().trim()
 
 if (!(selectedWorkflow in supportedWorkflows)) {
     error "Unsupported workflow '${selectedWorkflow}'. Valid options: ${supportedWorkflows.join(', ')}"
@@ -63,20 +63,20 @@ if (!params.input) {
     error "Please supply a samplesheet via --input. Run with --help for usage."
 }
 
-if (selectedWorkflow in ['full', 'ingest_export', 'ingest_tabulate']) {
+if (selectedWorkflow in ['integration', 'ingest_export', 'ingest_tabulate']) {
     if (!params.labkey_base_url || !params.labkey_folder) {
         error "Please supply --labkey_base_url and --labkey_folder for prime-seq downloads."
     }
 }
 
-if (selectedWorkflow == 'full' && !params.species_order) {
+if (selectedWorkflow == 'integration' && !params.species_order) {
     error "Please supply --species_order or use the default in nextflow.config."
 }
 
 workflow {
     switch (selectedWorkflow) {
-        case 'full':
-            FULL_PIPELINE(params.input)
+        case 'integration':
+            INTEGRATION_PIPELINE(params.input)
             break
         case 'ingest_export':
             INGEST_EXPORT_PIPELINE(params.input)

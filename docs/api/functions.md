@@ -5,7 +5,7 @@ This page documents helper functions defined in the pipeline.
 ## Contents
 
 - [buildIngestExportSamplesChannel](#buildingestexportsampleschannel)
-- [buildFullPipelineSamplesChannel](#buildfullpipelinesampleschannel)
+- [buildIntegrationPipelineSamplesChannel](#buildintegrationpipelinesampleschannel)
 - [buildIngestTabulateSamplesChannel](#buildingesttabulatesampleschannel)
 
 ## buildIngestExportSamplesChannel {#buildingestexportsampleschannel}
@@ -17,12 +17,12 @@ def buildIngestExportSamplesChannel()
 ```
 
 
-## buildFullPipelineSamplesChannel {#buildfullpipelinesampleschannel}
+## buildIntegrationPipelineSamplesChannel {#buildintegrationpipelinesampleschannel}
 
-*Defined in `workflows/full_pipeline.nf:17`*
+*Defined in `workflows/integration_pipeline.nf:17`*
 
 ```groovy
-def buildFullPipelineSamplesChannel()
+def buildIntegrationPipelineSamplesChannel()
 ```
 
 

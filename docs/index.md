@@ -8,7 +8,7 @@ A DSL2 **Nextflow** pipeline for composing reusable single-cell RNA-seq workflow
 
 | Workflow | What it does | Compute requirement |
 |---|---|---|
-| [`full`](workflows/full-pipeline.md) | Download → export counts → harmonize → scMODAL integration | **HPC + GPU (SLURM required)** |
+| [`integration`](workflows/integration-pipeline.md) | Download → export counts → harmonize → scMODAL integration | **HPC + GPU (SLURM required)** |
 | [`ingest_export`](workflows/ingest-export.md) | Download Seurat RDS and export 10x-like counts | Local / Mac / HPC (CPU) |
 | [`ingest_tabulate`](workflows/ingest-tabulate.md) | Download cell metadata and build `subjectIdTable.csv` | Local / Mac / HPC (CPU) |
 
@@ -39,7 +39,7 @@ nextflow run main.nf \
 ```bash
 # On any SLURM node – profile auto-detected from environment
 sbatch slurm_nextflow.sh \
-  --workflow full \
+  --workflow integration \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Project/Folder
 ```

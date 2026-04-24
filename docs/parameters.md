@@ -8,7 +8,7 @@ Complete reference for all `--param` flags accepted by `main.nf`. Defaults are s
 
 | Parameter | Default | Description |
 |---|---|---|
-| `--workflow` | `full` | Named workflow to execute. One of `full`, `ingest_export`, `ingest_tabulate`. |
+| `--workflow` | `integration` | Named workflow to execute. One of `integration`, `ingest_export`, `ingest_tabulate`. |
 | `--input` | `data/samplesheet.csv` | Path to the samplesheet CSV. See [Data Formats → Samplesheet](data-formats.md#samplesheet). |
 | `--outdir` | `outputs/` | Directory where published results are written. |
 
@@ -49,7 +49,7 @@ These parameters affect only `--workflow ingest_tabulate`.
 
 ## scMODAL integration options
 
-These parameters affect only `--workflow full`.
+These parameters affect only `--workflow integration`.
 
 | Parameter | Default | Description |
 |---|---|---|
@@ -70,7 +70,7 @@ These parameters affect only `--workflow full`.
 
 | Parameter | Default | Description |
 |---|---|---|
-| `--scmodal_use_cpu` | `false` | Bypasses the local-executor GPU guard for `--workflow full` and runs `SCMODAL_INTEGRATE` as a stub (requires `-stub-run`). Emits a warning if `GITHUB_ACTIONS` env is not set. |
+| `--scmodal_use_cpu` | `false` | Bypasses the local-executor GPU guard for `--workflow integration` and runs `SCMODAL_INTEGRATE` as a stub (requires `-stub-run`). Emits a warning if `GITHUB_ACTIONS` env is not set. |
 
 ---
 

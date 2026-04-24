@@ -12,10 +12,10 @@
             "properties": {
                 "workflow": {
                     "type": "string",
-                    "default": "full",
+                    "default": "integration",
                     "description": "Named workflow to execute.",
-                    "enum": ["full", "ingest_export", "ingest_tabulate"],
-                    "help_text": "Select one of the three saved workflows. 'full' requires GPU/SLURM. 'ingest_export' and 'ingest_tabulate' run locally."
+                    "enum": ["integration", "ingest_export", "ingest_tabulate"],
+                    "help_text": "Select one of the three saved workflows. 'integration' requires GPU/SLURM. 'ingest_export' and 'ingest_tabulate' run locally."
                 },
                 "input": {
                     "type": "string",

@@ -47,7 +47,7 @@ case "${TEST_KIND}" in
                 test -f "${TEST_ROOT}/outputs/ingest/SAMPLE_01/SAMPLE_01_metadata.csv"
                 test -f "${TEST_ROOT}/outputs/tabulate/subjectIdTable.csv"
                 ;;
-            full)
+            integration)
                 test -f "${TEST_ROOT}/outputs/harmonized/harmonized_outputs/integration_manifest.csv"
                 test -f "${TEST_ROOT}/outputs/scmodal/model_outputs/latent_clustered.h5ad"
                 ;;

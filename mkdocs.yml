@@ -47,8 +47,9 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Usage: usage.md
   - Workflows:
-    - Full Pipeline: workflows/full-pipeline.md
+    - Integration Pipeline: workflows/integration-pipeline.md
     - Ingest + Export: workflows/ingest-export.md
     - Ingest + Tabulate: workflows/ingest-tabulate.md
   - Vignettes:
