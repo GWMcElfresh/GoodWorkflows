@@ -2,7 +2,10 @@
 # slurm_sync_repo.sh – quick SLURM job for cloning or fast-forwarding the repo on HPC.
 #
 # Usage:
-#   sbatch slurm_sync_repo.sh
+#   #infers repo location as pwd:
+#   sbatch slurm_sync_repo.sh 
+#
+#   #specifying repo paths: 
 #   sbatch --export=ALL,SYNC_TARGET_DIR=/gscratch/mygroup/GoodWorkflows slurm_sync_repo.sh
 #   sbatch --export=ALL,REPO_BRANCH=main slurm_sync_repo.sh
 
