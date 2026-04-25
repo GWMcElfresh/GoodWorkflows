@@ -21,6 +21,7 @@
 #SBATCH --get-user-env
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=32000
+#SBATCH --tmp=100G
 #SBATCH --partition=batch
 #SBATCH --time=1-00:00
 #SBATCH --output=logs/slurm-%j.out
@@ -88,7 +89,15 @@ OUTDIR="${OUTDIR:-${RUN_DIR}/outputs}"
 export NXF_WORK="${NXF_WORK:-${RUN_DIR}/work}"
 LOG_DIR="${RUN_DIR}/logs"
 
-mkdir -p "${LOG_DIR}" "${NXF_WORK}"
+# Rootless Podman image cache (shared filesystem, persists across jobs) and
+# lock directory (must be shared-filesystem-visible to all worker nodes).
+# Override NXF_PODMAN_CACHEDIR with a lab-wide path to share pre-pulled
+# images between runs:  NXF_PODMAN_CACHEDIR=/gscratch/lab/.podman-cache sbatch run.sh
+export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-${SLURM_TMPDIR:-${NXF_WORK}/.podman-tmp}}"
+export NXF_PODMAN_CACHEDIR="${NXF_PODMAN_CACHEDIR:-${NXF_WORK}/.podman-cache}"
+export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK}/.podman-pull-locks}"
+
+mkdir -p "${LOG_DIR}" "${NXF_WORK}" "${NXF_PODMAN_TMPDIR}" "${NXF_PODMAN_CACHEDIR}" "${NXF_PODMAN_PULL_LOCK_DIR}"
 
 # ============================================================
 # Validate required settings
@@ -131,9 +140,22 @@ echo " Output dir     : ${OUTDIR}"
 echo " Work dir       : ${NXF_WORK}"
 echo " LabKey URL     : ${LABKEY_BASE_URL}"
 echo " LabKey folder  : ${LABKEY_FOLDER}"
+echo " Podman cache   : ${NXF_PODMAN_CACHEDIR}"
+echo " Pull lock dir  : ${NXF_PODMAN_PULL_LOCK_DIR}"
 echo "=========================================="
 
 "${NEXTFLOW_BIN}" -version
+
+# ============================================================
+# Container image pre-pull (SLURM only)
+# ============================================================
+# Pre-pull all workflow container images into the shared cache before launching
+# Nextflow tasks. This is idempotent — images already present are skipped.
+PREPULL_SCRIPT_PATH="${PIPELINE_ROOT}/scripts/slurm_prepull_images.sh"
+if [[ -n "${SLURM_JOB_ID:-}" && -f "${PREPULL_SCRIPT_PATH}" ]]; then
+    echo "Running container image pre-pull..."
+    bash "${PREPULL_SCRIPT_PATH}" "$@"
+fi
 
 # ============================================================
 # Build Nextflow arguments

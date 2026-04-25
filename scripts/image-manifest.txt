@@ -1,0 +1,15 @@
+# Fallback image manifest for SLURM pre-pull.
+#
+# Used by scripts/slurm_prepull_images.sh when dynamic Nextflow config parsing
+# returns zero images. Also read by template/run.sh and slurm_nextflow.sh
+# inline pre-pull logic.
+#
+# Rules:
+#   - One fully-qualified image URI per line.
+#   - Blank lines and lines beginning with '#' are ignored.
+#   - Keep this list in sync with 'container' directives in modules/local/.
+#
+# Current images (as of 2026-04):
+ghcr.io/bimberlabinternal/cellmembrane:latest
+ghcr.io/bimberlabinternal/rdiscvr:latest
+ghcr.io/gwmcelfresh/scmodal-cuda:latest

@@ -1,0 +1,7 @@
+set -euo pipefail
+
+PODMAN_TMP_BASE="${NXF_PODMAN_TMPDIR:-${SLURM_TMPDIR:-${TMPDIR:-${PWD}/.podman-tmp}}}"
+LOCAL_PODMAN_ROOT="${PODMAN_TMP_BASE}/podman-${SLURM_JOB_ID:-$$}"
+XDG_RUNTIME_DIR="${PODMAN_TMP_BASE}/runtime-${SLURM_JOB_ID:-$$}-${UID}"
+
+rm -rf "${LOCAL_PODMAN_ROOT}" "${XDG_RUNTIME_DIR}"

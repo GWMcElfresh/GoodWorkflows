@@ -106,7 +106,13 @@ sbatch slurm_nextflow.sh \
   --labkey_folder /My/Folder
 ```
 
-The pipeline will auto-select the `slurm` profile on Linux + SLURM nodes, so no explicit `-profile slurm` is required unless you want to force it.
+`slurm_nextflow.sh` automatically submits a container image pre-pull job and chains the orchestrator with `--dependency=afterok:PREPULL_JOB_ID`. Images are cached in `NXF_PODMAN_CACHEDIR` (default: `${NXF_WORK}/.podman-cache`) on the shared filesystem and reused by all subsequent runs, so subsequent submissions skip images already present.
+
+To use a shared lab-wide cache:
+
+```bash
+NXF_PODMAN_CACHEDIR=/gscratch/mylab/.podman-cache sbatch slurm_nextflow.sh --workflow full ...
+```
 
 Optional: fast-forward the checkout immediately before launch:
 

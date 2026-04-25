@@ -173,7 +173,51 @@ nextflow run main.nf \
 
 ---
 
-## 6 — Monitor a running job
+## 6 — Container image pre-pull and caching
+
+When running with `-profile slurm` (HPC), every workflow task uses a rootless Podman container. By default, Podman would pull the image fresh for each task, causing concurrent registry requests and `disk quota exceeded` failures on the SLURM scratch filesystem.
+
+GoodWorkflows solves this with a **shared persistent image cache** and a **coordinated pre-pull job** that runs before the Nextflow orchestrator starts.
+
+### How it works
+
+1. `slurm_nextflow.sh` (and `template/run.sh`) submit `scripts/slurm_prepull_images.sh` as a standalone SLURM job.
+2. The pre-pull job pulls every workflow image once into `NXF_PODMAN_CACHEDIR/storage` — a path on the **shared filesystem** that persists across jobs.
+3. The orchestrator job is submitted with `--dependency=afterok:<PREPULL_JOB_ID>` and only starts once all images are present.
+4. Each task's `beforeScript` writes a task-local `storage.conf` that lists the shared cache as [`additionalimagestores`](https://www.mankier.com/5/containers-storage.conf). This lets Podman use the pre-pulled layers without copying them.
+
+### Environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `NXF_PODMAN_CACHEDIR` | `${NXF_WORK}/.podman-cache` | Persistent shared image store. **Set this to a path on a shared filesystem** for the cache to survive across SLURM job allocations. |
+| `NXF_PODMAN_TMPDIR` | `${SLURM_TMPDIR:-${NXF_WORK}/.podman-tmp}` | Node-local scratch for layer unpacking during pulls. Prefers the SLURM-managed local tmp allocation. |
+| `NXF_PODMAN_PULL_LOCK_DIR` | `${NXF_WORK}/.podman-pull-locks` | Shared lock directory coordinating concurrent per-task pulls. Must be on a shared filesystem. |
+
+!!! tip "Setting a cluster-wide cache location"
+    To share the cache between all users or all runs on the cluster, override `NXF_PODMAN_CACHEDIR` before submitting:
+
+    ```bash
+    NXF_PODMAN_CACHEDIR=/gscratch/mylab/.podman-cache sbatch slurm_nextflow.sh --workflow full ...
+    ```
+
+    The cache directory is created automatically if it does not exist.
+
+### Updating `scripts/image-manifest.txt`
+
+The pre-pull script discovers images by parsing the Nextflow config. As a fallback (if dynamic discovery returns zero images), it reads `scripts/image-manifest.txt`. Keep this file up to date whenever you add or update a container image:
+
+```text
+ghcr.io/bimberlabinternal/cellmembrane:latest
+ghcr.io/bimberlabinternal/rdiscvr:latest
+ghcr.io/gwmcelfresh/scmodal-cuda:latest
+```
+
+One image URI per line; blank lines and `#` comments are ignored.
+
+---
+
+## 7 — Monitor a running job
 
 ### Live log
 
@@ -193,7 +237,7 @@ After the pipeline completes, open `logs/report.html` in a browser for a full pe
 
 ---
 
-## 7 — Resume after failure
+## 8 — Resume after failure
 
 `run.sh` (and `slurm_nextflow.sh`) always pass `-resume` to Nextflow. Simply resubmit the job after fixing any issues:
 
@@ -212,7 +256,7 @@ Nextflow will skip all already-completed steps and continue from where it left o
 
 ---
 
-## 8 — Reference runs
+## 9 — Reference runs
 
 `slurm_nextflow.sh` in the repository root is an alternative launcher that targets the repository itself as the run context (work dir and logs relative to the checkout). Use it when you prefer not to use the `runs/` pattern:
 
