@@ -32,6 +32,8 @@ export NXF_HOME="${NXF_HOME:-/gscratch/CHANGEME/.nextflow}"
 # Rootless podman may unpack multi-GB image layers. Default this to NXF_WORK
 # so users do not hit /tmp or home-directory quota limits on HPC.
 export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-${NXF_WORK:-${PWD}/work}/.podman-tmp}"
+# Shared lock path to coordinate container pulls across concurrent tasks/jobs.
+export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK:-${PWD}/work}/.podman-pull-locks}"
 
 LOG_DIR="${PWD}/logs"
 mkdir -p "${LOG_DIR}"
@@ -50,6 +52,7 @@ echo " Nextflow bin   : ${NEXTFLOW_BIN}"
 echo " NXF_HOME       : ${NXF_HOME}"
 echo " NXF_WORK       : ${NXF_WORK_DISPLAY}"
 echo " Podman tmp dir : ${NXF_PODMAN_TMPDIR}"
+echo " Pull lock dir  : ${NXF_PODMAN_PULL_LOCK_DIR}"
 echo " Podman cache   : ${NXF_PODMAN_CACHEDIR:-not set}"
 echo "=========================================="
 
