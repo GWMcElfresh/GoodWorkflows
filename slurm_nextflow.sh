@@ -29,6 +29,10 @@ PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 NEXTFLOW_BIN="${NEXTFLOW_BIN:-/gscratch/CHANGEME/nextflow}"
 export NXF_HOME="${NXF_HOME:-/gscratch/CHANGEME/.nextflow}"
 
+# Rootless podman may unpack multi-GB image layers. Default this to NXF_WORK
+# so users do not hit /tmp or home-directory quota limits on HPC.
+export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-${NXF_WORK:-${PWD}/work}/.podman-tmp}"
+
 LOG_DIR="${PWD}/logs"
 mkdir -p "${LOG_DIR}"
 
@@ -45,6 +49,7 @@ echo " Pipeline root  : ${PIPELINE_ROOT}"
 echo " Nextflow bin   : ${NEXTFLOW_BIN}"
 echo " NXF_HOME       : ${NXF_HOME}"
 echo " NXF_WORK       : ${NXF_WORK_DISPLAY}"
+echo " Podman tmp dir : ${NXF_PODMAN_TMPDIR}"
 echo " Podman cache   : ${NXF_PODMAN_CACHEDIR:-not set}"
 echo "=========================================="
 
