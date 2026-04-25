@@ -8,7 +8,6 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=8000
-#SBATCH --tmp=100G
 #SBATCH --partition=batch
 #SBATCH --time=04:00:00
 #SBATCH --output=logs/slurm-prepull-%j.out
