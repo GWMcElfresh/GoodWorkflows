@@ -106,12 +106,14 @@ sbatch slurm_nextflow.sh \
   --labkey_folder /My/Folder
 ```
 
-`slurm_nextflow.sh` automatically submits a container image pre-pull job and chains the orchestrator with `--dependency=afterok:PREPULL_JOB_ID`. Images are cached in `NXF_PODMAN_CACHEDIR` (default: `${NXF_WORK}/.podman-cache`) on the shared filesystem and reused by all subsequent runs, so subsequent submissions skip images already present.
+`slurm_nextflow.sh` automatically submits a container image pre-pull job and chains the orchestrator with `--dependency=afterany:PREPULL_JOB_ID`. Images are pulled to node-local `/tmp` (NFS-safe), then saved as OCI tar archives.
 
-To use a shared lab-wide cache:
+The archive store defaults to each user's configured podman `graphRoot` (read from `~/.config/containers/storage.conf` on the compute node via `podman info`), so every user gets their own independent store automatically. Archives persist across all runs — each task loads from the archive with `podman load` and never hits the registry again.
+
+To use a custom or shared store:
 
 ```bash
-NXF_PODMAN_CACHEDIR=/gscratch/mylab/.podman-cache sbatch slurm_nextflow.sh --workflow full ...
+NXF_PODMAN_CACHEDIR=/other/path sbatch slurm_nextflow.sh --workflow full ...
 ```
 
 Optional: fast-forward the checkout immediately before launch:

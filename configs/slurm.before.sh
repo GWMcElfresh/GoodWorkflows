@@ -1,32 +1,39 @@
 set -euo pipefail
 
-# Prefer an explicit scratch path for podman layer unpacking. This avoids
-# quota failures when /tmp or home-backed paths are too small.
-PODMAN_TMP_BASE="${NXF_PODMAN_TMPDIR:-${SLURM_TMPDIR:-${TMPDIR:-${PWD}/.podman-tmp}}}"
+# Overlay storage MUST be on a local filesystem. Lustre/NFS does not support
+# the xattr/hardlink operations required by fuse-overlayfs. Use node-local /tmp
+# (or SLURM_TMPDIR when --tmp=N was requested) as the podman scratch root.
+PODMAN_TMP_BASE="${NXF_PODMAN_TMPDIR:-${SLURM_TMPDIR:-/tmp}}"
+
 mkdir -p "${PODMAN_TMP_BASE}"
 
-PODMAN_CACHE_BASE="${NXF_PODMAN_CACHEDIR:-}"
-PODMAN_CACHE_GRAPHROOT=''
-if [[ -n "${PODMAN_CACHE_BASE}" ]]; then
-    PODMAN_CACHE_GRAPHROOT="${PODMAN_CACHE_BASE}/storage"
-    mkdir -p "${PODMAN_CACHE_GRAPHROOT}"
+# Default NXF_PODMAN_CACHEDIR to the user's configured podman graphRoot.
+# Runs before CONTAINERS_GRAPHROOT is overridden so podman info reads the
+# user's real storage.conf. Each user gets their own archive store automatically.
+if [[ -z "${NXF_PODMAN_CACHEDIR:-}" ]] && command -v podman &>/dev/null; then
+    NXF_PODMAN_CACHEDIR="$(podman info --format '{{.Store.GraphRoot}}' 2>/dev/null || true)"
 fi
+export NXF_PODMAN_CACHEDIR="${NXF_PODMAN_CACHEDIR:-}"
 
-# Shared lock directory used to coordinate image pulls between concurrent
-# tasks. Put this on a shared filesystem so locks are visible cluster-wide.
-PULL_LOCK_BASE="${NXF_PODMAN_PULL_LOCK_DIR:-${PODMAN_TMP_BASE}/pull-locks}"
+# OCI archive store on the shared filesystem (plain tar files; no overlay on NFS).
+# Pre-pull writes archives here; this hook loads from the archive if the image
+# is not already in the node-local store.
+PODMAN_OCI_CACHE="${NXF_PODMAN_CACHEDIR:-}"
+
+# Shared lock directory (on NFS so locks are cluster-wide).
+PULL_LOCK_BASE="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK:-${PWD}/.podman-pull-locks}}"
 mkdir -p "${PULL_LOCK_BASE}"
 
-# Lightweight diagnostics so task logs show where image layers are unpacked
-# and whether scratch space is available for large pulls.
+# Lightweight diagnostics.
 echo "[PODMAN_DIAG] tmp_base=${PODMAN_TMP_BASE}"
 echo "[PODMAN_DIAG] pull_lock_base=${PULL_LOCK_BASE}"
-echo "[PODMAN_DIAG] cache_graphroot=${PODMAN_CACHE_GRAPHROOT:-not set}"
+echo "[PODMAN_DIAG] oci_cache=${PODMAN_OCI_CACHE:-not set}"
 df -h "${PODMAN_TMP_BASE}" || true
 df -i "${PODMAN_TMP_BASE}" || true
 
 LOCAL_PODMAN_ROOT="${PODMAN_TMP_BASE}/podman-${SLURM_JOB_ID:-$$}"
 export CONTAINERS_GRAPHROOT="${LOCAL_PODMAN_ROOT}/storage"
+
 export CONTAINERS_RUNROOT="${LOCAL_PODMAN_ROOT}/run"
 mkdir -p "${CONTAINERS_GRAPHROOT}" "${CONTAINERS_RUNROOT}"
 
@@ -36,15 +43,13 @@ export CONTAINERS_STORAGE_CONF="${LOCAL_PODMAN_ROOT}/storage.conf"
     printf 'driver = "overlay"\n'
     printf 'graphRoot = "%s"\n' "${CONTAINERS_GRAPHROOT}"
     printf 'runRoot   = "%s"\n\n' "${CONTAINERS_RUNROOT}"
-    printf '[storage.options]\n'
-    if [[ -n "${PODMAN_CACHE_GRAPHROOT}" ]]; then
-        printf 'additionalimagestores = ["%s"]\n\n' "${PODMAN_CACHE_GRAPHROOT}"
+    # Only emit overlay section if fuse-overlayfs is available on this node.
+    if [[ -x "/usr/bin/fuse-overlayfs" ]]; then
+        printf '[storage.options.overlay]\n'
+        printf 'mount_program = "/usr/bin/fuse-overlayfs"\n'
     fi
-    printf '[storage.options.overlay]\n'
-    printf 'mount_program = "/usr/bin/fuse-overlayfs"\n'
 } > "${CONTAINERS_STORAGE_CONF}"
 
-export XDG_RUNTIME_DIR="${PODMAN_TMP_BASE}/runtime-${SLURM_JOB_ID:-$$}-${UID}"
 mkdir -p "${XDG_RUNTIME_DIR}"
 chmod 0700 "${XDG_RUNTIME_DIR}"
 
@@ -52,6 +57,29 @@ if command -v module &>/dev/null; then
     module load podman 2>/dev/null \
         || echo "Warning: 'module load podman' failed - continuing"
 fi
+
+# Load a pre-pulled image from the shared OCI archive cache (NFS-safe: plain
+# tar reads). Called before falling back to a live registry pull.
+load_from_oci_cache() {
+    local image="$1"
+    local key archive
+    [[ -z "${PODMAN_OCI_CACHE:-}" || -z "${NXF_PODMAN_CACHEDIR:-}" ]] && return 1
+
+    key="$(printf '%s' "${image}" | tr '/:@' '___' | tr -cd '[:alnum:]_.-')"
+    archive="${PODMAN_OCI_CACHE}/${key}.tar"
+
+    if [[ -f "${archive}.done" && -f "${archive}" ]]; then
+        echo "[CACHE] Loading ${image} from OCI archive"
+        if podman load -i "${archive}"; then
+            echo "[OK] Loaded ${image} from cache"
+            return 0
+        else
+            echo "[WARN] OCI archive load failed for ${image}; falling back to registry pull"
+            return 1
+        fi
+    fi
+    return 1
+}
 
 cleanup_stale_locks() {
     find "${PULL_LOCK_BASE}" -maxdepth 1 -type f -name '*.lock' -mmin +120 -delete 2>/dev/null || true
@@ -116,6 +144,8 @@ pull_with_lock() {
         if podman image exists "${image}" 2>/dev/null; then
             echo "[SKIP] Image already present: ${image}"
             status=0
+        elif load_from_oci_cache "${image}"; then
+            status=0
         else
             for attempt in 1 2 3; do
                 if podman_pull_once "${image}"; then
@@ -124,7 +154,7 @@ pull_with_lock() {
                     break
                 fi
                 wait_s=$(( (2 ** attempt) * 10 + RANDOM % 10 ))
-                echo "Podman pull failed (attempt ${attempt}) for ${image}; retrying in ${wait_s}s"
+                echo "[RETRY] Pull failed (attempt ${attempt}) for ${image}; retrying in ${wait_s}s"
                 sleep "${wait_s}"
             done
         fi
@@ -139,6 +169,8 @@ pull_with_lock() {
     done
     if podman image exists "${image}" 2>/dev/null; then
         echo "[SKIP] Image already present: ${image}"
+        status=0
+    elif load_from_oci_cache "${image}"; then
         status=0
     else
         for attempt in 1 2 3; do

@@ -41,7 +41,9 @@ if [[ -z "${SLURM_JOB_ID:-}" && "${AUTO_SUBMIT_WITH_PREPULL:-true}" == "true" ]]
     fi
 
     PREPULL_JOB_ID="$(sbatch --parsable "${PREPULL_SCRIPT_PATH}" "$@")"
-    ORCHESTRATOR_JOB_ID="$(sbatch --parsable --dependency=afterok:${PREPULL_JOB_ID} --export=ALL,INLINE_PREPULL_WHEN_SBATCH=false "${PIPELINE_ROOT}/slurm_nextflow.sh" "$@")"
+    # Use afterany so the orchestrator starts even if pre-pull partially fails;
+    # tasks fall back to per-task image loads automatically.
+    ORCHESTRATOR_JOB_ID="$(sbatch --parsable --dependency=afterany:${PREPULL_JOB_ID} --export=ALL,INLINE_PREPULL_WHEN_SBATCH=false "${PIPELINE_ROOT}/slurm_nextflow.sh" "$@")"
 
     echo "Submitted pre-pull job     : ${PREPULL_JOB_ID}"
     echo "Submitted orchestrator job : ${ORCHESTRATOR_JOB_ID} (afterok:${PREPULL_JOB_ID})"
@@ -64,16 +66,18 @@ export NXF_HOME="${NXF_HOME:-/gscratch/CHANGEME/.nextflow}"
 
 NXF_WORK_ROOT="${NXF_WORK:-${PWD}/work}"
 
-# Rootless podman may unpack multi-GB image layers. Prefer SLURM job-local tmp
-# when available, otherwise fall back to NXF_WORK-backed scratch.
-export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-${SLURM_TMPDIR:-${NXF_WORK_ROOT}/.podman-tmp}}"
-# Shared image store that survives the pre-pull job and is mounted read-only by
-# task-local podman storage via additionalimagestores.
-export NXF_PODMAN_CACHEDIR="${NXF_PODMAN_CACHEDIR:-${NXF_WORK_ROOT}/.podman-cache}"
+# Rootless podman overlay storage MUST be on a local filesystem (not NFS/Lustre).
+# Prefer SLURM_TMPDIR when allocated; otherwise use node-local /tmp.
+export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-${SLURM_TMPDIR:-/tmp}}"
+# NXF_PODMAN_CACHEDIR defaults to the user's podman graphRoot, inferred on the
+# compute node by the pre-pull and beforeScript hooks. Leave unset here so each
+# user's storage.conf takes effect automatically.
+export NXF_PODMAN_CACHEDIR="${NXF_PODMAN_CACHEDIR:-}"
 # Shared lock path to coordinate container pulls across concurrent tasks/jobs.
 export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK_ROOT}/.podman-pull-locks}"
 
-mkdir -p "${NXF_PODMAN_TMPDIR}" "${NXF_PODMAN_CACHEDIR}" "${NXF_PODMAN_PULL_LOCK_DIR}"
+mkdir -p "${NXF_PODMAN_TMPDIR}" "${NXF_PODMAN_PULL_LOCK_DIR}"
+[[ -n "${NXF_PODMAN_CACHEDIR}" ]] && mkdir -p "${NXF_PODMAN_CACHEDIR}"
 
 LOG_DIR="${PWD}/logs"
 mkdir -p "${LOG_DIR}"

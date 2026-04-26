@@ -21,12 +21,13 @@ export NXF_HOME="${NXF_HOME:-/gscratch/CHANGEME/.nextflow}"
 NXF_WORK_ROOT="${NXF_WORK:-${PWD}/work}"
 MANIFEST_PATH="${PIPELINE_ROOT}/scripts/image-manifest.txt"
 
-# Prefer SLURM node-local tmp; fall back to work-backed scratch.
-export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-${SLURM_TMPDIR:-${NXF_WORK_ROOT}/.podman-tmp}}"
-export NXF_PODMAN_CACHEDIR="${NXF_PODMAN_CACHEDIR:-${NXF_WORK_ROOT}/.podman-cache}"
+# Prefer SLURM node-local tmp; fall back to /tmp (always node-local on most HPC).
+# IMPORTANT: overlay storage MUST be on a local filesystem — Lustre/NFS does not
+# support the xattr/hardlink operations required by fuse-overlayfs.
+export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-${SLURM_TMPDIR:-/tmp}}"
 export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK_ROOT}/.podman-pull-locks}"
 
-mkdir -p "${NXF_PODMAN_TMPDIR}" "${NXF_PODMAN_CACHEDIR}" "${NXF_PODMAN_PULL_LOCK_DIR}" "${PWD}/logs"
+mkdir -p "${NXF_PODMAN_TMPDIR}" "${NXF_PODMAN_PULL_LOCK_DIR}" "${PWD}/logs"
 
 if command -v module &>/dev/null; then
     module load podman 2>/dev/null || true
@@ -37,8 +38,19 @@ if ! command -v podman >/dev/null 2>&1; then
     exit 1
 fi
 
+# Default NXF_PODMAN_CACHEDIR to the user's configured podman graphRoot.
+# podman reads ~/.config/containers/storage.conf, so each user automatically
+# gets their own archive store without any hard-coded paths.
+# Must run before CONTAINERS_GRAPHROOT is overridden for the local pull.
+if [[ -z "${NXF_PODMAN_CACHEDIR:-}" ]]; then
+    NXF_PODMAN_CACHEDIR="$(podman info --format '{{.Store.GraphRoot}}')"
+fi
+export NXF_PODMAN_CACHEDIR
+mkdir -p "${NXF_PODMAN_CACHEDIR}"
+
 LOCAL_PODMAN_ROOT="${NXF_PODMAN_TMPDIR}/podman-prepull-${SLURM_JOB_ID:-$$}"
-export CONTAINERS_GRAPHROOT="${NXF_PODMAN_CACHEDIR}/storage"
+# graphRoot must be on a local filesystem (not NFS) for overlay/fuse-overlayfs.
+export CONTAINERS_GRAPHROOT="${LOCAL_PODMAN_ROOT}/storage"
 export CONTAINERS_RUNROOT="${LOCAL_PODMAN_ROOT}/run"
 mkdir -p "${CONTAINERS_GRAPHROOT}" "${CONTAINERS_RUNROOT}"
 
@@ -71,6 +83,7 @@ echo " Pipeline root  : ${PIPELINE_ROOT}"
 echo " Podman tmp dir : ${NXF_PODMAN_TMPDIR}"
 echo " Pull lock dir  : ${NXF_PODMAN_PULL_LOCK_DIR}"
 echo " Podman cache   : ${NXF_PODMAN_CACHEDIR:-not set}"
+echo " OCI archives   : ${NXF_PODMAN_CACHEDIR}"
 df -h "${NXF_PODMAN_TMPDIR}" || true
 df -i "${NXF_PODMAN_TMPDIR}" || true
 echo "=========================================="
@@ -96,6 +109,35 @@ podman_pull_once() {
         timeout 300 podman pull "${image}"
     else
         podman pull "${image}"
+    fi
+}
+
+# Export a successfully-pulled image as an OCI tar archive on the shared NFS
+# cache directory. The archive is written atomically via a .tmp file so tasks
+# can test for the .done sentinel before loading.
+export_oci_archive() {
+    local image="$1"
+    local key archive
+    [[ -z "${NXF_PODMAN_CACHEDIR:-}" ]] && return 0
+
+    mkdir -p "${NXF_PODMAN_CACHEDIR}"
+
+    key="$(printf '%s' "${image}" | tr '/:@' '___' | tr -cd '[:alnum:]_.-')"
+    archive="${NXF_PODMAN_CACHEDIR}/${key}.tar"
+
+    if [[ -f "${archive}.done" ]]; then
+        echo "[CACHE] OCI archive already exists for ${image}; skipping export"
+        return 0
+    fi
+
+    echo "[EXPORT] Saving OCI archive: ${archive}"
+    if podman save "${image}" > "${archive}.tmp"; then
+        mv "${archive}.tmp" "${archive}"
+        touch "${archive}.done"
+        echo "[EXPORT] Done: ${archive}"
+    else
+        rm -f "${archive}.tmp"
+        echo "[WARN] OCI export failed for ${image}; tasks will pull from registry"
     fi
 }
 
@@ -259,11 +301,13 @@ pull_with_lock() {
         flock "${lock_fd}"
         if podman image exists "${image}" 2>/dev/null; then
             echo "[SKIP] Image already present: ${image}"
+            export_oci_archive "${image}"
             status=0
         else
             for attempt in 1 2 3; do
                 if podman_pull_once "${image}"; then
                     echo "[OK] Pulled ${image}"
+                    export_oci_archive "${image}"
                     status=0
                     break
                 fi
@@ -284,11 +328,13 @@ pull_with_lock() {
 
     if podman image exists "${image}" 2>/dev/null; then
         echo "[SKIP] Image already present: ${image}"
+        export_oci_archive "${image}"
         status=0
     else
         for attempt in 1 2 3; do
             if podman_pull_once "${image}"; then
                 echo "[OK] Pulled ${image}"
+                export_oci_archive "${image}"
                 status=0
                 break
             fi

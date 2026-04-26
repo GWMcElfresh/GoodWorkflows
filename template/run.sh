@@ -88,15 +88,18 @@ OUTDIR="${OUTDIR:-${RUN_DIR}/outputs}"
 export NXF_WORK="${NXF_WORK:-${RUN_DIR}/work}"
 LOG_DIR="${RUN_DIR}/logs"
 
-# Rootless Podman image cache (shared filesystem, persists across jobs) and
-# lock directory (must be shared-filesystem-visible to all worker nodes).
-# Override NXF_PODMAN_CACHEDIR with a lab-wide path to share pre-pulled
-# images between runs:  NXF_PODMAN_CACHEDIR=/gscratch/lab/.podman-cache sbatch run.sh
-export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-${SLURM_TMPDIR:-${NXF_WORK}/.podman-tmp}}"
-export NXF_PODMAN_CACHEDIR="${NXF_PODMAN_CACHEDIR:-${NXF_WORK}/.podman-cache}"
+# Rootless Podman overlay storage MUST be on a local filesystem (not NFS/Lustre).
+# Prefer SLURM_TMPDIR when allocated; otherwise use node-local /tmp.
+# NXF_PODMAN_CACHEDIR is the canonical shared container store (plain OCI tar
+# archives on NFS). Pre-pull writes here; tasks load from here before the registry.
+export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-${SLURM_TMPDIR:-/tmp}}"
+# NXF_PODMAN_CACHEDIR defaults to the user's podman graphRoot, inferred on the
+# compute node. Leave unset here; each user's storage.conf takes effect automatically.
+export NXF_PODMAN_CACHEDIR="${NXF_PODMAN_CACHEDIR:-}"
 export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK}/.podman-pull-locks}"
 
-mkdir -p "${LOG_DIR}" "${NXF_WORK}" "${NXF_PODMAN_TMPDIR}" "${NXF_PODMAN_CACHEDIR}" "${NXF_PODMAN_PULL_LOCK_DIR}"
+mkdir -p "${LOG_DIR}" "${NXF_WORK}" "${NXF_PODMAN_TMPDIR}" "${NXF_PODMAN_PULL_LOCK_DIR}"
+[[ -n "${NXF_PODMAN_CACHEDIR}" ]] && mkdir -p "${NXF_PODMAN_CACHEDIR}"
 
 # ============================================================
 # Validate required settings
@@ -153,7 +156,8 @@ echo "=========================================="
 PREPULL_SCRIPT_PATH="${PIPELINE_ROOT}/scripts/slurm_prepull_images.sh"
 if [[ -n "${SLURM_JOB_ID:-}" && -f "${PREPULL_SCRIPT_PATH}" ]]; then
     echo "Running container image pre-pull..."
-    bash "${PREPULL_SCRIPT_PATH}" "$@"
+    bash "${PREPULL_SCRIPT_PATH}" "$@" \
+        || echo "WARNING: pre-pull finished with errors; tasks will load images on first use"
 fi
 
 # ============================================================

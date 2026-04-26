@@ -175,33 +175,69 @@ nextflow run main.nf \
 
 ## 6 — Container image pre-pull and caching
 
-When running with `-profile slurm` (HPC), every workflow task uses a rootless Podman container. By default, Podman would pull the image fresh for each task, causing concurrent registry requests and `disk quota exceeded` failures on the SLURM scratch filesystem.
+When running with `-profile slurm` (HPC), every workflow task uses a rootless Podman container. Without coordination, Podman would pull the same multi-GB image in parallel from every node, exhausting disk quota and causing `disk quota exceeded` (exit 125) failures.
 
-GoodWorkflows solves this with a **shared persistent image cache** and a **coordinated pre-pull job** that runs before the Nextflow orchestrator starts.
+GoodWorkflows solves this with a **shared OCI archive store** and a **pre-pull job** that runs before the orchestrator starts.
 
 ### How it works
 
 1. `slurm_nextflow.sh` (and `template/run.sh`) submit `scripts/slurm_prepull_images.sh` as a standalone SLURM job.
-2. The pre-pull job pulls every workflow image once into `NXF_PODMAN_CACHEDIR/storage` — a path on the **shared filesystem** that persists across jobs.
-3. The orchestrator job is submitted with `--dependency=afterok:<PREPULL_JOB_ID>` and only starts once all images are present.
-4. Each task's `beforeScript` writes a task-local `storage.conf` that lists the shared cache as [`additionalimagestores`](https://www.mankier.com/5/containers-storage.conf). This lets Podman use the pre-pulled layers without copying them.
+2. The pre-pull job pulls each image on a **node-local filesystem** (`/tmp`), then saves it as a plain OCI tar archive to `NXF_PODMAN_CACHEDIR` on the shared filesystem. Plain tar writes work fine on NFS/Lustre — no overlay operations.
+3. The orchestrator is submitted with `--dependency=afterany:<PREPULL_JOB_ID>` so it always starts.
+4. Each task's `beforeScript` checks for the `.tar.done` sentinel in `NXF_PODMAN_CACHEDIR` and loads the archive with `podman load` before running. This skips the registry entirely on subsequent runs.
+5. If the archive is missing (e.g. pre-pull failed), tasks fall back to a coordinated locked registry pull.
+
+### The container store
+
+By default, archives are written to the user's configured podman `graphRoot` — the same value returned by:
+
+```bash
+podman info --format '{{.Store.GraphRoot}}'
+```
+
+This is read from `~/.config/containers/storage.conf`, so every user on the cluster gets their own independent archive store automatically. No shared path needs to be hardcoded or coordinated.
+
+After the first run, that directory contains one archive pair per image:
+
+```
+ghcr.io_bimberlabinternal_cellmembrane___latest.tar
+ghcr.io_bimberlabinternal_cellmembrane___latest.tar.done
+ghcr.io_bimberlabinternal_rdiscvr___latest.tar
+ghcr.io_bimberlabinternal_rdiscvr___latest.tar.done
+ghcr.io_gwmcelfresh_scmodal-cuda___latest.tar
+ghcr.io_gwmcelfresh_scmodal-cuda___latest.tar.done
+```
+
+The `.done` sentinels tell tasks the archive is complete and safe to load. The `.tar` files are plain OCI archives you can inspect, copy, or sync with `rsync`.
+
+### Syncing or sharing archives
+
+To copy your archive store to another cluster, or share it with another user:
+
+```bash
+# Find your store path
+STORE="$(podman info --format '{{.Store.GraphRoot}}')"
+
+# Sync to another cluster
+rsync -av "${STORE}/" other-cluster:/path/to/dockerContainers/
+```
+
+Then on the target:
+
+```bash
+NXF_PODMAN_CACHEDIR=/path/to/dockerContainers sbatch run.sh --workflow full ...
+```
 
 ### Environment variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `NXF_PODMAN_CACHEDIR` | `${NXF_WORK}/.podman-cache` | Persistent shared image store. **Set this to a path on a shared filesystem** for the cache to survive across SLURM job allocations. |
-| `NXF_PODMAN_TMPDIR` | `${SLURM_TMPDIR:-${NXF_WORK}/.podman-tmp}` | Node-local scratch for layer unpacking during pulls. Prefers the SLURM-managed local tmp allocation. |
-| `NXF_PODMAN_PULL_LOCK_DIR` | `${NXF_WORK}/.podman-pull-locks` | Shared lock directory coordinating concurrent per-task pulls. Must be on a shared filesystem. |
+| `NXF_PODMAN_CACHEDIR` | *(from `podman info`)* | Shared OCI archive store. Defaults to the user's configured `graphRoot` on the compute node, so each user gets their own store automatically. Override to share archives between users or point to a pre-populated store. |
+| `NXF_PODMAN_TMPDIR` | `${SLURM_TMPDIR:-/tmp}` | **Node-local** scratch for overlay layer unpacking. Must NOT be on NFS. |
+| `NXF_PODMAN_PULL_LOCK_DIR` | `${NXF_WORK}/.podman-pull-locks` | Shared lock directory coordinating concurrent per-task fallback pulls. |
 
-!!! tip "Setting a cluster-wide cache location"
-    To share the cache between all users or all runs on the cluster, override `NXF_PODMAN_CACHEDIR` before submitting:
-
-    ```bash
-    NXF_PODMAN_CACHEDIR=/gscratch/mylab/.podman-cache sbatch slurm_nextflow.sh --workflow full ...
-    ```
-
-    The cache directory is created automatically if it does not exist.
+!!! warning "Overlay storage must be node-local"
+    `NXF_PODMAN_TMPDIR` must point to a local filesystem (`/tmp`, `SLURM_TMPDIR`, or a local scratch mount). Setting it to a Lustre/NFS path causes `fuse-overlayfs` to fail silently after downloading blobs — the layer commit step requires xattr/hardlink support. The OCI archive store (`NXF_PODMAN_CACHEDIR`) is plain file I/O and is fine on NFS.
 
 ### Updating `scripts/image-manifest.txt`
 
