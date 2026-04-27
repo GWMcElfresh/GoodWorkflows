@@ -10,6 +10,7 @@
 #SBATCH --mem=8000
 #SBATCH --partition=batch
 #SBATCH --time=04:00:00
+#SBATCH --gres=disk:1028
 #SBATCH --output=logs/slurm-prepull-%j.out
 #SBATCH --error=logs/slurm-prepull-%j.err
 
@@ -20,11 +21,16 @@ NEXTFLOW_BIN="${NEXTFLOW_BIN:-/gscratch/CHANGEME/nextflow}"
 export NXF_HOME="${NXF_HOME:-/gscratch/CHANGEME/.nextflow}"
 NXF_WORK_ROOT="${NXF_WORK:-${PWD}/work}"
 MANIFEST_PATH="${PIPELINE_ROOT}/scripts/image-manifest.txt"
+export NXF_PODMAN_REQUIRE_LOCAL_SCRATCH="${NXF_PODMAN_REQUIRE_LOCAL_SCRATCH:-true}"
 
-# Prefer SLURM node-local tmp; fall back to /tmp (always node-local on most HPC).
-# IMPORTANT: overlay storage MUST be on a local filesystem — Lustre/NFS does not
-# support the xattr/hardlink operations required by fuse-overlayfs.
-export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-${SLURM_TMPDIR:-/tmp}}"
+# shellcheck source=/dev/null
+source "${PIPELINE_ROOT}/configs/slurm.podman-scratch.sh"
+
+# Use the same resolver as task before/after scripts so local scratch is
+# created beneath any usable local filesystem, rather than relying on one
+# hardcoded mount layout.
+podman_resolve_tmp_base
+export NXF_PODMAN_TMPDIR="${PODMAN_TMP_BASE}"
 export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK_ROOT}/.podman-pull-locks}"
 
 mkdir -p "${NXF_PODMAN_TMPDIR}" "${NXF_PODMAN_PULL_LOCK_DIR}" "${PWD}/logs"
@@ -64,12 +70,15 @@ export CONTAINERS_STORAGE_CONF="${LOCAL_PODMAN_ROOT}/storage.conf"
     printf 'mount_program = "/usr/bin/fuse-overlayfs"\n'
 } > "${CONTAINERS_STORAGE_CONF}"
 
-export XDG_RUNTIME_DIR="${NXF_PODMAN_TMPDIR}/runtime-${SLURM_JOB_ID:-$$}-${UID}"
+export XDG_RUNTIME_DIR="${NXF_PODMAN_TMPDIR}/runtime-${UID}"
 mkdir -p "${XDG_RUNTIME_DIR}"
 chmod 0700 "${XDG_RUNTIME_DIR}"
 
 cleanup_local_podman_state() {
     rm -rf "${LOCAL_PODMAN_ROOT}" "${XDG_RUNTIME_DIR}"
+    if [[ "${PODMAN_TMP_BASE_AUTOCREATED:-0}" == "1" ]]; then
+        rm -rf "${NXF_PODMAN_TMPDIR}"
+    fi
 }
 
 trap cleanup_local_podman_state EXIT
@@ -81,6 +90,8 @@ echo " SLURM_JOB_ID   : ${SLURM_JOB_ID:-local}"
 echo " Working dir    : ${PWD}"
 echo " Pipeline root  : ${PIPELINE_ROOT}"
 echo " Podman tmp dir : ${NXF_PODMAN_TMPDIR}"
+echo " Podman fs type : $(podman_fs_type "${NXF_PODMAN_TMPDIR}")"
+echo " Local disk req : $(podman_scratch_requested && echo true || echo false)"
 echo " Pull lock dir  : ${NXF_PODMAN_PULL_LOCK_DIR}"
 echo " Podman cache   : ${NXF_PODMAN_CACHEDIR:-not set}"
 echo " OCI archives   : ${NXF_PODMAN_CACHEDIR}"

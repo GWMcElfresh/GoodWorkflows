@@ -2,11 +2,11 @@
 # Submit the GoodWorkflows Nextflow orchestrator to SLURM.
 #
 # Usage:
-#   sbatch slurm_nextflow.sh
+#   bash slurm_nextflow.sh --workflow ingest_tabulate   # preferred: submits standalone pre-pull + orchestrator dependency chain
+#   sbatch slurm_nextflow.sh                            # valid: runs pre-pull inline inside the orchestrator allocation
 #   sbatch slurm_nextflow.sh --workflow integration
-#   bash slurm_nextflow.sh --workflow ingest_tabulate   # submits pre-pull + orchestrator dependency chain
 #   sbatch --export=ALL,NXF_WORK=/gscratch/lab/work slurm_nextflow.sh
-#   sbatch --export=ALL,SYNC_REPO_BEFORE_RUN=true slurm_nextflow.sh
+#   SYNC_REPO_BEFORE_RUN=true bash slurm_nextflow.sh --workflow integration
 #
 # Tip: this script can be submitted from any working directory because
 # PIPELINE_ROOT is resolved from the script file's own location.
@@ -46,7 +46,7 @@ if [[ -z "${SLURM_JOB_ID:-}" && "${AUTO_SUBMIT_WITH_PREPULL:-true}" == "true" ]]
     ORCHESTRATOR_JOB_ID="$(sbatch --parsable --dependency=afterany:${PREPULL_JOB_ID} --export=ALL,INLINE_PREPULL_WHEN_SBATCH=false "${PIPELINE_ROOT}/slurm_nextflow.sh" "$@")"
 
     echo "Submitted pre-pull job     : ${PREPULL_JOB_ID}"
-    echo "Submitted orchestrator job : ${ORCHESTRATOR_JOB_ID} (afterok:${PREPULL_JOB_ID})"
+    echo "Submitted orchestrator job : ${ORCHESTRATOR_JOB_ID} (afterany:${PREPULL_JOB_ID})"
     exit 0
 fi
 
@@ -66,9 +66,12 @@ export NXF_HOME="${NXF_HOME:-/gscratch/CHANGEME/.nextflow}"
 
 NXF_WORK_ROOT="${NXF_WORK:-${PWD}/work}"
 
-# Rootless podman overlay storage MUST be on a local filesystem (not NFS/Lustre).
-# Prefer SLURM_TMPDIR when allocated; otherwise use node-local /tmp.
-export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-${SLURM_TMPDIR:-/tmp}}"
+# Leave NXF_PODMAN_TMPDIR unset by default so the pre-pull script and per-task
+# beforeScript resolver can select a job-scoped local scratch directory on the
+# compute node. Set it explicitly only when you want to force a specific local
+# path.
+export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-}"
+export NXF_PODMAN_REQUIRE_LOCAL_SCRATCH="${NXF_PODMAN_REQUIRE_LOCAL_SCRATCH:-true}"
 # NXF_PODMAN_CACHEDIR defaults to the user's podman graphRoot, inferred on the
 # compute node by the pre-pull and beforeScript hooks. Leave unset here so each
 # user's storage.conf takes effect automatically.
@@ -76,7 +79,8 @@ export NXF_PODMAN_CACHEDIR="${NXF_PODMAN_CACHEDIR:-}"
 # Shared lock path to coordinate container pulls across concurrent tasks/jobs.
 export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK_ROOT}/.podman-pull-locks}"
 
-mkdir -p "${NXF_PODMAN_TMPDIR}" "${NXF_PODMAN_PULL_LOCK_DIR}"
+mkdir -p "${NXF_PODMAN_PULL_LOCK_DIR}"
+[[ -n "${NXF_PODMAN_TMPDIR}" ]] && mkdir -p "${NXF_PODMAN_TMPDIR}"
 [[ -n "${NXF_PODMAN_CACHEDIR}" ]] && mkdir -p "${NXF_PODMAN_CACHEDIR}"
 
 LOG_DIR="${PWD}/logs"
@@ -95,13 +99,15 @@ echo " Pipeline root  : ${PIPELINE_ROOT}"
 echo " Nextflow bin   : ${NEXTFLOW_BIN}"
 echo " NXF_HOME       : ${NXF_HOME}"
 echo " NXF_WORK       : ${NXF_WORK_DISPLAY}"
-echo " Podman tmp dir : ${NXF_PODMAN_TMPDIR}"
+echo " Podman tmp dir : ${NXF_PODMAN_TMPDIR:-auto-detect in pre-pull/task hooks}"
 echo " Pull lock dir  : ${NXF_PODMAN_PULL_LOCK_DIR}"
 echo " Podman cache   : ${NXF_PODMAN_CACHEDIR:-not set}"
-echo " Podman tmp free:"
-df -h "${NXF_PODMAN_TMPDIR}" || true
-echo " Podman tmp inodes:"
-df -i "${NXF_PODMAN_TMPDIR}" || true
+if [[ -n "${NXF_PODMAN_TMPDIR}" ]]; then
+    echo " Podman tmp free:"
+    df -h "${NXF_PODMAN_TMPDIR}" || true
+    echo " Podman tmp inodes:"
+    df -i "${NXF_PODMAN_TMPDIR}" || true
+fi
 echo "=========================================="
 
 USER="${USER:-$(id -un)}"

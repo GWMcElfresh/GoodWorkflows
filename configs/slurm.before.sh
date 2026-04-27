@@ -1,9 +1,12 @@
 set -euo pipefail
 
-# Overlay storage MUST be on a local filesystem. Lustre/NFS does not support
-# the xattr/hardlink operations required by fuse-overlayfs. Use node-local /tmp
-# (or SLURM_TMPDIR when --tmp=N was requested) as the podman scratch root.
-PODMAN_TMP_BASE="${NXF_PODMAN_TMPDIR:-${SLURM_TMPDIR:-/tmp}}"
+# Resolve a writable local scratch base for podman overlay storage. The helper
+# probes explicit overrides, SLURM-provided tmpdirs, and common local mounts,
+# then creates a job-scoped directory instead of assuming a cluster-specific
+# path already exists.
+podman_resolve_tmp_base
+export NXF_PODMAN_TMPDIR="${PODMAN_TMP_BASE}"
+PODMAN_FS_TYPE="$(podman_fs_type "${PODMAN_TMP_BASE}")"
 
 mkdir -p "${PODMAN_TMP_BASE}"
 
@@ -26,12 +29,14 @@ mkdir -p "${PULL_LOCK_BASE}"
 
 # Lightweight diagnostics.
 echo "[PODMAN_DIAG] tmp_base=${PODMAN_TMP_BASE}"
+echo "[PODMAN_DIAG] fs_type=${PODMAN_FS_TYPE}"
+echo "[PODMAN_DIAG] local_disk_requested=$(podman_scratch_requested && echo true || echo false)"
 echo "[PODMAN_DIAG] pull_lock_base=${PULL_LOCK_BASE}"
 echo "[PODMAN_DIAG] oci_cache=${PODMAN_OCI_CACHE:-not set}"
 df -h "${PODMAN_TMP_BASE}" || true
 df -i "${PODMAN_TMP_BASE}" || true
 
-LOCAL_PODMAN_ROOT="${PODMAN_TMP_BASE}/podman-${SLURM_JOB_ID:-$$}"
+LOCAL_PODMAN_ROOT="${PODMAN_TMP_BASE}/podman"
 export CONTAINERS_GRAPHROOT="${LOCAL_PODMAN_ROOT}/storage"
 
 export CONTAINERS_RUNROOT="${LOCAL_PODMAN_ROOT}/run"
@@ -50,6 +55,7 @@ export CONTAINERS_STORAGE_CONF="${LOCAL_PODMAN_ROOT}/storage.conf"
     fi
 } > "${CONTAINERS_STORAGE_CONF}"
 
+export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-${PODMAN_TMP_BASE}/runtime-${UID}}"
 mkdir -p "${XDG_RUNTIME_DIR}"
 chmod 0700 "${XDG_RUNTIME_DIR}"
 

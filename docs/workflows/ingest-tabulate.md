@@ -131,8 +131,10 @@ nextflow run main.nf \
 
 ## Running on HPC
 
+For routine SLURM runs, the recommended entrypoint is a copied `runs/<name>/run.sh` template. The command below shows the repo-root launcher alternative.
+
 ```bash
-sbatch slurm_nextflow.sh \
+bash slurm_nextflow.sh \
   --workflow ingest_tabulate \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Project/Folder

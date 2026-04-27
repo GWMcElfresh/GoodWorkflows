@@ -51,7 +51,16 @@ bash scripts/sync_repo.sh "${PWD}"
 
 ---
 
-## 2 — Set up a run directory
+## 2 — Choose an HPC entrypoint
+
+Two SLURM launch patterns are supported:
+
+| Entry point | Best for | Where outputs/logs live | Pre-pull behavior |
+|---|---|---|---|
+| `runs/<name>/run.sh` | Recommended routine runs with a dedicated run directory and editable per-run config | Under `runs/<name>/` | **Inline** inside the same SLURM allocation before `nextflow run` |
+| `bash slurm_nextflow.sh ...` | Repo-root launches, automation, or cases where you want image pre-pull isolated first | Relative to the repository checkout | **Standalone pre-pull job** submitted before the orchestrator |
+
+### Template run directory (recommended for most SLURM runs)
 
 Each run lives in its own directory under `runs/`. The `runs/` tree is gitignored, so nothing in it is ever committed.
 
@@ -66,7 +75,7 @@ The copied directory contains everything needed for a self-contained run:
 ```
 runs/my_run_name/
 ├── samplesheet.csv   ← edit this
-├── run.sh            ← edit the FILL IN section, then sbatch
+├── run.sh            ← edit the FILL IN section, then sbatch; performs inline pre-pull on SLURM
 ```
 
 All outputs will land in subdirectories of the run directory:
@@ -143,6 +152,8 @@ PIPELINE_ROOT=/explicit/path/to/GoodWorkflows sbatch run.sh
 sbatch run.sh
 ```
 
+For template-based SLURM runs, `run.sh` does perform a container image pre-pull, but it happens **inline in the same allocation** before `nextflow run`. It does not submit a separate pre-pull job.
+
 Pass extra Nextflow parameters as positional arguments to `sbatch`:
 
 ```bash
@@ -162,6 +173,8 @@ For `ingest_export` and `ingest_tabulate` you can run without SLURM:
 bash run.sh
 ```
 
+Local `bash run.sh` runs do not use SLURM and therefore do not perform the SLURM pre-pull step.
+
 Or run Nextflow directly from the repo root:
 
 ```bash
@@ -179,13 +192,40 @@ When running with `-profile slurm` (HPC), every workflow task uses a rootless Po
 
 GoodWorkflows solves this with a **shared OCI archive store** and a **pre-pull job** that runs before the orchestrator starts.
 
+### Launch modes
+
+Recommended for routine named runs:
+
+```bash
+sbatch run.sh
+```
+
+This performs pre-pull inline inside the same allocation before Nextflow starts.
+
+When you specifically want pre-pull as a separate job first:
+
+```bash
+bash slurm_nextflow.sh --workflow integration ...
+```
+
+This submits a standalone pre-pull SLURM job first, then submits the orchestrator with `--dependency=afterany:<PREPULL_JOB_ID>`. Image preparation therefore happens before orchestration starts.
+
+If you instead run:
+
+```bash
+sbatch slurm_nextflow.sh --workflow integration ...
+```
+
+the pre-pull still happens before Nextflow starts, but it runs **inline inside the orchestrator allocation** rather than as a separate job. `template/run.sh` also uses inline pre-pull.
+
 ### How it works
 
-1. `slurm_nextflow.sh` (and `template/run.sh`) submit `scripts/slurm_prepull_images.sh` as a standalone SLURM job.
-2. The pre-pull job pulls each image on a **node-local filesystem** (`/tmp`), then saves it as a plain OCI tar archive to `NXF_PODMAN_CACHEDIR` on the shared filesystem. Plain tar writes work fine on NFS/Lustre — no overlay operations.
-3. The orchestrator is submitted with `--dependency=afterany:<PREPULL_JOB_ID>` so it always starts.
-4. Each task's `beforeScript` checks for the `.tar.done` sentinel in `NXF_PODMAN_CACHEDIR` and loads the archive with `podman load` before running. This skips the registry entirely on subsequent runs.
-5. If the archive is missing (e.g. pre-pull failed), tasks fall back to a coordinated locked registry pull.
+1. `bash slurm_nextflow.sh ...` submits `scripts/slurm_prepull_images.sh` as a standalone SLURM job. `sbatch slurm_nextflow.sh ...` and `template/run.sh` run the same script inline before `nextflow run`.
+2. The pre-pull script resolves a **job-scoped local scratch** directory for Podman overlay storage. It first respects an explicit `NXF_PODMAN_TMPDIR`, then probes `SLURM_TMPDIR` plus scratch-like local roots, and creates its own subdirectory automatically.
+3. If local scratch is required but only network filesystems are visible, pre-pull exits early with a clear error instead of unpacking onto NFS/Lustre.
+4. Each image is pulled onto that local scratch space, then saved as a plain OCI tar archive to `NXF_PODMAN_CACHEDIR` on the shared filesystem. Plain tar writes are safe on NFS/Lustre because they do not require overlay/xattr operations.
+5. Each task's `beforeScript` resolves local scratch again on its own node, checks for the `.tar.done` sentinel in `NXF_PODMAN_CACHEDIR`, and loads the archive with `podman load` before running.
+6. If the archive is missing or incomplete, tasks fall back to a coordinated locked registry pull.
 
 ### The container store
 
@@ -225,7 +265,7 @@ rsync -av "${STORE}/" other-cluster:/path/to/dockerContainers/
 Then on the target:
 
 ```bash
-NXF_PODMAN_CACHEDIR=/path/to/dockerContainers sbatch run.sh --workflow full ...
+NXF_PODMAN_CACHEDIR=/path/to/dockerContainers bash slurm_nextflow.sh --workflow integration ...
 ```
 
 ### Environment variables
@@ -233,11 +273,13 @@ NXF_PODMAN_CACHEDIR=/path/to/dockerContainers sbatch run.sh --workflow full ...
 | Variable | Default | Description |
 |---|---|---|
 | `NXF_PODMAN_CACHEDIR` | *(from `podman info`)* | Shared OCI archive store. Defaults to the user's configured `graphRoot` on the compute node, so each user gets their own store automatically. Override to share archives between users or point to a pre-populated store. |
-| `NXF_PODMAN_TMPDIR` | `${SLURM_TMPDIR:-/tmp}` | **Node-local** scratch for overlay layer unpacking. Must NOT be on NFS. |
+| `NXF_PODMAN_TMPDIR` | *(unset by default)* | Explicit local scratch path for overlay layer unpacking. Set this only when you want to force a specific node-local directory. |
+| `NXF_PODMAN_LOCAL_ROOTS` | *(unset)* | Colon-separated extra local roots to probe for scratch creation before the generic defaults. Useful when your cluster exposes local disk under an admin-specific mount point. |
+| `NXF_PODMAN_REQUIRE_LOCAL_SCRATCH` | `true` in launcher scripts | Fail fast when only network filesystems are visible instead of silently falling back to generic temp space. |
 | `NXF_PODMAN_PULL_LOCK_DIR` | `${NXF_WORK}/.podman-pull-locks` | Shared lock directory coordinating concurrent per-task fallback pulls. |
 
 !!! warning "Overlay storage must be node-local"
-    `NXF_PODMAN_TMPDIR` must point to a local filesystem (`/tmp`, `SLURM_TMPDIR`, or a local scratch mount). Setting it to a Lustre/NFS path causes `fuse-overlayfs` to fail silently after downloading blobs — the layer commit step requires xattr/hardlink support. The OCI archive store (`NXF_PODMAN_CACHEDIR`) is plain file I/O and is fine on NFS.
+  Do not point `NXF_PODMAN_TMPDIR` at Lustre, NFS, GPFS, or any other network filesystem. Podman overlay unpack needs xattr and hardlink support, so the failure often appears only after the image blobs finish downloading. The OCI archive store (`NXF_PODMAN_CACHEDIR`) is plain file I/O and is fine on NFS.
 
 ### Updating `scripts/image-manifest.txt`
 
@@ -292,18 +334,20 @@ Nextflow will skip all already-completed steps and continue from where it left o
 
 ---
 
-## 9 — Reference runs
+## 9 — Alternative repo-root launcher
 
-`slurm_nextflow.sh` in the repository root is an alternative launcher that targets the repository itself as the run context (work dir and logs relative to the checkout). Use it when you prefer not to use the `runs/` pattern:
+`slurm_nextflow.sh` in the repository root is the alternative launcher that targets the checkout itself as the run context (work dir and logs relative to the repo). Use it when you do not want the `runs/` pattern, or when you want the pre-pull submitted as its own SLURM job before orchestration starts:
 
 ```bash
 # From the GoodWorkflows checkout root:
-sbatch slurm_nextflow.sh --workflow integration \
+bash slurm_nextflow.sh --workflow integration \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Project/Folder
 ```
 
-It can also be submitted from a different directory since it resolves `PIPELINE_ROOT` from its own file path.
+If you use `sbatch slurm_nextflow.sh ...`, it is still valid, but the pre-pull runs inline inside the orchestrator allocation instead of as a separate job.
+
+It can also be launched from a different directory since it resolves `PIPELINE_ROOT` from its own file path.
 
 ---
 

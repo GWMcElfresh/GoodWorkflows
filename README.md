@@ -16,10 +16,11 @@ Parameters: [`nextflow_schema.json`](nextflow_schema.json) | Docs source: [`docs
 ├── modules/local/          # Single-step DSL2 modules
 ├── configs/                # Base + profile-specific config
 ├── data/                   # Default repo-local input location
+├── template/               # Copyable per-run launcher scaffold
 ├── outputs/                # Default published results (generated)
 ├── work/                   # Nextflow work dir (generated)
 ├── logs/                   # Reports and SLURM logs (generated)
-├── slurm_nextflow.sh       # Run the pipeline on HPC
+├── slurm_nextflow.sh       # Repo-root HPC launcher
 └── slurm_sync_repo.sh      # Fast clone / update job for HPC checkouts
 ```
 
@@ -97,29 +98,59 @@ Or target a specific scratch location:
 sbatch --export=ALL,SYNC_TARGET_DIR=/gscratch/mygroup/GoodWorkflows slurm_sync_repo.sh
 ```
 
-### 2. Launch the pipeline
+### 2. Choose an HPC entrypoint
+
+For SLURM-based runs, the simplest path is usually to copy the template and fill out `run.sh`. The repo-root wrapper is still available when you want repo-relative outputs or a separate pre-pull job.
+
+| Entry point | Best for | Pre-pull behavior |
+|---|---|---|
+| `runs/<name>/run.sh` | Recommended routine SLURM runs with a dedicated run directory and checked-in samplesheet template | Runs **inline** inside the same SLURM allocation before `nextflow run` |
+| `bash slurm_nextflow.sh ...` | Repo-root launches, automation, or cases where you want image pre-pull isolated first | Submits a **standalone pre-pull job** before the orchestrator |
+
+#### 2A. Recommended: copy the template and submit `run.sh`
 
 ```bash
-sbatch slurm_nextflow.sh \
+cp -r template runs/my_run_name
+cd runs/my_run_name
+
+# edit samplesheet.csv and the FILL IN section in run.sh
+sbatch run.sh
+```
+
+`run.sh` does perform a container image pre-pull on SLURM, but it does so **inline in the same allocation** before Nextflow starts. For CPU-only local workflows, `bash run.sh` skips SLURM pre-pull entirely.
+
+#### 2B. Alternative: launch from the repository root
+
+```bash
+bash slurm_nextflow.sh \
   --workflow full \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Folder
 ```
 
-`slurm_nextflow.sh` automatically submits a container image pre-pull job and chains the orchestrator with `--dependency=afterany:PREPULL_JOB_ID`. Images are pulled to node-local `/tmp` (NFS-safe), then saved as OCI tar archives.
+Preferred launch mode: run `bash slurm_nextflow.sh ...` from a login node. In that mode the wrapper submits a standalone container image pre-pull job first, then submits the orchestrator with `--dependency=afterany:<PREPULL_JOB_ID>`. Image preparation therefore happens before the orchestrator starts, without affecting pipelines that are already running.
+
+If you instead use `sbatch slurm_nextflow.sh ...`, the same pre-pull runs inline inside the orchestrator allocation before Nextflow launches. `template/run.sh` also uses inline pre-pull.
+
+Images are pulled onto a job-scoped **local scratch** directory selected on the compute node, then saved as OCI tar archives in `NXF_PODMAN_CACHEDIR` on the shared filesystem. The scratch resolver accepts an explicit `NXF_PODMAN_TMPDIR`, probes `SLURM_TMPDIR` plus common scratch-like local mounts, and can be extended with `NXF_PODMAN_LOCAL_ROOTS=/path1:/path2`. If local scratch is required but only network filesystems are visible, pre-pull fails fast instead of silently unpacking on NFS/Lustre.
 
 The archive store defaults to each user's configured podman `graphRoot` (read from `~/.config/containers/storage.conf` on the compute node via `podman info`), so every user gets their own independent store automatically. Archives persist across all runs — each task loads from the archive with `podman load` and never hits the registry again.
 
-To use a custom or shared store:
+To use a custom archive store or provide extra local scratch roots:
 
 ```bash
-NXF_PODMAN_CACHEDIR=/other/path sbatch slurm_nextflow.sh --workflow full ...
+NXF_PODMAN_CACHEDIR=/other/path \
+NXF_PODMAN_LOCAL_ROOTS=/scratch/node_local:/srv/local_disk \
+bash slurm_nextflow.sh --workflow full ...
 ```
 
 Optional: fast-forward the checkout immediately before launch:
 
 ```bash
-sbatch --export=ALL,SYNC_REPO_BEFORE_RUN=true slurm_nextflow.sh --workflow full
+SYNC_REPO_BEFORE_RUN=true bash slurm_nextflow.sh \
+  --workflow full \
+  --labkey_base_url https://labkey.example.org \
+  --labkey_folder /My/Folder
 ```
 
 ---
@@ -137,7 +168,7 @@ So the implemented pattern is:
 
 1. `git clone` once on HPC
 2. use `slurm_sync_repo.sh` or `scripts/sync_repo.sh` to fast-forward to the latest `main`
-3. launch `slurm_nextflow.sh`
+3. launch `run.sh` for routine named runs, or `slurm_nextflow.sh` for repo-root launches
 
 ---
 

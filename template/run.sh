@@ -6,8 +6,15 @@
 #        cp -r /path/to/GoodWorkflows/template runs/my_run
 #   2. Edit the samplesheet.csv: one row per sample.
 #   3. Fill in the FILL IN section below.
-#   4. Submit:  sbatch run.sh
-#      Or run locally:  bash run.sh
+#   4. Submit on SLURM:  sbatch run.sh
+#      This template performs an inline container image pre-pull in the same
+#      SLURM allocation before launching Nextflow.
+#   5. Or run locally:  bash run.sh   # CPU workflows only; no SLURM pre-pull
+#
+# Alternative SLURM entrypoint:
+#   If you want the pre-pull to run as a separate SLURM job before the
+#   orchestrator starts, launch from the repository root with:
+#       bash slurm_nextflow.sh --workflow <name> ...
 #
 # All outputs land in:
 #   runs/<my_run_name>/outputs/   (results)
@@ -88,17 +95,21 @@ OUTDIR="${OUTDIR:-${RUN_DIR}/outputs}"
 export NXF_WORK="${NXF_WORK:-${RUN_DIR}/work}"
 LOG_DIR="${RUN_DIR}/logs"
 
-# Rootless Podman overlay storage MUST be on a local filesystem (not NFS/Lustre).
-# Prefer SLURM_TMPDIR when allocated; otherwise use node-local /tmp.
-# NXF_PODMAN_CACHEDIR is the canonical shared container store (plain OCI tar
-# archives on NFS). Pre-pull writes here; tasks load from here before the registry.
-export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-${SLURM_TMPDIR:-/tmp}}"
+# Leave NXF_PODMAN_TMPDIR unset by default so the pre-pull script and per-task
+# beforeScript resolver can select a job-scoped local scratch directory on the
+# compute node. Set it explicitly only when you want to force a specific local
+# path. NXF_PODMAN_CACHEDIR is the canonical shared container store (plain OCI
+# tar archives on NFS). Pre-pull writes here; tasks load from here before the
+# registry.
+export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-}"
+export NXF_PODMAN_REQUIRE_LOCAL_SCRATCH="${NXF_PODMAN_REQUIRE_LOCAL_SCRATCH:-true}"
 # NXF_PODMAN_CACHEDIR defaults to the user's podman graphRoot, inferred on the
 # compute node. Leave unset here; each user's storage.conf takes effect automatically.
 export NXF_PODMAN_CACHEDIR="${NXF_PODMAN_CACHEDIR:-}"
 export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK}/.podman-pull-locks}"
 
-mkdir -p "${LOG_DIR}" "${NXF_WORK}" "${NXF_PODMAN_TMPDIR}" "${NXF_PODMAN_PULL_LOCK_DIR}"
+mkdir -p "${LOG_DIR}" "${NXF_WORK}" "${NXF_PODMAN_PULL_LOCK_DIR}"
+[[ -n "${NXF_PODMAN_TMPDIR}" ]] && mkdir -p "${NXF_PODMAN_TMPDIR}"
 [[ -n "${NXF_PODMAN_CACHEDIR}" ]] && mkdir -p "${NXF_PODMAN_CACHEDIR}"
 
 # ============================================================
@@ -142,6 +153,12 @@ echo " Output dir     : ${OUTDIR}"
 echo " Work dir       : ${NXF_WORK}"
 echo " LabKey URL     : ${LABKEY_BASE_URL}"
 echo " LabKey folder  : ${LABKEY_FOLDER}"
+if [[ -n "${SLURM_JOB_ID:-}" ]]; then
+    echo " Pre-pull mode  : inline in this SLURM allocation"
+else
+    echo " Pre-pull mode  : none (local run)"
+fi
+echo " Podman tmp dir : ${NXF_PODMAN_TMPDIR:-auto-detect in pre-pull/task hooks}"
 echo " Podman cache   : ${NXF_PODMAN_CACHEDIR}"
 echo " Pull lock dir  : ${NXF_PODMAN_PULL_LOCK_DIR}"
 echo "=========================================="
@@ -151,11 +168,12 @@ echo "=========================================="
 # ============================================================
 # Container image pre-pull (SLURM only)
 # ============================================================
-# Pre-pull all workflow container images into the shared cache before launching
-# Nextflow tasks. This is idempotent — images already present are skipped.
+# For template-based SLURM runs, pre-pull happens inline in this same
+# allocation before Nextflow starts. This is idempotent — images already
+# present in the shared archive cache are skipped.
 PREPULL_SCRIPT_PATH="${PIPELINE_ROOT}/scripts/slurm_prepull_images.sh"
 if [[ -n "${SLURM_JOB_ID:-}" && -f "${PREPULL_SCRIPT_PATH}" ]]; then
-    echo "Running container image pre-pull..."
+    echo "Running inline container image pre-pull before Nextflow launch..."
     bash "${PREPULL_SCRIPT_PATH}" "$@" \
         || echo "WARNING: pre-pull finished with errors; tasks will load images on first use"
 fi

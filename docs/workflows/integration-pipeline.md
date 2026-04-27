@@ -132,12 +132,14 @@ For the generated code-level reference, see [API Reference → Workflows](../api
 
 ## Running on HPC
 
+For routine SLURM runs, the recommended entrypoint is a copied `runs/<name>/run.sh` template. The commands below show the repo-root launcher alternative, which is also the easiest way to get a separate pre-pull job ahead of the orchestrator.
+
 ```bash
 # Sync the repo (recommended before each run)
 sbatch slurm_sync_repo.sh
 
-# Submit the integration pipeline
-sbatch slurm_nextflow.sh \
+# Submit the integration pipeline from a login node so pre-pull runs as its own job first
+bash slurm_nextflow.sh \
   --workflow integration \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Project/Folder
@@ -145,7 +147,7 @@ sbatch slurm_nextflow.sh \
 
 Optionally, sync and launch in one step:
 ```bash
-sbatch --export=ALL,SYNC_REPO_BEFORE_RUN=true slurm_nextflow.sh \
+SYNC_REPO_BEFORE_RUN=true bash slurm_nextflow.sh \
   --workflow integration \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Project/Folder

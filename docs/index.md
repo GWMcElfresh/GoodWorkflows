@@ -36,9 +36,11 @@ nextflow run main.nf \
 
 ### HPC (full GPU pipeline)
 
+For routine SLURM runs, the recommended entrypoint is a copied `template/run.sh` under `runs/<name>/`. The command below shows the repo-root launcher alternative, which is also the easiest way to submit a separate pre-pull job before the orchestrator starts.
+
 ```bash
-# On any SLURM node – profile auto-detected from environment
-sbatch slurm_nextflow.sh \
+# Preferred from a login node: submits pre-pull first, then the orchestrator
+bash slurm_nextflow.sh \
   --workflow integration \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Project/Folder
@@ -59,6 +61,7 @@ sbatch slurm_nextflow.sh \
 ├── modules/local/          # Single-step DSL2 modules
 ├── configs/                # Base + profile-specific configs
 ├── data/                   # Default input location (samplesheet.csv)
+├── template/               # Copyable per-run launcher scaffold
 ├── outputs/                # Published results (generated)
 ├── work/                   # Nextflow work dir (generated)
 ├── logs/                   # Nextflow reports and SLURM logs (generated)
@@ -68,6 +71,8 @@ sbatch slurm_nextflow.sh \
 ├── slurm_nextflow.sh       # HPC SLURM submission wrapper
 └── slurm_sync_repo.sh      # Lightweight HPC repo sync job
 ```
+
+For routine SLURM runs, prefer copying `template/` into `runs/<name>/` and submitting `run.sh`. Use `bash slurm_nextflow.sh ...` when you want the repository-root launcher and a standalone pre-pull job submitted before orchestration. The detailed comparison lives in [Usage](usage.md).
 
 ---
 
