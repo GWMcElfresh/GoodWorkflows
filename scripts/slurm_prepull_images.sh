@@ -106,7 +106,7 @@ podman_pull_once() {
     local image="$1"
 
     if command -v timeout &>/dev/null; then
-        timeout 300 podman pull "${image}"
+        timeout 3600 podman pull "${image}"
     else
         podman pull "${image}"
     fi

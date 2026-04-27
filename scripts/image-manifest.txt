@@ -2,7 +2,8 @@
 #
 # Used by scripts/slurm_prepull_images.sh when dynamic Nextflow config parsing
 # returns zero images. Also read by template/run.sh and slurm_nextflow.sh
-# inline pre-pull logic.
+# inline pre-pull logic. The same container URIs are reused by the
+# `slurm_singularity` fallback profile.
 #
 # Rules:
 #   - One fully-qualified image URI per line.

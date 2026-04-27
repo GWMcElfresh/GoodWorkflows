@@ -90,7 +90,7 @@ podman_pull_once() {
     local image="$1"
 
     if command -v timeout &>/dev/null; then
-        timeout 300 podman pull "${image}"
+        timeout 3600 podman pull "${image}"
     else
         podman pull "${image}"
     fi
@@ -191,6 +191,6 @@ pull_with_lock() {
 if command -v podman &>/dev/null; then
     cleanup_stale_locks
     if task_image="$(get_task_image)"; then
-        pull_with_lock "${task_image}"
+        pull_with_lock "${task_image}" || true
     fi
 fi
