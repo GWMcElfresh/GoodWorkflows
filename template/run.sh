@@ -30,6 +30,7 @@
 #SBATCH --mem=32000
 #SBATCH --partition=batch
 #SBATCH --time=1-00:00
+#SBATCH --gres=disk:1028
 #SBATCH --output=logs/slurm-%j.out
 #SBATCH --error=logs/slurm-%j.err
 

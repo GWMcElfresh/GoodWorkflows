@@ -94,7 +94,7 @@ podman_emit_primary_candidate_paths() {
     if command -v findmnt >/dev/null 2>&1; then
         findmnt -rn -o TARGET,FSTYPE 2>/dev/null | while read -r root fs_type; do
             case "${root}" in
-                /mnt/*|/scratch*|/local*|/var/tmp|/tmp)
+                /mnt/*|/scratch*|/local*)
                     if podman_fs_is_network "${fs_type}"; then
                         continue
                     fi

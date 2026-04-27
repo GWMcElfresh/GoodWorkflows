@@ -65,7 +65,8 @@ export CONTAINERS_STORAGE_CONF="${LOCAL_PODMAN_ROOT}/storage.conf"
     printf '[storage]\n'
     printf 'driver = "overlay"\n'
     printf 'graphRoot = "%s"\n' "${CONTAINERS_GRAPHROOT}"
-    printf 'runRoot   = "%s"\n\n' "${CONTAINERS_RUNROOT}"
+    printf 'runRoot   = "%s"\n' "${CONTAINERS_RUNROOT}"
+    printf 'additionalimagestores = []\n\n'
     printf '[storage.options.overlay]\n'
     printf 'mount_program = "/usr/bin/fuse-overlayfs"\n'
 } > "${CONTAINERS_STORAGE_CONF}"
