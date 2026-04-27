@@ -67,22 +67,10 @@ export NXF_HOME="${NXF_HOME:-/gscratch/CHANGEME/.nextflow}"
 
 NXF_WORK_ROOT="${NXF_WORK:-${PWD}/work}"
 
-# Leave NXF_PODMAN_TMPDIR unset by default so the pre-pull script and per-task
-# beforeScript resolver can select a job-scoped local scratch directory on the
-# compute node. Set it explicitly only when you want to force a specific local
-# path.
-export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-}"
-export NXF_PODMAN_REQUIRE_LOCAL_SCRATCH="${NXF_PODMAN_REQUIRE_LOCAL_SCRATCH:-true}"
-# NXF_PODMAN_CACHEDIR defaults to the user's podman graphRoot, inferred on the
-# compute node by the pre-pull and beforeScript hooks. Leave unset here so each
-# user's storage.conf takes effect automatically.
-export NXF_PODMAN_CACHEDIR="${NXF_PODMAN_CACHEDIR:-}"
-# Shared lock path to coordinate container pulls across concurrent tasks/jobs.
+# NXF_PODMAN_PULL_LOCK_DIR coordinates concurrent image pulls across tasks.
 export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK_ROOT}/.podman-pull-locks}"
 
 mkdir -p "${NXF_PODMAN_PULL_LOCK_DIR}"
-[[ -n "${NXF_PODMAN_TMPDIR}" ]] && mkdir -p "${NXF_PODMAN_TMPDIR}"
-[[ -n "${NXF_PODMAN_CACHEDIR}" ]] && mkdir -p "${NXF_PODMAN_CACHEDIR}"
 
 LOG_DIR="${PWD}/logs"
 mkdir -p "${LOG_DIR}"
@@ -100,15 +88,7 @@ echo " Pipeline root  : ${PIPELINE_ROOT}"
 echo " Nextflow bin   : ${NEXTFLOW_BIN}"
 echo " NXF_HOME       : ${NXF_HOME}"
 echo " NXF_WORK       : ${NXF_WORK_DISPLAY}"
-echo " Podman tmp dir : ${NXF_PODMAN_TMPDIR:-auto-detect in pre-pull/task hooks}"
 echo " Pull lock dir  : ${NXF_PODMAN_PULL_LOCK_DIR}"
-echo " Podman cache   : ${NXF_PODMAN_CACHEDIR:-not set}"
-if [[ -n "${NXF_PODMAN_TMPDIR}" ]]; then
-    echo " Podman tmp free:"
-    df -h "${NXF_PODMAN_TMPDIR}" || true
-    echo " Podman tmp inodes:"
-    df -i "${NXF_PODMAN_TMPDIR}" || true
-fi
 echo "=========================================="
 
 USER="${USER:-$(id -un)}"

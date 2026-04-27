@@ -3,6 +3,18 @@
 #
 # This script is idempotent: existing images are skipped. It can be submitted
 # via sbatch or run directly inside another SLURM allocation.
+#
+# Prerequisite: ~/.config/containers/storage.conf must define a graphRoot on
+# gscratch (or another high-quota shared filesystem) with force_mask="0700".
+# Example:
+#   [storage]
+#   driver = "overlay"
+#   graphRoot = "/home/exacloud/gscratch/<group>/dockerContainers"
+#   [storage.options.overlay]
+#   force_mask = "0700"
+#
+# Podman graphRoot is NOT overridden here — images pulled during pre-pull land
+# in the user's configured graphRoot and are reused by all subsequent tasks.
 
 #SBATCH --job-name=nf-prepull
 #SBATCH --ntasks=1
@@ -21,19 +33,21 @@ NEXTFLOW_BIN="${NEXTFLOW_BIN:-/gscratch/CHANGEME/nextflow}"
 export NXF_HOME="${NXF_HOME:-/gscratch/CHANGEME/.nextflow}"
 NXF_WORK_ROOT="${NXF_WORK:-${PWD}/work}"
 MANIFEST_PATH="${PIPELINE_ROOT}/scripts/image-manifest.txt"
-export NXF_PODMAN_REQUIRE_LOCAL_SCRATCH="${NXF_PODMAN_REQUIRE_LOCAL_SCRATCH:-true}"
 
-# shellcheck source=/dev/null
-source "${PIPELINE_ROOT}/configs/slurm.podman-scratch.sh"
+# Per-job ephemeral scratch for run state (lock files, XDG socket, TMPDIR).
+# graphRoot is NOT set here — Podman uses ~/.config/containers/storage.conf.
+JOB_STORAGE="${NXF_WORK_ROOT}/.podman-scratch/${SLURM_JOB_ID:-$$}"
+export CONTAINERS_RUNROOT="${JOB_STORAGE}/run"
+export TMPDIR="${JOB_STORAGE}/tmp"
+export XDG_RUNTIME_DIR="${JOB_STORAGE}/xdg-${UID}"
 
-# Use the same resolver as task before/after scripts so local scratch is
-# created beneath any usable local filesystem, rather than relying on one
-# hardcoded mount layout.
-podman_resolve_tmp_base
-export NXF_PODMAN_TMPDIR="${PODMAN_TMP_BASE}"
 export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK_ROOT}/.podman-pull-locks}"
 
-mkdir -p "${NXF_PODMAN_TMPDIR}" "${NXF_PODMAN_PULL_LOCK_DIR}" "${PWD}/logs"
+mkdir -p "${CONTAINERS_RUNROOT}" "${TMPDIR}" "${XDG_RUNTIME_DIR}" \
+         "${NXF_PODMAN_PULL_LOCK_DIR}" "${PWD}/logs"
+chmod 0700 "${XDG_RUNTIME_DIR}"
+
+trap 'rm -rf "${JOB_STORAGE}"' EXIT
 
 if command -v module &>/dev/null; then
     module load podman 2>/dev/null || true
@@ -44,45 +58,13 @@ if ! command -v podman >/dev/null 2>&1; then
     exit 1
 fi
 
-# Default NXF_PODMAN_CACHEDIR to the user's configured podman graphRoot.
-# podman reads ~/.config/containers/storage.conf, so each user automatically
-# gets their own archive store without any hard-coded paths.
-# Must run before CONTAINERS_GRAPHROOT is overridden for the local pull.
-if [[ -z "${NXF_PODMAN_CACHEDIR:-}" ]]; then
-    NXF_PODMAN_CACHEDIR="$(podman info --format '{{.Store.GraphRoot}}')"
+# Verify that graphRoot is configured and accessible.
+PODMAN_GRAPHROOT="$(podman info --format '{{.Store.GraphRoot}}' 2>/dev/null || true)"
+if [[ -z "${PODMAN_GRAPHROOT}" ]]; then
+    echo "ERROR: Could not read graphRoot from podman info."
+    echo "Ensure ~/.config/containers/storage.conf defines a graphRoot on gscratch with force_mask=\"0700\"."
+    exit 1
 fi
-export NXF_PODMAN_CACHEDIR
-mkdir -p "${NXF_PODMAN_CACHEDIR}"
-
-LOCAL_PODMAN_ROOT="${NXF_PODMAN_TMPDIR}/podman-prepull-${SLURM_JOB_ID:-$$}"
-# graphRoot must be on a local filesystem (not NFS) for overlay/fuse-overlayfs.
-export CONTAINERS_GRAPHROOT="${LOCAL_PODMAN_ROOT}/storage"
-export CONTAINERS_RUNROOT="${LOCAL_PODMAN_ROOT}/run"
-mkdir -p "${CONTAINERS_GRAPHROOT}" "${CONTAINERS_RUNROOT}"
-
-export CONTAINERS_STORAGE_CONF="${LOCAL_PODMAN_ROOT}/storage.conf"
-{
-    printf '[storage]\n'
-    printf 'driver = "overlay"\n'
-    printf 'graphRoot = "%s"\n' "${CONTAINERS_GRAPHROOT}"
-    printf 'runRoot   = "%s"\n' "${CONTAINERS_RUNROOT}"
-    printf 'additionalimagestores = []\n\n'
-    printf '[storage.options.overlay]\n'
-    printf 'mount_program = "/usr/bin/fuse-overlayfs"\n'
-} > "${CONTAINERS_STORAGE_CONF}"
-
-export XDG_RUNTIME_DIR="${NXF_PODMAN_TMPDIR}/runtime-${UID}"
-mkdir -p "${XDG_RUNTIME_DIR}"
-chmod 0700 "${XDG_RUNTIME_DIR}"
-
-cleanup_local_podman_state() {
-    rm -rf "${LOCAL_PODMAN_ROOT}" "${XDG_RUNTIME_DIR}"
-    if [[ "${PODMAN_TMP_BASE_AUTOCREATED:-0}" == "1" ]]; then
-        rm -rf "${NXF_PODMAN_TMPDIR}"
-    fi
-}
-
-trap cleanup_local_podman_state EXIT
 
 echo "=========================================="
 echo " GoodWorkflows Container Pre-Pull"
@@ -90,14 +72,11 @@ echo "=========================================="
 echo " SLURM_JOB_ID   : ${SLURM_JOB_ID:-local}"
 echo " Working dir    : ${PWD}"
 echo " Pipeline root  : ${PIPELINE_ROOT}"
-echo " Podman tmp dir : ${NXF_PODMAN_TMPDIR}"
-echo " Podman fs type : $(podman_fs_type "${NXF_PODMAN_TMPDIR}")"
-echo " Local disk req : $(podman_scratch_requested && echo true || echo false)"
+echo " Job storage    : ${JOB_STORAGE}"
+echo " Podman graphRoot: ${PODMAN_GRAPHROOT}"
 echo " Pull lock dir  : ${NXF_PODMAN_PULL_LOCK_DIR}"
-echo " Podman cache   : ${NXF_PODMAN_CACHEDIR:-not set}"
-echo " OCI archives   : ${NXF_PODMAN_CACHEDIR}"
-df -h "${NXF_PODMAN_TMPDIR}" || true
-df -i "${NXF_PODMAN_TMPDIR}" || true
+df -h "${NXF_WORK_ROOT}" || true
+df -i "${NXF_WORK_ROOT}" || true
 echo "=========================================="
 
 cleanup_stale_locks() {
@@ -121,35 +100,6 @@ podman_pull_once() {
         timeout 3600 podman pull "${image}"
     else
         podman pull "${image}"
-    fi
-}
-
-# Export a successfully-pulled image as an OCI tar archive on the shared NFS
-# cache directory. The archive is written atomically via a .tmp file so tasks
-# can test for the .done sentinel before loading.
-export_oci_archive() {
-    local image="$1"
-    local key archive
-    [[ -z "${NXF_PODMAN_CACHEDIR:-}" ]] && return 0
-
-    mkdir -p "${NXF_PODMAN_CACHEDIR}"
-
-    key="$(printf '%s' "${image}" | tr '/:@' '___' | tr -cd '[:alnum:]_.-')"
-    archive="${NXF_PODMAN_CACHEDIR}/${key}.tar"
-
-    if [[ -f "${archive}.done" ]]; then
-        echo "[CACHE] OCI archive already exists for ${image}; skipping export"
-        return 0
-    fi
-
-    echo "[EXPORT] Saving OCI archive: ${archive}"
-    if podman save "${image}" > "${archive}.tmp"; then
-        mv "${archive}.tmp" "${archive}"
-        touch "${archive}.done"
-        echo "[EXPORT] Done: ${archive}"
-    else
-        rm -f "${archive}.tmp"
-        echo "[WARN] OCI export failed for ${image}; tasks will pull from registry"
     fi
 }
 
@@ -313,13 +263,11 @@ pull_with_lock() {
         flock "${lock_fd}"
         if podman image exists "${image}" 2>/dev/null; then
             echo "[SKIP] Image already present: ${image}"
-            export_oci_archive "${image}"
             status=0
         else
             for attempt in 1 2 3; do
                 if podman_pull_once "${image}"; then
                     echo "[OK] Pulled ${image}"
-                    export_oci_archive "${image}"
                     status=0
                     break
                 fi
@@ -340,13 +288,11 @@ pull_with_lock() {
 
     if podman image exists "${image}" 2>/dev/null; then
         echo "[SKIP] Image already present: ${image}"
-        export_oci_archive "${image}"
         status=0
     else
         for attempt in 1 2 3; do
             if podman_pull_once "${image}"; then
                 echo "[OK] Pulled ${image}"
-                export_oci_archive "${image}"
                 status=0
                 break
             fi

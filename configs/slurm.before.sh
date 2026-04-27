@@ -1,91 +1,33 @@
 set -euo pipefail
 
-# Resolve a writable local scratch base for podman overlay storage. The helper
-# probes explicit overrides, SLURM-provided tmpdirs, and common local mounts,
-# then creates a job-scoped directory instead of assuming a cluster-specific
-# path already exists.
-podman_resolve_tmp_base
-export NXF_PODMAN_TMPDIR="${PODMAN_TMP_BASE}"
-PODMAN_FS_TYPE="$(podman_fs_type "${PODMAN_TMP_BASE}")"
-
-mkdir -p "${PODMAN_TMP_BASE}"
-
-# Default NXF_PODMAN_CACHEDIR to the user's configured podman graphRoot.
-# Runs before CONTAINERS_GRAPHROOT is overridden so podman info reads the
-# user's real storage.conf. Each user gets their own archive store automatically.
-if [[ -z "${NXF_PODMAN_CACHEDIR:-}" ]] && command -v podman &>/dev/null; then
-    NXF_PODMAN_CACHEDIR="$(podman info --format '{{.Store.GraphRoot}}' 2>/dev/null || true)"
-fi
-export NXF_PODMAN_CACHEDIR="${NXF_PODMAN_CACHEDIR:-}"
-
-# OCI archive store on the shared filesystem (plain tar files; no overlay on NFS).
-# Pre-pull writes archives here; this hook loads from the archive if the image
-# is not already in the node-local store.
-PODMAN_OCI_CACHE="${NXF_PODMAN_CACHEDIR:-}"
+# Per-task ephemeral scratch: lock files, run state, and TMPDIR live under
+# NXF_WORK on gscratch, scoped to this SLURM job. Podman graphRoot (image
+# layers) comes from ~/.config/containers/storage.conf — do NOT override it.
+# force_mask="0700" in storage.conf is required so Podman does not attempt
+# lsetxattr on the NFS-backed gscratch filesystem.
+JOB_STORAGE="${NXF_WORK:-.}/.podman-scratch/${SLURM_JOB_ID:-$$}"
+export CONTAINERS_RUNROOT="${JOB_STORAGE}/run"
+export TMPDIR="${JOB_STORAGE}/tmp"
+export XDG_RUNTIME_DIR="${JOB_STORAGE}/xdg-${UID}"
+mkdir -p "${CONTAINERS_RUNROOT}" "${TMPDIR}" "${XDG_RUNTIME_DIR}"
+chmod 0700 "${XDG_RUNTIME_DIR}"
 
 # Shared lock directory (on NFS so locks are cluster-wide).
-PULL_LOCK_BASE="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK:-${PWD}/.podman-pull-locks}}"
+PULL_LOCK_BASE="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK:-.}/.podman-pull-locks}"
 mkdir -p "${PULL_LOCK_BASE}"
 
 # Lightweight diagnostics.
-echo "[PODMAN_DIAG] tmp_base=${PODMAN_TMP_BASE}"
-echo "[PODMAN_DIAG] fs_type=${PODMAN_FS_TYPE}"
-echo "[PODMAN_DIAG] local_disk_requested=$(podman_scratch_requested && echo true || echo false)"
+echo "[PODMAN_DIAG] job_storage=${JOB_STORAGE}"
+echo "[PODMAN_DIAG] containers_runroot=${CONTAINERS_RUNROOT}"
+echo "[PODMAN_DIAG] tmpdir=${TMPDIR}"
 echo "[PODMAN_DIAG] pull_lock_base=${PULL_LOCK_BASE}"
-echo "[PODMAN_DIAG] oci_cache=${PODMAN_OCI_CACHE:-not set}"
-df -h "${PODMAN_TMP_BASE}" || true
-df -i "${PODMAN_TMP_BASE}" || true
-
-LOCAL_PODMAN_ROOT="${PODMAN_TMP_BASE}/podman"
-export CONTAINERS_GRAPHROOT="${LOCAL_PODMAN_ROOT}/storage"
-
-export CONTAINERS_RUNROOT="${LOCAL_PODMAN_ROOT}/run"
-mkdir -p "${CONTAINERS_GRAPHROOT}" "${CONTAINERS_RUNROOT}"
-
-export CONTAINERS_STORAGE_CONF="${LOCAL_PODMAN_ROOT}/storage.conf"
-{
-    printf '[storage]\n'
-    printf 'driver = "overlay"\n'
-    printf 'graphRoot = "%s"\n' "${CONTAINERS_GRAPHROOT}"
-    printf 'runRoot   = "%s"\n\n' "${CONTAINERS_RUNROOT}"
-    # Only emit overlay section if fuse-overlayfs is available on this node.
-    if [[ -x "/usr/bin/fuse-overlayfs" ]]; then
-        printf '[storage.options.overlay]\n'
-        printf 'mount_program = "/usr/bin/fuse-overlayfs"\n'
-    fi
-} > "${CONTAINERS_STORAGE_CONF}"
-
-export XDG_RUNTIME_DIR="${XDG_RUNTIME_DIR:-${PODMAN_TMP_BASE}/runtime-${UID}}"
-mkdir -p "${XDG_RUNTIME_DIR}"
-chmod 0700 "${XDG_RUNTIME_DIR}"
+df -h "${JOB_STORAGE}" || true
+df -i "${JOB_STORAGE}" || true
 
 if command -v module &>/dev/null; then
     module load podman 2>/dev/null \
         || echo "Warning: 'module load podman' failed - continuing"
 fi
-
-# Load a pre-pulled image from the shared OCI archive cache (NFS-safe: plain
-# tar reads). Called before falling back to a live registry pull.
-load_from_oci_cache() {
-    local image="$1"
-    local key archive
-    [[ -z "${PODMAN_OCI_CACHE:-}" || -z "${NXF_PODMAN_CACHEDIR:-}" ]] && return 1
-
-    key="$(printf '%s' "${image}" | tr '/:@' '___' | tr -cd '[:alnum:]_.-')"
-    archive="${PODMAN_OCI_CACHE}/${key}.tar"
-
-    if [[ -f "${archive}.done" && -f "${archive}" ]]; then
-        echo "[CACHE] Loading ${image} from OCI archive"
-        if podman load -i "${archive}"; then
-            echo "[OK] Loaded ${image} from cache"
-            return 0
-        else
-            echo "[WARN] OCI archive load failed for ${image}; falling back to registry pull"
-            return 1
-        fi
-    fi
-    return 1
-}
 
 cleanup_stale_locks() {
     find "${PULL_LOCK_BASE}" -maxdepth 1 -type f -name '*.lock' -mmin +120 -delete 2>/dev/null || true
@@ -150,8 +92,6 @@ pull_with_lock() {
         if podman image exists "${image}" 2>/dev/null; then
             echo "[SKIP] Image already present: ${image}"
             status=0
-        elif load_from_oci_cache "${image}"; then
-            status=0
         else
             for attempt in 1 2 3; do
                 if podman_pull_once "${image}"; then
@@ -175,8 +115,6 @@ pull_with_lock() {
     done
     if podman image exists "${image}" 2>/dev/null; then
         echo "[SKIP] Image already present: ${image}"
-        status=0
-    elif load_from_oci_cache "${image}"; then
         status=0
     else
         for attempt in 1 2 3; do

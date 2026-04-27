@@ -96,22 +96,12 @@ OUTDIR="${OUTDIR:-${RUN_DIR}/outputs}"
 export NXF_WORK="${NXF_WORK:-${RUN_DIR}/work}"
 LOG_DIR="${RUN_DIR}/logs"
 
-# Leave NXF_PODMAN_TMPDIR unset by default so the pre-pull script and per-task
-# beforeScript resolver can select a job-scoped local scratch directory on the
-# compute node. Set it explicitly only when you want to force a specific local
-# path. NXF_PODMAN_CACHEDIR is the canonical shared container store (plain OCI
-# tar archives on NFS). Pre-pull writes here; tasks load from here before the
-# registry.
-export NXF_PODMAN_TMPDIR="${NXF_PODMAN_TMPDIR:-}"
-export NXF_PODMAN_REQUIRE_LOCAL_SCRATCH="${NXF_PODMAN_REQUIRE_LOCAL_SCRATCH:-true}"
-# NXF_PODMAN_CACHEDIR defaults to the user's podman graphRoot, inferred on the
-# compute node. Leave unset here; each user's storage.conf takes effect automatically.
-export NXF_PODMAN_CACHEDIR="${NXF_PODMAN_CACHEDIR:-}"
+# NXF_PODMAN_PULL_LOCK_DIR coordinates concurrent image pulls across tasks.
+# Leave NXF_WORK on gscratch with force_mask="0700" in storage.conf so Podman
+# can unpack image layers without hitting xattr restrictions.
 export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK}/.podman-pull-locks}"
 
 mkdir -p "${LOG_DIR}" "${NXF_WORK}" "${NXF_PODMAN_PULL_LOCK_DIR}"
-[[ -n "${NXF_PODMAN_TMPDIR}" ]] && mkdir -p "${NXF_PODMAN_TMPDIR}"
-[[ -n "${NXF_PODMAN_CACHEDIR}" ]] && mkdir -p "${NXF_PODMAN_CACHEDIR}"
 
 # ============================================================
 # Validate required settings
@@ -159,8 +149,6 @@ if [[ -n "${SLURM_JOB_ID:-}" ]]; then
 else
     echo " Pre-pull mode  : none (local run)"
 fi
-echo " Podman tmp dir : ${NXF_PODMAN_TMPDIR:-auto-detect in pre-pull/task hooks}"
-echo " Podman cache   : ${NXF_PODMAN_CACHEDIR}"
 echo " Pull lock dir  : ${NXF_PODMAN_PULL_LOCK_DIR}"
 echo "=========================================="
 

@@ -132,17 +132,28 @@ Preferred launch mode: run `bash slurm_nextflow.sh ...` from a login node. In th
 
 If you instead use `sbatch slurm_nextflow.sh ...`, the same pre-pull runs inline inside the orchestrator allocation before Nextflow launches. `template/run.sh` also uses inline pre-pull.
 
-Images are pulled onto a job-scoped **local scratch** directory selected on the compute node, then saved as OCI tar archives in `NXF_PODMAN_CACHEDIR` on the shared filesystem. The scratch resolver accepts an explicit `NXF_PODMAN_TMPDIR`, probes `SLURM_TMPDIR` plus common scratch-like local mounts, and can be extended with `NXF_PODMAN_LOCAL_ROOTS=/path1:/path2`. If local scratch is required but only network filesystems are visible, pre-pull fails fast instead of silently unpacking on NFS/Lustre.
+Images are pulled directly into the user's configured Podman `graphRoot` (defined in `~/.config/containers/storage.conf`) and reused by all subsequent tasks. No OCI tar archives or local scratch detection are required.
 
-The archive store defaults to each user's configured podman `graphRoot` (read from `~/.config/containers/storage.conf` on the compute node via `podman info`), so every user gets their own independent store automatically. Archives persist across all runs — each task loads from the archive with `podman load` and never hits the registry again.
+#### Podman storage prerequisite
 
-To use a custom archive store or provide extra local scratch roots:
+Each user running the pipeline on exacloud must have a `~/.config/containers/storage.conf` that points `graphRoot` to gscratch and sets `force_mask="0700"`:
+
+```toml
+[storage]
+driver = "overlay"
+graphRoot = "/home/exacloud/gscratch/<group>/<user>/dockerContainers"
+
+[storage.options.overlay]
+force_mask = "0700"
+```
+
+`force_mask="0700"` prevents Podman from calling `lsetxattr` on image layer files, which would fail with "disk quota exceeded" on the NFS-backed filesystems used on exacloud compute nodes. Verify your configuration with:
 
 ```bash
-NXF_PODMAN_CACHEDIR=/other/path \
-NXF_PODMAN_LOCAL_ROOTS=/scratch/node_local:/srv/local_disk \
-bash slurm_nextflow.sh --workflow full ...
+podman info --format '{{.Store.GraphRoot}}'
 ```
+
+Per-task ephemeral state (Podman run root, `TMPDIR`, `XDG_RUNTIME_DIR`) is scoped to `${NXF_WORK}/.podman-scratch/${SLURM_JOB_ID}` on gscratch and cleaned up automatically by the `afterScript` hook.
 
 Optional: fast-forward the checkout immediately before launch:
 

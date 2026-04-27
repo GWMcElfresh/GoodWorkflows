@@ -190,7 +190,30 @@ nextflow run main.nf \
 
 When running with `-profile slurm` (HPC), every workflow task uses a rootless Podman container. Without coordination, Podman would pull the same multi-GB image in parallel from every node, exhausting disk quota and causing `disk quota exceeded` (exit 125) failures.
 
-GoodWorkflows solves this with a **shared OCI archive store** and a **pre-pull job** that runs before the orchestrator starts.
+GoodWorkflows solves this with a **pre-pull job** that pulls all images before the orchestrator starts. Images land directly in the user's configured Podman `graphRoot` (on gscratch) and are reused by all subsequent tasks with no OCI archive intermediaries.
+
+### Podman storage prerequisite
+
+Each user running the pipeline on exacloud must configure `~/.config/containers/storage.conf` to point `graphRoot` to their gscratch directory and set `force_mask="0700"`:
+
+```toml
+[storage]
+driver = "overlay"
+graphRoot = "/home/exacloud/gscratch/<group>/<user>/dockerContainers"
+
+[storage.options.overlay]
+force_mask = "0700"
+```
+
+`force_mask="0700"` prevents Podman from calling `lsetxattr` on image layer files — a call that fails with "disk quota exceeded" on the NFS-backed filesystems used on exacloud compute nodes. This is the standard rootless-Podman workaround for NFS.
+
+Verify your configuration with:
+
+```bash
+podman info --format '{{.Store.GraphRoot}}'
+```
+
+The path returned should be on gscratch with ample quota. If the command fails or returns an NFS-backed path, update `storage.conf` before running the pipeline.
 
 ### Launch modes
 
@@ -220,66 +243,17 @@ the pre-pull still happens before Nextflow starts, but it runs **inline inside t
 
 ### How it works
 
-1. `bash slurm_nextflow.sh ...` submits `scripts/slurm_prepull_images.sh` as a standalone SLURM job. `sbatch slurm_nextflow.sh ...` and `template/run.sh` run the same script inline before `nextflow run`.
-2. The pre-pull script resolves a **job-scoped local scratch** directory for Podman overlay storage. It first respects an explicit `NXF_PODMAN_TMPDIR`, then probes `SLURM_TMPDIR` plus scratch-like local roots, and creates its own subdirectory automatically.
-3. If local scratch is required but only network filesystems are visible, pre-pull exits early with a clear error instead of unpacking onto NFS/Lustre.
-4. Each image is pulled onto that local scratch space, then saved as a plain OCI tar archive to `NXF_PODMAN_CACHEDIR` on the shared filesystem. Plain tar writes are safe on NFS/Lustre because they do not require overlay/xattr operations.
-5. Each task's `beforeScript` resolves local scratch again on its own node, checks for the `.tar.done` sentinel in `NXF_PODMAN_CACHEDIR`, and loads the archive with `podman load` before running.
-6. If the archive is missing or incomplete, tasks fall back to a coordinated locked registry pull.
-
-### The container store
-
-By default, archives are written to the user's configured podman `graphRoot` — the same value returned by:
-
-```bash
-podman info --format '{{.Store.GraphRoot}}'
-```
-
-This is read from `~/.config/containers/storage.conf`, so every user on the cluster gets their own independent archive store automatically. No shared path needs to be hardcoded or coordinated.
-
-After the first run, that directory contains one archive pair per image:
-
-```
-ghcr.io_bimberlabinternal_cellmembrane___latest.tar
-ghcr.io_bimberlabinternal_cellmembrane___latest.tar.done
-ghcr.io_bimberlabinternal_rdiscvr___latest.tar
-ghcr.io_bimberlabinternal_rdiscvr___latest.tar.done
-ghcr.io_gwmcelfresh_scmodal-cuda___latest.tar
-ghcr.io_gwmcelfresh_scmodal-cuda___latest.tar.done
-```
-
-The `.done` sentinels tell tasks the archive is complete and safe to load. The `.tar` files are plain OCI archives you can inspect, copy, or sync with `rsync`.
-
-### Syncing or sharing archives
-
-To copy your archive store to another cluster, or share it with another user:
-
-```bash
-# Find your store path
-STORE="$(podman info --format '{{.Store.GraphRoot}}')"
-
-# Sync to another cluster
-rsync -av "${STORE}/" other-cluster:/path/to/dockerContainers/
-```
-
-Then on the target:
-
-```bash
-NXF_PODMAN_CACHEDIR=/path/to/dockerContainers bash slurm_nextflow.sh --workflow integration ...
-```
+1. `scripts/slurm_prepull_images.sh` (or the inline pre-pull block) runs on a compute node.
+2. It sets per-job ephemeral paths (`CONTAINERS_RUNROOT`, `TMPDIR`, `XDG_RUNTIME_DIR`) under `${NXF_WORK}/.podman-scratch/${SLURM_JOB_ID}` on gscratch.
+3. Each image is pulled directly into the user's `graphRoot` (from `storage.conf`). No local scratch override or OCI archive step is needed.
+4. Each task's `beforeScript` sets the same ephemeral paths for its allocation and runs a coordinated locked pull as a fallback if the image is not already present.
+5. The `afterScript` removes the per-task ephemeral directory when the task finishes.
 
 ### Environment variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `NXF_PODMAN_CACHEDIR` | *(from `podman info`)* | Shared OCI archive store. Defaults to the user's configured `graphRoot` on the compute node, so each user gets their own store automatically. Override to share archives between users or point to a pre-populated store. |
-| `NXF_PODMAN_TMPDIR` | *(unset by default)* | Explicit local scratch path for overlay layer unpacking. Set this only when you want to force a specific node-local directory. |
-| `NXF_PODMAN_LOCAL_ROOTS` | *(unset)* | Colon-separated extra local roots to probe for scratch creation before the generic defaults. Useful when your cluster exposes local disk under an admin-specific mount point. |
-| `NXF_PODMAN_REQUIRE_LOCAL_SCRATCH` | `true` in launcher scripts | Fail fast when only network filesystems are visible instead of silently falling back to generic temp space. |
 | `NXF_PODMAN_PULL_LOCK_DIR` | `${NXF_WORK}/.podman-pull-locks` | Shared lock directory coordinating concurrent per-task fallback pulls. |
-
-!!! warning "Overlay storage must be node-local"
-  Do not point `NXF_PODMAN_TMPDIR` at Lustre, NFS, GPFS, or any other network filesystem. Podman overlay unpack needs xattr and hardlink support, so the failure often appears only after the image blobs finish downloading. The OCI archive store (`NXF_PODMAN_CACHEDIR`) is plain file I/O and is fine on NFS.
 
 ### Updating `scripts/image-manifest.txt`
 
