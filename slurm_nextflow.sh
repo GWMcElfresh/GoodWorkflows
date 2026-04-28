@@ -42,12 +42,10 @@ if [[ -z "${SLURM_JOB_ID:-}" && "${AUTO_SUBMIT_WITH_PREPULL:-true}" == "true" ]]
     fi
 
     PREPULL_JOB_ID="$(sbatch --parsable "${PREPULL_SCRIPT_PATH}" "$@")"
-    # Use afterany so the orchestrator starts even if pre-pull partially fails;
-    # tasks fall back to per-task image loads automatically.
-    ORCHESTRATOR_JOB_ID="$(sbatch --parsable --dependency=afterany:${PREPULL_JOB_ID} --export=ALL,INLINE_PREPULL_WHEN_SBATCH=false "${PIPELINE_ROOT}/slurm_nextflow.sh" "$@")"
+    ORCHESTRATOR_JOB_ID="$(sbatch --parsable --dependency=afterok:${PREPULL_JOB_ID} --export=ALL,INLINE_PREPULL_WHEN_SBATCH=false "${PIPELINE_ROOT}/slurm_nextflow.sh" "$@")"
 
     echo "Submitted pre-pull job     : ${PREPULL_JOB_ID}"
-    echo "Submitted orchestrator job : ${ORCHESTRATOR_JOB_ID} (afterany:${PREPULL_JOB_ID})"
+    echo "Submitted orchestrator job : ${ORCHESTRATOR_JOB_ID} (afterok:${PREPULL_JOB_ID})"
     exit 0
 fi
 

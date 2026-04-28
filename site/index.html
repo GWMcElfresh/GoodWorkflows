@@ -14,7 +14,7 @@
       
       
       
-        <link rel="next" href="workflows/full-pipeline/">
+        <link rel="next" href="usage/">
       
       
         
@@ -243,10 +243,29 @@
   
   
   
+    <li class="md-tabs__item">
+      <a href="usage/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Usage
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
     
     
       <li class="md-tabs__item">
-        <a href="workflows/full-pipeline/" class="md-tabs__link">
+        <a href="workflows/integration-pipeline/" class="md-tabs__link">
           
   
   
@@ -555,6 +574,33 @@
   
   
   
+    <li class="md-nav__item">
+      <a href="usage/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
     
     
     
@@ -569,10 +615,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
         
           
-          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
             
   
   
@@ -590,8 +636,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_2">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_3">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -608,14 +654,14 @@
   
   
     <li class="md-nav__item">
-      <a href="workflows/full-pipeline/" class="md-nav__link">
+      <a href="workflows/integration-pipeline/" class="md-nav__link">
         
   
   
   <span class="md-ellipsis">
     
   
-    Full Pipeline
+    Integration Pipeline
   
 
     
@@ -712,10 +758,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_3" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
         
           
-          <label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
             
   
   
@@ -733,8 +779,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_3_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_3">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -853,10 +899,10 @@
       
         
         
-        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_6" >
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_7" >
         
           
-          <label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+          <label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
             
   
   
@@ -874,8 +920,8 @@
             <span class="md-nav__icon md-icon"></span>
           </label>
         
-        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_6_label" aria-expanded="false">
-          <label class="md-nav__title" for="__nav_6">
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_7_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_7">
             <span class="md-nav__icon md-icon"></span>
             
   
@@ -1186,7 +1232,7 @@
 </thead>
 <tbody>
 <tr>
-<td><a href="workflows/full-pipeline/"><code>full</code></a></td>
+<td><a href="workflows/integration-pipeline/"><code>integration</code></a></td>
 <td>Download → export counts → harmonize → scMODAL integration</td>
 <td><strong>HPC + GPU (SLURM required)</strong></td>
 </tr>
@@ -1219,9 +1265,10 @@
 <a id="__codelineno-0-11" name="__codelineno-0-11" href="#__codelineno-0-11"></a><span class="w">  </span>--labkey_folder<span class="w"> </span>/My/Project/Folder
 </code></pre></div>
 <h3 id="hpc-full-gpu-pipeline">HPC (full GPU pipeline)<a class="headerlink" href="#hpc-full-gpu-pipeline" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># On any SLURM node – profile auto-detected from environment</span>
-<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>sbatch<span class="w"> </span>slurm_nextflow.sh<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--workflow<span class="w"> </span>full<span class="w"> </span><span class="se">\</span>
+<p>For routine SLURM runs, the recommended entrypoint is a copied <code>template/run.sh</code> under <code>runs/&lt;name&gt;/</code>. The command below shows the repo-root launcher alternative, which is also the easiest way to submit a separate pre-pull job before the orchestrator starts.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="c1"># Preferred from a login node: submits pre-pull first, then the orchestrator</span>
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a>bash<span class="w"> </span>slurm_nextflow.sh<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="w">  </span>--workflow<span class="w"> </span>integration<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="w">  </span>--labkey_base_url<span class="w"> </span>https://labkey.example.org<span class="w"> </span><span class="se">\</span>
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="w">  </span>--labkey_folder<span class="w"> </span>/My/Project/Folder
 </code></pre></div>
@@ -1238,15 +1285,17 @@ entry for <code>labkey_base_url</code> is configured before running.</p>
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a>├── modules/local/          # Single-step DSL2 modules
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a>├── configs/                # Base + profile-specific configs
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a>├── data/                   # Default input location (samplesheet.csv)
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>├── outputs/                # Published results (generated)
-<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>├── work/                   # Nextflow work dir (generated)
-<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>├── logs/                   # Nextflow reports and SLURM logs (generated)
-<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>├── docs/                   # Documentation source (this site)
-<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>├── mkdocs.yml              # MkDocs site config
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>├── nextflow_schema.json    # Machine-readable parameter API (JSON Schema)
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>├── slurm_nextflow.sh       # HPC SLURM submission wrapper
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>└── slurm_sync_repo.sh      # Lightweight HPC repo sync job
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a>├── template/               # Copyable per-run launcher scaffold
+<a id="__codelineno-2-8" name="__codelineno-2-8" href="#__codelineno-2-8"></a>├── outputs/                # Published results (generated)
+<a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a>├── work/                   # Nextflow work dir (generated)
+<a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a>├── logs/                   # Nextflow reports and SLURM logs (generated)
+<a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a>├── docs/                   # Documentation source (this site)
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a>├── mkdocs.yml              # MkDocs site config
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a>├── nextflow_schema.json    # Machine-readable parameter API (JSON Schema)
+<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>├── slurm_nextflow.sh       # HPC SLURM submission wrapper
+<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>└── slurm_sync_repo.sh      # Lightweight HPC repo sync job
 </code></pre></div>
+<p>For routine SLURM runs, prefer copying <code>template/</code> into <code>runs/&lt;name&gt;/</code> and submitting <code>run.sh</code>. Use <code>bash slurm_nextflow.sh ...</code> when you want the repository-root launcher and a standalone pre-pull job submitted before orchestration. The detailed comparison lives in <a href="usage/">Usage</a>.</p>
 <hr />
 <h2 id="representative-outputs">Representative outputs<a class="headerlink" href="#representative-outputs" title="Permanent link">&para;</a></h2>
 <p>The docs site ships with seeded synthetic examples so the workflow pages can show safe, reproducible output shapes without live LabKey access.</p>

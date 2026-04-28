@@ -2,50 +2,54 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://gwmcelfresh.github.io/GoodWorkflows/</loc>
-         <lastmod>2026-04-15</lastmod>
+         <lastmod>2026-04-28</lastmod>
     </url>
     <url>
          <loc>https://gwmcelfresh.github.io/GoodWorkflows/data-formats/</loc>
-         <lastmod>2026-04-15</lastmod>
+         <lastmod>2026-04-28</lastmod>
     </url>
     <url>
          <loc>https://gwmcelfresh.github.io/GoodWorkflows/parameters/</loc>
-         <lastmod>2026-04-15</lastmod>
+         <lastmod>2026-04-28</lastmod>
+    </url>
+    <url>
+         <loc>https://gwmcelfresh.github.io/GoodWorkflows/usage/</loc>
+         <lastmod>2026-04-28</lastmod>
     </url>
     <url>
          <loc>https://gwmcelfresh.github.io/GoodWorkflows/api/</loc>
-         <lastmod>2026-04-15</lastmod>
+         <lastmod>2026-04-28</lastmod>
     </url>
     <url>
          <loc>https://gwmcelfresh.github.io/GoodWorkflows/api/config/</loc>
-         <lastmod>2026-04-15</lastmod>
+         <lastmod>2026-04-28</lastmod>
     </url>
     <url>
          <loc>https://gwmcelfresh.github.io/GoodWorkflows/api/functions/</loc>
-         <lastmod>2026-04-15</lastmod>
+         <lastmod>2026-04-28</lastmod>
     </url>
     <url>
          <loc>https://gwmcelfresh.github.io/GoodWorkflows/api/inputs/</loc>
-         <lastmod>2026-04-15</lastmod>
+         <lastmod>2026-04-28</lastmod>
     </url>
     <url>
          <loc>https://gwmcelfresh.github.io/GoodWorkflows/api/workflows/</loc>
-         <lastmod>2026-04-15</lastmod>
+         <lastmod>2026-04-28</lastmod>
     </url>
     <url>
          <loc>https://gwmcelfresh.github.io/GoodWorkflows/vignettes/synthetic-tabulation/</loc>
-         <lastmod>2026-04-15</lastmod>
-    </url>
-    <url>
-         <loc>https://gwmcelfresh.github.io/GoodWorkflows/workflows/full-pipeline/</loc>
-         <lastmod>2026-04-15</lastmod>
+         <lastmod>2026-04-28</lastmod>
     </url>
     <url>
          <loc>https://gwmcelfresh.github.io/GoodWorkflows/workflows/ingest-export/</loc>
-         <lastmod>2026-04-15</lastmod>
+         <lastmod>2026-04-28</lastmod>
     </url>
     <url>
          <loc>https://gwmcelfresh.github.io/GoodWorkflows/workflows/ingest-tabulate/</loc>
-         <lastmod>2026-04-15</lastmod>
+         <lastmod>2026-04-28</lastmod>
+    </url>
+    <url>
+         <loc>https://gwmcelfresh.github.io/GoodWorkflows/workflows/integration-pipeline/</loc>
+         <lastmod>2026-04-28</lastmod>
     </url>
 </urlset>

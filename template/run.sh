@@ -158,13 +158,13 @@ echo "=========================================="
 # Container image pre-pull (SLURM only)
 # ============================================================
 # For template-based SLURM runs, pre-pull happens inline in this same
-# allocation before Nextflow starts. This is idempotent — images already
-# present in the shared archive cache are skipped.
+# allocation before Nextflow starts. This is a hard prerequisite because
+# task graphRoot must live on node-local storage while OCI archives live on
+# shared storage.
 PREPULL_SCRIPT_PATH="${PIPELINE_ROOT}/scripts/slurm_prepull_images.sh"
 if [[ -n "${SLURM_JOB_ID:-}" && -f "${PREPULL_SCRIPT_PATH}" ]]; then
     echo "Running inline container image pre-pull before Nextflow launch..."
-    bash "${PREPULL_SCRIPT_PATH}" "$@" \
-        || echo "WARNING: pre-pull finished with errors; tasks will load images on first use"
+    bash "${PREPULL_SCRIPT_PATH}" "$@"
 fi
 
 # ============================================================
