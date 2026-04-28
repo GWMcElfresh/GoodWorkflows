@@ -106,6 +106,8 @@ configure_podman_storage() {
     echo "[PODMAN_DIAG] tmpdir=${TMPDIR}"
     echo "[PODMAN_DIAG] oci_cache=${NXF_PODMAN_CACHEDIR}"
     echo "[PODMAN_DIAG] pull_lock_dir=${NXF_PODMAN_PULL_LOCK_DIR}"
+}
+
 if command -v module &>/dev/null; then
     module load podman 2>/dev/null || true
 fi
@@ -153,15 +155,16 @@ podman_pull_once() {
         timeout 3600 podman pull "${image}"
     else
         podman pull "${image}"
-    }
+    fi
+}
 
-    if command -v module &>/dev/null; then
+declare -a DISCOVERED_IMAGES
+mapfile -t DISCOVERED_IMAGES < <(
+python3 - "${PIPELINE_ROOT}" "$@" <<'PY'
+import json
 import re
 import sys
 from pathlib import Path
-
-    configure_podman_storage
-    trap 'rm -rf "${JOB_STORAGE}"' EXIT
 
 pipeline_root = Path(sys.argv[1]).resolve()
 cli_args = sys.argv[2:]
