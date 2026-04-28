@@ -215,6 +215,8 @@ podman info --format '{{.Store.GraphRoot}}'
 
 The path returned should be on gscratch with ample quota. If the command fails or returns an NFS-backed path, update `storage.conf` before running the pipeline.
 
+On exacloud, rootless user sessions are not delegated the `cpu` or `cpuset` cgroup controllers. That means a plain `podman run --cpu-shares ... --memory ...` fails with `crun: the requested cgroup controller 'cpu' is not available`. The SLURM profile avoids this by launching Podman with `--cgroups=disabled` and stripping Nextflow's auto-generated Podman resource flags before container startup. Scheduler-enforced CPU and memory limits still come from SLURM.
+
 ### Launch modes
 
 Recommended for routine named runs:
@@ -246,7 +248,7 @@ the pre-pull still happens before Nextflow starts, but it runs **inline inside t
 1. `scripts/slurm_prepull_images.sh` (or the inline pre-pull block) runs on a compute node.
 2. It sets per-job ephemeral paths (`CONTAINERS_RUNROOT`, `TMPDIR`, `XDG_RUNTIME_DIR`) under `${NXF_WORK}/.podman-scratch/${SLURM_JOB_ID}` on gscratch.
 3. Each image is pulled directly into the user's `graphRoot` (from `storage.conf`). No local scratch override or OCI archive step is needed.
-4. Each task's `beforeScript` sets the same ephemeral paths for its allocation and runs a coordinated locked pull as a fallback if the image is not already present.
+4. Each task's `beforeScript` sets the same ephemeral paths for its allocation, strips Nextflow's Podman CPU/memory cgroup flags for rootless runs, and runs a coordinated locked pull as a fallback if the image is not already present.
 5. The `afterScript` removes the per-task ephemeral directory when the task finishes.
 
 ### Environment variables

@@ -153,6 +153,8 @@ force_mask = "0700"
 podman info --format '{{.Store.GraphRoot}}'
 ```
 
+On exacloud, rootless user sessions are not delegated the `cpu`/`cpuset` cgroup controllers, so Podman cannot honor container CPU or memory limits there. The SLURM profile therefore launches Podman with `--cgroups=disabled` and strips Nextflow's auto-generated `--cpu-shares` / `--memory` flags before `podman run`. CPU and memory limits are still enforced by SLURM for the job allocation.
+
 Per-task ephemeral state (Podman run root, `TMPDIR`, `XDG_RUNTIME_DIR`) is scoped to `${NXF_WORK}/.podman-scratch/${SLURM_JOB_ID}` on gscratch and cleaned up automatically by the `afterScript` hook.
 
 Optional: fast-forward the checkout immediately before launch:

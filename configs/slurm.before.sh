@@ -138,3 +138,38 @@ if command -v podman &>/dev/null; then
         pull_with_lock "${task_image}" || true
     fi
 fi
+
+# Rootless Podman on exacloud does not get delegated cpu/cpuset controllers.
+# Nextflow still emits podman cpu/memory resource flags from task directives,
+# but SLURM already enforces those limits for the job allocation.
+nxf_rootless_podman_filter_run_args() {
+    local arg
+    NXF_PODMAN_FILTERED_ARGS=()
+
+    while (($#)); do
+        arg="$1"
+        shift
+        case "$arg" in
+            --cpu-shares|-c|--memory|-m|--memory-swap|--memory-reservation|--cpus|--cpu-period|--cpu-quota|--cpuset-cpus|--cpuset-mems)
+                (($#)) && shift
+                ;;
+            --cpu-shares=*|-c=*|--memory=*|-m=*|--memory-swap=*|--memory-reservation=*|--cpus=*|--cpu-period=*|--cpu-quota=*|--cpuset-cpus=*|--cpuset-mems=*)
+                ;;
+            *)
+                NXF_PODMAN_FILTERED_ARGS+=("$arg")
+                ;;
+        esac
+    done
+}
+
+podman() {
+    if [[ "${1:-}" == "run" ]] && [[ "${EUID:-$(id -u)}" -ne 0 ]]; then
+        shift
+        nxf_rootless_podman_filter_run_args "$@"
+        echo "[PODMAN_DIAG] rootless podman run: stripping cpu/memory cgroup flags; SLURM enforces task resources" >&2
+        command podman run "${NXF_PODMAN_FILTERED_ARGS[@]}"
+        return $?
+    fi
+
+    command podman "$@"
+}
