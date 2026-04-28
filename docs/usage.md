@@ -206,6 +206,8 @@ The pipeline now generates a task-local `storage.conf` automatically. You do not
 To use the generated local storage safely, each SLURM allocation must expose node-local scratch through one of these paths:
 
 - `SLURM_TMPDIR`, which should be present when local disk is allocated. This repository already requests `--gres=disk:1028`.
+- `TMPDIR`, if your site exposes node-local scratch there instead of `SLURM_TMPDIR`.
+- Common node-local scratch roots such as `/tmp`, `/var/tmp`, `/scratch`, `/localscratch`, `/local`, or `/lscratch`, when those are writable on compute nodes.
 - `NXF_PODMAN_LOCAL_SCRATCH`, if your site uses a different node-local scratch path.
 
 The shared OCI archive cache remains on `NXF_WORK` because plain archive files are safe on shared storage even though rootless overlay mounts are not.

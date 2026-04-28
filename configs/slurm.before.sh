@@ -1,30 +1,18 @@
 set -euo pipefail
 
-resolve_podman_local_scratch() {
-    local candidate
-
-    for candidate in "${NXF_PODMAN_LOCAL_SCRATCH:-}" "${SLURM_TMPDIR:-}"; do
-        [[ -n "${candidate}" ]] || continue
-        mkdir -p "${candidate}" 2>/dev/null || true
-        if [[ -d "${candidate}" && -w "${candidate}" ]]; then
-            printf '%s' "${candidate}"
-            return 0
-        fi
-    done
-
-    echo "ERROR: Rootless Podman graphRoot cannot live on gscratch/NFS." >&2
-    echo "Set NXF_PODMAN_LOCAL_SCRATCH to node-local disk or request SLURM local disk so SLURM_TMPDIR is available." >&2
-    return 1
-}
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=configs/slurm.podman-local.sh
+source "${SCRIPT_DIR}/slurm.podman-local.sh"
 
 podman_cache_key() {
     printf '%s' "$1" | tr '/:@' '___' | tr -cd '[:alnum:]_.-'
 }
 
 configure_podman_storage() {
-    local local_scratch_root fuse_overlayfs_bin
+    local local_scratch_root local_scratch_fs_type fuse_overlayfs_bin
 
-    local_scratch_root="$(resolve_podman_local_scratch)"
+    local_scratch_root="$(nxf_resolve_podman_local_scratch)"
+    local_scratch_fs_type="$(nxf_podman_fs_type "${local_scratch_root}")"
     JOB_STORAGE="${local_scratch_root%/}/goodworkflows-podman/${SLURM_JOB_ID:-$$}"
     export CONTAINERS_RUNROOT="${JOB_STORAGE}/run"
     export TMPDIR="${JOB_STORAGE}/tmp"
@@ -53,6 +41,7 @@ configure_podman_storage() {
     mkdir -p "${PULL_LOCK_BASE}"
 
     echo "[PODMAN_DIAG] local_scratch_root=${local_scratch_root}"
+    echo "[PODMAN_DIAG] local_scratch_fs_type=${local_scratch_fs_type}"
     echo "[PODMAN_DIAG] job_storage=${JOB_STORAGE}"
     echo "[PODMAN_DIAG] containers_storage_conf=${CONTAINERS_STORAGE_CONF}"
     echo "[PODMAN_DIAG] containers_runroot=${CONTAINERS_RUNROOT}"

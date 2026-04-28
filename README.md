@@ -141,6 +141,8 @@ Rootless Podman must not use gscratch, NFS, or other distributed filesystems for
 The pipeline now writes a task-local `storage.conf` automatically. To use it safely, each SLURM allocation must have node-local scratch available through one of these paths:
 
 - `SLURM_TMPDIR` from the requested local disk allocation. This repository already requests `--gres=disk:1028`.
+- `TMPDIR`, if your site exposes node-local scratch there instead of `SLURM_TMPDIR`.
+- Common node-local scratch roots such as `/tmp`, `/var/tmp`, `/scratch`, `/localscratch`, `/local`, or `/lscratch`, when those are writable on compute nodes.
 - `NXF_PODMAN_LOCAL_SCRATCH` if your cluster exposes node-local scratch through a different path.
 
 Shared image reuse happens through `${NXF_PODMAN_CACHEDIR:-${NXF_WORK}/.podman-oci-cache}`, which stores plain OCI archive files on shared storage. Those archives are safe on gscratch because they do not rely on rootless overlay mounts.
