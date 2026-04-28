@@ -16,7 +16,7 @@
 
 #SBATCH --job-name=nf-prepull
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=8
+#SBATCH --cpus-per-task=2
 #SBATCH --mem=48000
 #SBATCH --partition=batch
 #SBATCH --time=04:00:00
