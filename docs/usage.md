@@ -188,29 +188,33 @@ nextflow run main.nf \
 
 ## 6 — Container image pre-pull and caching
 
-When running with `-profile slurm` (HPC), every workflow task uses a rootless Podman container. Without coordination, Podman would pull the same multi-GB image in parallel from every node, exhausting disk quota and causing `disk quota exceeded` (exit 125) failures.
+When running with `-profile slurm` (HPC), every workflow task uses a rootless Podman container. Without coordination, Podman would pull the same multi-GB image in parallel from every node, exhausting disk quota and causing `disk quota exceeded` failures.
 
-GoodWorkflows solves this with a **pre-pull job** that pulls all images before the orchestrator starts, exports them into a shared OCI archive cache on `NXF_WORK`, and keeps each task's rootless Podman `graphRoot` on node-local scratch.
+GoodWorkflows solves this by using your existing Podman image store directly.
 
-### Podman storage prerequisite
+### How image storage works
 
-GoodWorkflows solves this by splitting Podman storage into two parts:
+Podman already stores pulled images in a user-owned NFS directory (your `graphRoot`, typically under `gscratch`). GoodWorkflows sets `NXF_PODMAN_GRAPHROOT` to that path and configures Podman storage in two complementary ways:
 
-1. A node-local Podman `graphRoot` and `runroot` under `${NXF_PODMAN_LOCAL_SCRATCH:-$SLURM_TMPDIR}/goodworkflows-podman/${SLURM_JOB_ID}`.
-2. A shared OCI archive cache under `${NXF_PODMAN_CACHEDIR:-${NXF_WORK}/.podman-oci-cache}`.
+| Context | `graphroot` | `additionalimagestores` | Effect |
+|---|---|---|---|
+| **Pre-pull job** | `NXF_PODMAN_GRAPHROOT` (NFS) | — | New pulls land directly in the NFS store |
+| **Task `beforeScript`** | node-local scratch | `NXF_PODMAN_GRAPHROOT` | Image layers are served read-only from the NFS store; only tiny per-container overlay upper-dirs go to local scratch |
 
-This matters because rootless Podman overlay storage must not live on gscratch, NFS, or other distributed filesystems. On exacloud that design fails at runtime with errors like `crun: open .../overlay/.../merged: Permission denied`.
+Because the image layers are never copied, there is no disk quota pressure during task startup. Disk quota errors (`lsetxattr … disk quota exceeded`) are eliminated.
 
-The pipeline now generates a task-local `storage.conf` automatically. You do not need to point your personal `~/.config/containers/storage.conf` at gscratch anymore.
+Additionally, `--storage-conf="${CONTAINERS_STORAGE_CONF}"` is passed explicitly on every `podman` call so the generated config is used regardless of what `~/.config/containers/storage.conf` says.
 
-To use the generated local storage safely, each SLURM allocation must expose node-local scratch through one of these paths:
+### Podman graphRoot prerequisite
 
-- `SLURM_TMPDIR`, which should be present when local disk is allocated. This repository already requests `--gres=disk:1028`.
-- `TMPDIR`, if your site exposes node-local scratch there instead of `SLURM_TMPDIR`.
-- Common node-local scratch roots such as `/tmp`, `/var/tmp`, `/scratch`, `/localscratch`, `/local`, or `/lscratch`, when those are writable on compute nodes.
-- `NXF_PODMAN_LOCAL_SCRATCH`, if your site uses a different node-local scratch path.
+`slurm_nextflow.sh` auto-detects your graphRoot by running `podman info --format '{{.Store.GraphRoot}}'` on the login node before submitting any SLURM jobs, then exports it as `NXF_PODMAN_GRAPHROOT`. You can override this at any time:
 
-The shared OCI archive cache remains on `NXF_WORK` because plain archive files are safe on shared storage even though rootless overlay mounts are not.
+```bash
+export NXF_PODMAN_GRAPHROOT=/home/exacloud/gscratch/mylab/dockerContainers
+bash slurm_nextflow.sh --workflow ingest_tabulate ...
+```
+
+If `slurm_nextflow.sh` cannot detect the graphRoot and `NXF_PODMAN_GRAPHROOT` is not set, it will print an error and exit before submitting any jobs.
 
 On exacloud, rootless user sessions are not delegated the `cpu` or `cpuset` cgroup controllers. That means a plain `podman run --cpu-shares ... --memory ...` fails with `crun: the requested cgroup controller 'cpu' is not available`. The SLURM profile avoids this by launching Podman with `--cgroups=disabled` and stripping Nextflow's auto-generated Podman resource flags before container startup. Scheduler-enforced CPU and memory limits still come from SLURM.
 
@@ -242,19 +246,18 @@ the pre-pull still happens before Nextflow starts, but it runs **inline inside t
 
 ### How it works
 
-1. `scripts/slurm_prepull_images.sh` (or the inline pre-pull block) runs on a compute node.
-2. It creates a task-local Podman store under `${NXF_PODMAN_LOCAL_SCRATCH:-$SLURM_TMPDIR}/goodworkflows-podman/${SLURM_JOB_ID}`.
-3. Each image is pulled into that node-local store and exported to `${NXF_PODMAN_CACHEDIR}` as an OCI archive.
-4. Each task's `beforeScript` creates its own node-local Podman store, loads the required OCI archive from shared storage, strips Nextflow's Podman CPU/memory cgroup flags for rootless runs, and falls back to a locked registry pull only if the archive is missing.
-5. The `afterScript` removes the task-local Podman directory when the task finishes.
+1. `slurm_nextflow.sh` detects `NXF_PODMAN_GRAPHROOT` from `podman info` on the login node and exports it.
+2. `scripts/slurm_prepull_images.sh` (or the inline pre-pull block) runs on a compute node with `graphroot = NXF_PODMAN_GRAPHROOT`. Images already in the NFS store are skipped immediately. Any missing images are pulled directly into the NFS store.
+3. Each task's `beforeScript` creates a minimal node-local Podman store (`graphroot` = local scratch) and adds the NFS store as `additionalimagestores`, then starts the container. Image layers are served from the NFS store over the overlay lower-dir; only the writable upper-dir is on local scratch.
+4. The `afterScript` removes the task-local Podman directory when the task finishes.
 
 ### Environment variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `NXF_PODMAN_LOCAL_SCRATCH` | unset | Optional override for the node-local scratch base used for Podman graphroot and runroot. |
-| `NXF_PODMAN_CACHEDIR` | `${NXF_WORK}/.podman-oci-cache` | Shared OCI archive cache populated by pre-pull and consumed by tasks on other nodes. |
-| `NXF_PODMAN_PULL_LOCK_DIR` | `${NXF_WORK}/.podman-pull-locks` | Shared lock directory coordinating concurrent per-task fallback pulls. |
+| `NXF_PODMAN_GRAPHROOT` | auto-detected via `podman info` | Path to the user's existing Podman image store (NFS-backed). Set explicitly if auto-detection is unavailable. |
+| `NXF_PODMAN_LOCAL_SCRATCH` | unset | Optional override for the node-local scratch base used for Podman `graphroot` (overlay upper-dirs) and `runroot`. |
+| `NXF_PODMAN_PULL_LOCK_DIR` | `${NXF_WORK}/.podman-pull-locks` | Shared lock directory coordinating concurrent pulls during the pre-pull job. |
 
 ### Updating `scripts/image-manifest.txt`
 

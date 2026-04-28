@@ -4,11 +4,13 @@
 # This script is idempotent: existing images are skipped. It can be submitted
 # via sbatch or run directly inside another SLURM allocation.
 #
-# Rootless Podman graphRoot must live on node-local storage, not gscratch/NFS.
-# This script uses SLURM local disk (SLURM_TMPDIR) or an explicit
-# NXF_PODMAN_LOCAL_SCRATCH override for Podman graphroot, then exports each
-# pulled image as a plain OCI archive into a shared cache on NXF_WORK so tasks
-# on other nodes can load it without hitting the registry.
+# Image storage strategy:
+#   - Podman graphRoot is set to the user's existing NFS-backed image store
+#     (detected via `podman info` or $NXF_PODMAN_GRAPHROOT). Images already
+#     present are skipped immediately. New pulls write to the NFS store.
+#   - Only lock files and transient Podman runtime state go to node-local scratch.
+#   - Tasks use additionalimagestores to read images from the NFS store without
+#     copying layers to local scratch.
 
 #SBATCH --job-name=nf-prepull
 #SBATCH --ntasks=1
@@ -35,84 +37,17 @@ podman_cache_key() {
     printf '%s' "$1" | tr '/:@' '___' | tr -cd '[:alnum:]_.-'
 }
 
-podman_archive_ready() {
-    local image="$1"
-    local key archive
-
-    key="$(podman_cache_key "${image}")"
-    archive="${NXF_PODMAN_CACHEDIR}/${key}.tar"
-    [[ -f "${archive}.done" ]]
-}
-
-export_oci_archive() {
-    local image="$1"
-    local key archive
-
-    key="$(podman_cache_key "${image}")"
-    archive="${NXF_PODMAN_CACHEDIR}/${key}.tar"
-
-    if [[ -f "${archive}.done" ]]; then
-        return 0
-    fi
-
-    echo "[CACHE] Saving OCI archive: ${archive}"
-    if podman save --format oci-archive -o "${archive}.tmp" "${image}" >/dev/null; then
-        mv "${archive}.tmp" "${archive}"
-        touch "${archive}.done"
-        return 0
-    fi
-
-    echo "[WARN] Failed to save OCI archive for ${image}" >&2
-    rm -f "${archive}.tmp"
-    return 1
-}
-
-configure_podman_storage() {
-    local local_scratch_root local_scratch_fs_type fuse_overlayfs_bin
-
-    local_scratch_root="$(nxf_resolve_podman_local_scratch)"
-    local_scratch_fs_type="$(nxf_podman_fs_type "${local_scratch_root}")"
-    JOB_STORAGE="${local_scratch_root%/}/goodworkflows-podman/${SLURM_JOB_ID:-$$}"
-    export CONTAINERS_RUNROOT="${JOB_STORAGE}/run"
-    export TMPDIR="${JOB_STORAGE}/tmp"
-    export XDG_RUNTIME_DIR="${JOB_STORAGE}/xdg-${UID}"
-    export NXF_PODMAN_CACHEDIR="${NXF_PODMAN_CACHEDIR:-${NXF_WORK_ROOT}/.podman-oci-cache}"
-    export CONTAINERS_STORAGE_CONF="${JOB_STORAGE}/storage.conf"
-    export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK_ROOT}/.podman-pull-locks}"
-
-    mkdir -p "${JOB_STORAGE}/storage" "${CONTAINERS_RUNROOT}" "${TMPDIR}" "${XDG_RUNTIME_DIR}" \
-             "${NXF_PODMAN_CACHEDIR}" "${NXF_PODMAN_PULL_LOCK_DIR}" "${PWD}/logs"
-    chmod 0700 "${XDG_RUNTIME_DIR}"
-
-    fuse_overlayfs_bin="$(command -v fuse-overlayfs || true)"
-    {
-        printf '[storage]\n'
-        printf 'driver = "overlay"\n'
-        printf 'graphroot = "%s"\n' "${JOB_STORAGE}/storage"
-        printf 'runroot = "%s"\n\n' "${CONTAINERS_RUNROOT}"
-        printf '[storage.options]\n'
-        printf 'additionalimagestores = []\n\n'
-        printf '[storage.options.overlay]\n'
-        if [[ -n "${fuse_overlayfs_bin}" ]]; then
-            printf 'mount_program = "%s"\n' "${fuse_overlayfs_bin}"
-        fi
-    } > "${CONTAINERS_STORAGE_CONF}"
-
-    echo "[PODMAN_DIAG] local_scratch_root=${local_scratch_root}"
-    echo "[PODMAN_DIAG] local_scratch_fs_type=${local_scratch_fs_type}"
-    echo "[PODMAN_DIAG] job_storage=${JOB_STORAGE}"
-    echo "[PODMAN_DIAG] containers_storage_conf=${CONTAINERS_STORAGE_CONF}"
-    echo "[PODMAN_DIAG] containers_runroot=${CONTAINERS_RUNROOT}"
-    echo "[PODMAN_DIAG] tmpdir=${TMPDIR}"
-    echo "[PODMAN_DIAG] oci_cache=${NXF_PODMAN_CACHEDIR}"
-    echo "[PODMAN_DIAG] pull_lock_dir=${NXF_PODMAN_PULL_LOCK_DIR}"
-}
-
 if command -v module &>/dev/null; then
     module load podman 2>/dev/null || true
 fi
 
-configure_podman_storage
+# configure_prepull_storage is defined in configs/slurm.podman-local.sh (sourced above).
+# It sets graphroot = NXF_PODMAN_GRAPHROOT (the user's NFS image store) so pulls land
+# there directly, and keeps runroot/tmp on node-local scratch.
+export NXF_WORK_ROOT="${NXF_WORK:-${PWD}/work}"
+configure_prepull_storage
+# Only clean up the local scratch directory (JOB_STORAGE); NXF_PODMAN_GRAPHROOT is the
+# persistent NFS image store and must NOT be removed.
 trap 'rm -rf "${JOB_STORAGE}"' EXIT
 
 if ! command -v podman >/dev/null 2>&1; then
@@ -127,11 +62,10 @@ echo " SLURM_JOB_ID   : ${SLURM_JOB_ID:-local}"
 echo " Working dir    : ${PWD}"
 echo " Pipeline root  : ${PIPELINE_ROOT}"
 echo " Job storage    : ${JOB_STORAGE}"
-echo " Podman graphRoot: ${JOB_STORAGE}/storage"
-echo " OCI cache dir  : ${NXF_PODMAN_CACHEDIR}"
+echo " Podman graphRoot: ${NXF_PODMAN_GRAPHROOT}"
 echo " Pull lock dir  : ${NXF_PODMAN_PULL_LOCK_DIR}"
-df -h "${JOB_STORAGE}" || true
-df -i "${JOB_STORAGE}" || true
+df -h "${NXF_PODMAN_GRAPHROOT}" || true
+df -i "${NXF_PODMAN_GRAPHROOT}" || true
 echo "=========================================="
 
 cleanup_stale_locks() {
@@ -152,9 +86,9 @@ podman_pull_once() {
     local image="$1"
 
     if command -v timeout &>/dev/null; then
-        timeout 3600 podman pull "${image}"
+        timeout 3600 command podman --storage-conf="${CONTAINERS_STORAGE_CONF}" pull "${image}"
     else
-        podman pull "${image}"
+        command podman --storage-conf="${CONTAINERS_STORAGE_CONF}" pull "${image}"
     fi
 }
 
@@ -162,6 +96,7 @@ declare -a DISCOVERED_IMAGES
 mapfile -t DISCOVERED_IMAGES < <(
 python3 - "${PIPELINE_ROOT}" "$@" <<'PY'
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -317,18 +252,13 @@ pull_with_lock() {
     if command -v flock &>/dev/null; then
         exec {lock_fd}>"${lock_file}"
         flock "${lock_fd}"
-        if podman_archive_ready "${image}"; then
-            echo "[SKIP] OCI archive already exists: ${image}"
-            status=0
-        elif podman image exists "${image}" 2>/dev/null; then
-            echo "[SKIP] Image already present: ${image}"
-            export_oci_archive "${image}" || true
+        if command podman --storage-conf="${CONTAINERS_STORAGE_CONF}" image exists "${image}" 2>/dev/null; then
+            echo "[SKIP] Image already present in graphroot: ${image}"
             status=0
         else
             for attempt in 1 2 3; do
                 if podman_pull_once "${image}"; then
                     echo "[OK] Pulled ${image}"
-                    export_oci_archive "${image}" || true
                     status=0
                     break
                 fi
@@ -347,18 +277,13 @@ pull_with_lock() {
         sleep $((2 + RANDOM % 4))
     done
 
-    if podman_archive_ready "${image}"; then
-        echo "[SKIP] OCI archive already exists: ${image}"
-        status=0
-    elif podman image exists "${image}" 2>/dev/null; then
-        echo "[SKIP] Image already present: ${image}"
-        export_oci_archive "${image}" || true
+    if command podman --storage-conf="${CONTAINERS_STORAGE_CONF}" image exists "${image}" 2>/dev/null; then
+        echo "[SKIP] Image already present in graphroot: ${image}"
         status=0
     else
         for attempt in 1 2 3; do
             if podman_pull_once "${image}"; then
                 echo "[OK] Pulled ${image}"
-                export_oci_archive "${image}" || true
                 status=0
                 break
             fi

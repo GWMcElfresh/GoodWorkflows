@@ -29,6 +29,18 @@ set -euo pipefail
 PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
 PREPULL_SCRIPT_PATH="${PREPULL_SCRIPT:-${PIPELINE_ROOT}/scripts/slurm_prepull_images.sh}"
 
+# Detect the user's Podman graphRoot early so both the pre-pull job and the
+# orchestrator's beforeScript can find the NFS image store without running
+# `podman info` inside a SLURM allocation (where HOME may be /tmp).
+if [[ -z "${NXF_PODMAN_GRAPHROOT:-}" ]] && command -v podman >/dev/null 2>&1; then
+    NXF_PODMAN_GRAPHROOT="$(podman info --format '{{.Store.GraphRoot}}' 2>/dev/null || true)"
+fi
+if [[ -z "${NXF_PODMAN_GRAPHROOT:-}" ]]; then
+    echo "ERROR: Cannot detect NXF_PODMAN_GRAPHROOT. Run 'podman info --format {{.Store.GraphRoot}}' to find your image store, then export NXF_PODMAN_GRAPHROOT=<path> before launching this script."
+    exit 1
+fi
+export NXF_PODMAN_GRAPHROOT
+
 # Submit mode: when invoked directly (not already inside a SLURM allocation),
 # submit a serial pre-pull job and chain the orchestrator with dependency.
 if [[ -z "${SLURM_JOB_ID:-}" && "${AUTO_SUBMIT_WITH_PREPULL:-true}" == "true" ]]; then
@@ -42,7 +54,7 @@ if [[ -z "${SLURM_JOB_ID:-}" && "${AUTO_SUBMIT_WITH_PREPULL:-true}" == "true" ]]
     fi
 
     PREPULL_JOB_ID="$(sbatch --parsable "${PREPULL_SCRIPT_PATH}" "$@")"
-    ORCHESTRATOR_JOB_ID="$(sbatch --parsable --dependency=afterok:${PREPULL_JOB_ID} --export=ALL,INLINE_PREPULL_WHEN_SBATCH=false "${PIPELINE_ROOT}/slurm_nextflow.sh" "$@")"
+    ORCHESTRATOR_JOB_ID="$(sbatch --parsable --dependency=afterok:${PREPULL_JOB_ID} --export=ALL,INLINE_PREPULL_WHEN_SBATCH=false,NXF_PODMAN_GRAPHROOT="${NXF_PODMAN_GRAPHROOT}" "${PIPELINE_ROOT}/slurm_nextflow.sh" "$@")"
 
     echo "Submitted pre-pull job     : ${PREPULL_JOB_ID}"
     echo "Submitted orchestrator job : ${ORCHESTRATOR_JOB_ID} (afterok:${PREPULL_JOB_ID})"
@@ -87,6 +99,7 @@ echo " Nextflow bin   : ${NEXTFLOW_BIN}"
 echo " NXF_HOME       : ${NXF_HOME}"
 echo " NXF_WORK       : ${NXF_WORK_DISPLAY}"
 echo " Pull lock dir  : ${NXF_PODMAN_PULL_LOCK_DIR}"
+echo " Podman graphRoot: ${NXF_PODMAN_GRAPHROOT}"
 echo "=========================================="
 
 USER="${USER:-$(id -un)}"
