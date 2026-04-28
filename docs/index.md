@@ -1,6 +1,6 @@
 # GoodWorkflows
 
-A DSL2 **Nextflow** pipeline for composing reusable single-cell RNA-seq workflows and running them on **SLURM + Podman** HPC systems.
+A DSL2 **Nextflow** pipeline for composing reusable single-cell RNA-seq workflows and running them on **SLURM + Apptainer** HPC systems.
 
 ---
 
@@ -72,7 +72,7 @@ bash slurm_nextflow.sh \
 └── slurm_sync_repo.sh      # Lightweight HPC repo sync job
 ```
 
-For routine SLURM runs, prefer copying `template/` into `runs/<name>/` and submitting `run.sh`. Use `bash slurm_nextflow.sh ...` when you want the repository-root launcher and a standalone pre-pull job submitted before orchestration. The detailed comparison lives in [Usage](usage.md).
+For routine SLURM runs, prefer copying `template/` into `runs/<name>/` and submitting `run.sh`. Use `bash slurm_nextflow.sh ...` when you want the repository-root launcher and a standalone Apptainer SIF pre-pull job submitted before orchestration. The detailed comparison lives in [Usage](usage.md).
 
 ---
 

@@ -1,6 +1,6 @@
 # GoodWorkflows
 
-A DSL2 **Nextflow** repository for composing reusable single-cell workflows from small modules and running them on **SLURM + Podman** HPC systems.
+A DSL2 **Nextflow** repository for composing reusable single-cell workflows from small modules and running them on **SLURM + Apptainer** HPC systems.
 
 📖 **[Full documentation →](https://gwmcelfresh.github.io/GoodWorkflows/)**  
 Parameters: [`nextflow_schema.json`](nextflow_schema.json) | Docs source: [`docs/`](docs/)
@@ -128,29 +128,22 @@ bash slurm_nextflow.sh \
   --labkey_folder /My/Folder
 ```
 
-Preferred launch mode: run `bash slurm_nextflow.sh ...` from a login node. In that mode the wrapper submits a standalone container image pre-pull job first, then submits the orchestrator with `--dependency=afterok:<PREPULL_JOB_ID>`. Pre-pull is therefore a hard prerequisite for orchestration.
+Preferred launch mode: run `bash slurm_nextflow.sh ...` from a login node. In that mode the wrapper submits a standalone Apptainer SIF pre-pull job first, then submits the orchestrator with `--dependency=afterok:<PREPULL_JOB_ID>`. Pre-pull is therefore a hard prerequisite for orchestration.
 
 If you instead use `sbatch slurm_nextflow.sh ...`, the same pre-pull runs inline inside the orchestrator allocation before Nextflow launches. `template/run.sh` also uses inline pre-pull.
 
-GoodWorkflows keeps the rootless Podman `graphRoot` on the user's **existing NFS-backed image store** (`NXF_PODMAN_GRAPHROOT`) and directs only transient runtime state (`runroot`, `TMPDIR`, `XDG_RUNTIME_DIR`) to node-local scratch. The standalone pre-pull job populates the shared image store first; each task reuses those images directly with no copy step.
+GoodWorkflows pre-pulls every required docker image as an Apptainer SIF file into `${PIPELINE_ROOT}/apptainer-sif/` (or `$NXF_SINGULARITY_CACHEDIR` if set). The standalone pre-pull job populates this shared cache before any tasks start; each task finds the SIF there directly with no conversion overhead.
 
-#### Podman storage prerequisite
+#### Apptainer SIF cache
 
-The pipeline generates a task-local `storage.conf` automatically so that:
+The pipeline converts each docker image to a SIF file once and stores it in `${PIPELINE_ROOT}/apptainer-sif/` (shared NFS). Override with:
 
-- `graphroot` points to `NXF_PODMAN_GRAPHROOT` (your shared image store — **not** the default home-directory Podman store, which is typically quota-constrained on HPC clusters)
-- `runroot`, `TMPDIR`, and `XDG_RUNTIME_DIR` go to node-local scratch
+```bash
+export NXF_SINGULARITY_CACHEDIR=/home/exacloud/gscratch/<lab>/singularity-sifs
+bash slurm_nextflow.sh --workflow ingest_tabulate ...
+```
 
-This keeps large image layers on shared storage where quota is not a concern, while container runtime state stays on fast local disk. Each SLURM allocation must have node-local scratch available through one of these paths:
-
-- `SLURM_TMPDIR` from the requested local disk allocation. This repository already requests `--gres=disk:1028`.
-- `TMPDIR`, if your site exposes node-local scratch there instead of `SLURM_TMPDIR`.
-- Common node-local scratch roots such as `/tmp`, `/var/tmp`, `/scratch`, `/localscratch`, `/local`, or `/lscratch`, when those are writable on compute nodes.
-- `NXF_PODMAN_LOCAL_SCRATCH` if your cluster exposes node-local scratch through a different path.
-
-On exacloud, rootless user sessions are not delegated the `cpu`/`cpuset` cgroup controllers, so Podman cannot honor container CPU or memory limits there. The SLURM profile therefore launches Podman with `--cgroups=disabled` and strips Nextflow's auto-generated `--cpu-shares` / `--memory` flags before `podman run`. CPU and memory limits are still enforced by SLURM for the job allocation.
-
-Per-task ephemeral runtime state (`runroot`, `TMPDIR`, `XDG_RUNTIME_DIR`) is scoped to `${NXF_PODMAN_LOCAL_SCRATCH:-$SLURM_TMPDIR}/goodworkflows-podman/${SLURM_JOB_ID}` and cleaned up automatically by the `afterScript` hook.
+`APPTAINER_CACHEDIR` (the OCI blob/layer cache, typically set in `~/.bashrc`) is passed through to compute nodes automatically and speeds up repeated pulls of the same image layers.
 
 Optional: fast-forward the checkout immediately before launch:
 

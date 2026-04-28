@@ -27,28 +27,15 @@ set -euo pipefail
 # Resolve pipeline root from this script's own location so the script can be
 # submitted from any working directory (e.g. runs/my_run/).
 PIPELINE_ROOT="${PIPELINE_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)}"
-PREPULL_SCRIPT_PATH="${PREPULL_SCRIPT:-${PIPELINE_ROOT}/scripts/slurm_prepull_images.sh}"
+PREPULL_SCRIPT_PATH="${PREPULL_SCRIPT:-${PIPELINE_ROOT}/scripts/slurm_prepull_apptainer.sh}"
 
-# Detect the user's Podman graphRoot early so both the pre-pull job and the
-# orchestrator's beforeScript can find the NFS image store without running
-# `podman info` inside a SLURM allocation (where HOME may be /tmp).
-if [[ -z "${NXF_PODMAN_GRAPHROOT:-}" ]] && command -v podman >/dev/null 2>&1; then
-    NXF_PODMAN_GRAPHROOT="$(podman info --format '{{.Store.GraphRoot}}' 2>/dev/null || true)"
-fi
-if [[ -z "${NXF_PODMAN_GRAPHROOT:-}" ]]; then
-    echo "ERROR: Cannot detect NXF_PODMAN_GRAPHROOT. Run 'podman info --format {{.Store.GraphRoot}}' to find your image store, then export NXF_PODMAN_GRAPHROOT=<path> before launching this script."
-    exit 1
-fi
-# Warn early if the auto-detected graphroot looks like the default home-directory
-# Podman store, which is typically quota-constrained on HPC clusters. Image layers
-# for large containers can exhaust the home-directory quota and cause pull failures.
-if [[ -n "${HOME:-}" && "${NXF_PODMAN_GRAPHROOT}" == "${HOME}/.local/share/containers"* ]]; then
-    echo "WARNING: NXF_PODMAN_GRAPHROOT='${NXF_PODMAN_GRAPHROOT}' looks like the default home-directory Podman store."
-    echo "  Home directories on most HPC clusters are quota-constrained; container image layers"
-    echo "  can exhaust the quota and cause pull failures. Consider setting:"
-    echo "    export NXF_PODMAN_GRAPHROOT=/home/exacloud/gscratch/<lab>/dockerContainers"
-fi
-export NXF_PODMAN_GRAPHROOT
+# Resolve the shared SIF cache directory.  Pre-pull writes SIF files here;
+# slurm_singularity.config points singularity.cacheDir at the same path.
+# Default is ${PIPELINE_ROOT}/apptainer-sif (pwd-centric, on shared NFS).
+# Override by exporting NXF_SINGULARITY_CACHEDIR before calling this script.
+NXF_SINGULARITY_CACHEDIR="${NXF_SINGULARITY_CACHEDIR:-${PIPELINE_ROOT}/apptainer-sif}"
+mkdir -p "${NXF_SINGULARITY_CACHEDIR}"
+export NXF_SINGULARITY_CACHEDIR
 
 # Submit mode: when invoked directly (not already inside a SLURM allocation),
 # submit a serial pre-pull job and chain the orchestrator with dependency.
@@ -63,7 +50,7 @@ if [[ -z "${SLURM_JOB_ID:-}" && "${AUTO_SUBMIT_WITH_PREPULL:-true}" == "true" ]]
     fi
 
     PREPULL_JOB_ID="$(sbatch --parsable "${PREPULL_SCRIPT_PATH}" "$@")"
-    ORCHESTRATOR_JOB_ID="$(sbatch --parsable --dependency=afterok:${PREPULL_JOB_ID} --export=ALL,INLINE_PREPULL_WHEN_SBATCH=false,NXF_PODMAN_GRAPHROOT="${NXF_PODMAN_GRAPHROOT}" "${PIPELINE_ROOT}/slurm_nextflow.sh" "$@")"
+    ORCHESTRATOR_JOB_ID="$(sbatch --parsable --dependency=afterok:${PREPULL_JOB_ID} --export=ALL,INLINE_PREPULL_WHEN_SBATCH=false,NXF_SINGULARITY_CACHEDIR="${NXF_SINGULARITY_CACHEDIR}",APPTAINER_CACHEDIR="${APPTAINER_CACHEDIR:-}" "${PIPELINE_ROOT}/slurm_nextflow.sh" "$@")"
 
     echo "Submitted pre-pull job     : ${PREPULL_JOB_ID}"
     echo "Submitted orchestrator job : ${ORCHESTRATOR_JOB_ID} (afterok:${PREPULL_JOB_ID})"
@@ -86,16 +73,19 @@ export NXF_HOME="${NXF_HOME:-/gscratch/CHANGEME/.nextflow}"
 
 NXF_WORK_ROOT="${NXF_WORK:-${PWD}/work}"
 
-# NXF_PODMAN_PULL_LOCK_DIR coordinates concurrent image pulls across tasks.
-export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK_ROOT}/.podman-pull-locks}"
+# NXF_APPTAINER_PULL_LOCK_DIR coordinates concurrent SIF pulls in the pre-pull job.
+export NXF_APPTAINER_PULL_LOCK_DIR="${NXF_APPTAINER_PULL_LOCK_DIR:-${NXF_WORK_ROOT}/.apptainer-pull-locks}"
 
-mkdir -p "${NXF_PODMAN_PULL_LOCK_DIR}"
+mkdir -p "${NXF_APPTAINER_PULL_LOCK_DIR}"
 
 LOG_DIR="${PWD}/logs"
 mkdir -p "${LOG_DIR}"
 
 NXF_WORK_DISPLAY="${NXF_WORK_ROOT}"
 SYNC_SCRIPT_PATH="${SYNC_SCRIPT:-${PIPELINE_ROOT}/scripts/sync_repo.sh}"
+# Profile to use: defaults to slurm_singularity (Apptainer). Override by
+# exporting NF_PROFILE=slurm before calling this script if you want Podman.
+NF_PROFILE="${NF_PROFILE:-slurm_singularity}"
 
 echo "=========================================="
 echo " GoodWorkflows Nextflow Orchestrator"
@@ -107,8 +97,9 @@ echo " Pipeline root  : ${PIPELINE_ROOT}"
 echo " Nextflow bin   : ${NEXTFLOW_BIN}"
 echo " NXF_HOME       : ${NXF_HOME}"
 echo " NXF_WORK       : ${NXF_WORK_DISPLAY}"
-echo " Pull lock dir  : ${NXF_PODMAN_PULL_LOCK_DIR}"
-echo " Podman graphRoot: ${NXF_PODMAN_GRAPHROOT}"
+echo " Pull lock dir  : ${NXF_APPTAINER_PULL_LOCK_DIR}"
+echo " Apptainer SIF cache : ${NXF_SINGULARITY_CACHEDIR}"
+echo " Apptainer blob cache: ${APPTAINER_CACHEDIR:-unset}"
 echo "=========================================="
 
 USER="${USER:-$(id -un)}"
@@ -131,7 +122,7 @@ declare -a NF_ARGS
 NF_ARGS=(
     -log "${LOG_DIR}/nextflow.log"
     run "${PIPELINE_ROOT}/main.nf"
-    -profile slurm
+    -profile "${NF_PROFILE}"
     -resume
     -ansi-log false
 )

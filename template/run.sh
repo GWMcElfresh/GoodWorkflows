@@ -96,12 +96,17 @@ OUTDIR="${OUTDIR:-${RUN_DIR}/outputs}"
 export NXF_WORK="${NXF_WORK:-${RUN_DIR}/work}"
 LOG_DIR="${RUN_DIR}/logs"
 
-# NXF_PODMAN_PULL_LOCK_DIR coordinates concurrent image pulls across tasks.
-# Leave NXF_WORK on gscratch with force_mask="0700" in storage.conf so Podman
-# can unpack image layers without hitting xattr restrictions.
-export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK}/.podman-pull-locks}"
+# SIF files are written to NXF_SINGULARITY_CACHEDIR during the pre-pull step.
+# This must be on a shared filesystem visible to all compute nodes (e.g. gscratch).
+# Defaults to ${PIPELINE_ROOT}/apptainer-sif when auto-detection finds PIPELINE_ROOT.
+# Override by exporting NXF_SINGULARITY_CACHEDIR before calling sbatch.
+export NXF_SINGULARITY_CACHEDIR="${NXF_SINGULARITY_CACHEDIR:-${PIPELINE_ROOT}/apptainer-sif}"
+mkdir -p "${NXF_SINGULARITY_CACHEDIR}"
 
-mkdir -p "${LOG_DIR}" "${NXF_WORK}" "${NXF_PODMAN_PULL_LOCK_DIR}"
+# Lock directory for coordinating concurrent SIF pulls in the pre-pull step.
+export NXF_APPTAINER_PULL_LOCK_DIR="${NXF_APPTAINER_PULL_LOCK_DIR:-${NXF_WORK}/.apptainer-pull-locks}"
+
+mkdir -p "${LOG_DIR}" "${NXF_WORK}" "${NXF_APPTAINER_PULL_LOCK_DIR}"
 
 # ============================================================
 # Validate required settings
@@ -149,7 +154,9 @@ if [[ -n "${SLURM_JOB_ID:-}" ]]; then
 else
     echo " Pre-pull mode  : none (local run)"
 fi
-echo " Pull lock dir  : ${NXF_PODMAN_PULL_LOCK_DIR}"
+echo " Apptainer SIF cache : ${NXF_SINGULARITY_CACHEDIR}"
+echo " Apptainer blob cache: ${APPTAINER_CACHEDIR:-unset}"
+echo " Pull lock dir  : ${NXF_APPTAINER_PULL_LOCK_DIR}"
 echo "=========================================="
 
 "${NEXTFLOW_BIN}" -version
@@ -158,13 +165,12 @@ echo "=========================================="
 # Container image pre-pull (SLURM only)
 # ============================================================
 # For template-based SLURM runs, pre-pull happens inline in this same
-# allocation before Nextflow starts. This ensures the shared NFS-backed
-# graphroot already contains all required images before any task container
-# launches. Tasks share the same graphroot; only runroot, TMPDIR, and
-# XDG_RUNTIME_DIR go to node-local scratch.
-PREPULL_SCRIPT_PATH="${PIPELINE_ROOT}/scripts/slurm_prepull_images.sh"
+# allocation before Nextflow starts. The pre-pull script converts each docker
+# image to a SIF file in NXF_SINGULARITY_CACHEDIR; existing SIF files are
+# skipped automatically.
+PREPULL_SCRIPT_PATH="${PIPELINE_ROOT}/scripts/slurm_prepull_apptainer.sh"
 if [[ -n "${SLURM_JOB_ID:-}" && -f "${PREPULL_SCRIPT_PATH}" ]]; then
-    echo "Running inline container image pre-pull before Nextflow launch..."
+    echo "Running inline Apptainer SIF pre-pull before Nextflow launch..."
     bash "${PREPULL_SCRIPT_PATH}" "$@"
 fi
 
@@ -175,7 +181,7 @@ declare -a NF_ARGS
 NF_ARGS=(
     -log "${LOG_DIR}/nextflow.log"
     run "${PIPELINE_ROOT}/main.nf"
-    -profile slurm
+    -profile "${NF_PROFILE:-slurm_singularity}"
     -work-dir "${NXF_WORK}"
     -resume
     -ansi-log false

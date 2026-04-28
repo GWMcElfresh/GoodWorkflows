@@ -9,7 +9,7 @@ This guide walks through everything needed to set up and run a GoodWorkflows pip
 | Requirement | Notes |
 |---|---|
 | **Nextflow ≥ 24.04** | [Install guide](https://www.nextflow.io/docs/latest/getstarted.html) |
-| **SLURM + Podman** | Required for `--profile slurm` (HPC). Rootless Podman must be working. |
+| **SLURM + Apptainer** | Required for `-profile slurm_singularity` (HPC). Apptainer (≥ 1.0) must be installed or loadable via `module load apptainer`. |
 | **`~/.netrc`** | LabKey/Prime-seq authentication. See note below. |
 | **Git** | Needed to clone and sync the repository. |
 
@@ -186,33 +186,25 @@ nextflow run main.nf \
 
 ---
 
-## 6 — Container image pre-pull and caching
+## 6 — Container image pre-pull and SIF cache
 
-When running with `-profile slurm` (HPC), every workflow task uses a rootless Podman container. Without coordination, Podman would pull the same multi-GB image in parallel from every node, exhausting disk quota and causing `disk quota exceeded` failures.
+When running with `-profile slurm_singularity` (HPC), every workflow task uses an Apptainer SIF container. Without a pre-pull step, Apptainer would attempt to convert each docker image on every compute node simultaneously, hitting registry rate-limits and wasting time. GoodWorkflows solves this with a mandatory pre-pull that converts all required docker images to SIF files once, storing them in a shared directory (`NXF_SINGULARITY_CACHEDIR`) before any task starts.
 
-GoodWorkflows solves this by configuring Podman to use your existing NFS-backed image store (`NXF_PODMAN_GRAPHROOT`) for **both** the pre-pull job and individual task containers, while redirecting the runtime state (`runroot`) to node-local scratch.
+| Context | What happens | SIF location |
+|---|---|---|
+| **Pre-pull job** | `apptainer pull docker://<image>` writes a `.img` SIF file; existing SIFs are skipped | `NXF_SINGULARITY_CACHEDIR` (shared NFS) |
+| **Task execution** | Nextflow passes the pre-built SIF to `apptainer exec`; no conversion needed | Same shared directory |
 
-| Context | `graphroot` | `runroot` | Effect |
-|---|---|---|---|
-| **Pre-pull job** | `NXF_PODMAN_GRAPHROOT` (NFS) | node-local scratch | Pulls land in the NFS store; images already present are a fast no-op |
-| **Task `beforeScript`** | `NXF_PODMAN_GRAPHROOT` (NFS) | node-local scratch | Images already present; container diffs are tiny and cleaned immediately by `--rm` |
+### Apptainer SIF cache
 
-Because both the image layer lower-dirs and the container overlay upper-dirs live on the **same NFS filesystem**, the kernel overlay driver works without any special configuration. This matches the user's own `~/.config/containers/storage.conf` exactly, which is why containers ran successfully before.
-
-The generated `storage.conf` adds `force_mask = "0700"` under `[storage.options.overlay]`, matching the `overlay.force_mask: "0700"` shown in `podman info`, which is required for correct UID-mapped permissions in rootless operation.
-
-### Podman graphRoot prerequisite
-
-`slurm_nextflow.sh` auto-detects your graphRoot by running `podman info --format '{{.Store.GraphRoot}}'` on the login node before submitting any SLURM jobs, then exports it as `NXF_PODMAN_GRAPHROOT`. You can override this at any time:
+SIF files land in `${PIPELINE_ROOT}/apptainer-sif/` by default. This directory must be on a shared filesystem visible to all compute nodes (gscratch is fine). Override with:
 
 ```bash
-export NXF_PODMAN_GRAPHROOT=/home/exacloud/gscratch/mylab/dockerContainers
+export NXF_SINGULARITY_CACHEDIR=/home/exacloud/gscratch/mylab/singularity-sifs
 bash slurm_nextflow.sh --workflow ingest_tabulate ...
 ```
 
-If `slurm_nextflow.sh` cannot detect the graphRoot and `NXF_PODMAN_GRAPHROOT` is not set, it will print an error and exit before submitting any jobs.
-
-On exacloud, rootless user sessions are not delegated the `cpu` or `cpuset` cgroup controllers. That means a plain `podman run --cpu-shares ... --memory ...` fails with `crun: the requested cgroup controller 'cpu' is not available`. The SLURM profile avoids this by launching Podman with `--cgroups=disabled` and stripping Nextflow's auto-generated Podman resource flags before container startup. Scheduler-enforced CPU and memory limits still come from SLURM.
+`APPTAINER_CACHEDIR` (the OCI blob/layer cache set in `~/.bashrc`) is a separate directory used internally by Apptainer to avoid re-downloading image layers. It is passed through to compute nodes automatically; no extra configuration is needed.
 
 ### Launch modes
 
@@ -238,22 +230,22 @@ If you instead run:
 sbatch slurm_nextflow.sh --workflow integration ...
 ```
 
-the pre-pull still happens before Nextflow starts, but it runs **inline inside the orchestrator allocation** rather than as a separate job. `template/run.sh` also uses inline pre-pull.
+the pre-pull still happens before Nextflow starts, but it runs **inline inside the orchestrator allocation** rather than as a separate job.
 
 ### How it works
 
-1. `slurm_nextflow.sh` detects `NXF_PODMAN_GRAPHROOT` from `podman info` on the login node and exports it.
-2. `scripts/slurm_prepull_images.sh` (or the inline pre-pull block) runs on a compute node with `graphroot = NXF_PODMAN_GRAPHROOT`. Images already in the NFS store are skipped immediately. Any missing images are pulled directly into the NFS store.
-3. Each task's `beforeScript` generates a `storage.conf` with `graphroot = NXF_PODMAN_GRAPHROOT` and `runroot` on node-local scratch, then starts the container. Image layers and container overlay dirs are both on the same NFS filesystem, so the kernel overlay driver works without any special configuration.
-4. The `afterScript` removes the task-local runroot directory. Podman `--rm` cleans up the container overlay in the NFS graphroot when the container exits.
+1. `slurm_nextflow.sh` resolves `NXF_SINGULARITY_CACHEDIR` (defaulting to `${PIPELINE_ROOT}/apptainer-sif`) and exports it.
+2. `scripts/slurm_prepull_apptainer.sh` (or the inline pre-pull block) runs on a compute node. It converts each docker image to a SIF file via `apptainer pull --name <sif_path>.tmp docker://<image>`, then atomically renames the `.tmp` file on success. Any `*.img.tmp` partials left by an interrupted pull are removed by an `EXIT` trap. Existing SIF files are skipped.
+3. Nextflow's `singularity.cacheDir` (set to `NXF_SINGULARITY_CACHEDIR`) tells Nextflow where to look for the pre-built SIF files. Each task launches as `apptainer exec <sif_path> ...`.
+4. `configs/slurm.apptainer-before.sh` (sourced by each task's `beforeScript`) loads the `apptainer` module and prints diagnostics. There is nothing to clean up per-task; SIF files are persistent shared cache.
 
 ### Environment variables
 
 | Variable | Default | Description |
 |---|---|---|
-| `NXF_PODMAN_GRAPHROOT` | auto-detected via `podman info` | Path to the user's existing Podman image store (NFS-backed). Set explicitly if auto-detection is unavailable. |
-| `NXF_PODMAN_LOCAL_SCRATCH` | unset | Optional override for the node-local scratch base used for Podman `runroot`, `TMPDIR`, and `XDG_RUNTIME_DIR`. Image layers stay in `NXF_PODMAN_GRAPHROOT`. |
-| `NXF_PODMAN_PULL_LOCK_DIR` | `${NXF_WORK}/.podman-pull-locks` | Shared lock directory coordinating concurrent pulls during the pre-pull job. |
+| `NXF_SINGULARITY_CACHEDIR` | `${PIPELINE_ROOT}/apptainer-sif` | Directory where pre-built SIF files are stored. Must be on shared NFS visible to all compute nodes. |
+| `APPTAINER_CACHEDIR` | set in `~/.bashrc` | OCI blob/layer cache used by Apptainer internally during `apptainer pull`. Separate from the SIF output directory. |
+| `NXF_APPTAINER_PULL_LOCK_DIR` | `${NXF_WORK}/.apptainer-pull-locks` | Lock directory coordinating concurrent pulls in the pre-pull job. |
 
 ### Updating `scripts/image-manifest.txt`
 
