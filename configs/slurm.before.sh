@@ -10,10 +10,10 @@ if command -v module &>/dev/null; then
 fi
 
 # Configure per-task Podman storage:
-#   graphroot             -> node-local scratch (overlay upper-dirs only; very small)
-#   additionalimagestores -> NFS-backed user image store (image layers served read-only)
-#   --storage-conf flag   -> passed to every podman call below so the generated
-#                            config is used regardless of ~/.config/containers/storage.conf
+#   graphroot  -> NFS-backed user image store (images already present after pre-pull)
+#   runroot    -> node-local scratch (container runtime state only; small)
+# CONTAINERS_STORAGE_CONF is exported by configure_task_storage; Podman reads it
+# automatically via env var (more portable than --storage-conf CLI flag).
 configure_task_storage
 
 # Rootless Podman on exacloud does not get delegated cpu/cpuset controllers.
@@ -44,9 +44,9 @@ podman() {
         shift
         nxf_rootless_podman_filter_run_args "$@"
         echo "[PODMAN_DIAG] rootless podman run: stripping cpu/memory cgroup flags; SLURM enforces task resources" >&2
-        command podman --storage-conf="${CONTAINERS_STORAGE_CONF}" run "${NXF_PODMAN_FILTERED_ARGS[@]}"
+        command podman run "${NXF_PODMAN_FILTERED_ARGS[@]}"
         return $?
     fi
 
-    command podman --storage-conf="${CONTAINERS_STORAGE_CONF}" "$@"
+    command podman "$@"
 }

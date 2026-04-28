@@ -8,9 +8,10 @@
 #   - Podman graphRoot is set to the user's existing NFS-backed image store
 #     (detected via `podman info` or $NXF_PODMAN_GRAPHROOT). Images already
 #     present are skipped immediately. New pulls write to the NFS store.
-#   - Only lock files and transient Podman runtime state go to node-local scratch.
-#   - Tasks use additionalimagestores to read images from the NFS store without
-#     copying layers to local scratch.
+#   - Only lock files and transient Podman runtime state (runroot, TMPDIR,
+#     XDG_RUNTIME_DIR) go to node-local scratch.
+#   - Tasks use the same NFS-backed graphRoot; no layer copying to local
+#     scratch is required.
 
 #SBATCH --job-name=nf-prepull
 #SBATCH --ntasks=1
@@ -86,9 +87,9 @@ podman_pull_once() {
     local image="$1"
 
     if command -v timeout &>/dev/null; then
-        timeout 3600 command podman --storage-conf="${CONTAINERS_STORAGE_CONF}" pull "${image}"
+        timeout 3600 command podman pull "${image}"
     else
-        command podman --storage-conf="${CONTAINERS_STORAGE_CONF}" pull "${image}"
+        command podman pull "${image}"
     fi
 }
 
@@ -252,7 +253,7 @@ pull_with_lock() {
     if command -v flock &>/dev/null; then
         exec {lock_fd}>"${lock_file}"
         flock "${lock_fd}"
-        if command podman --storage-conf="${CONTAINERS_STORAGE_CONF}" image exists "${image}" 2>/dev/null; then
+        if command podman image exists "${image}" 2>/dev/null; then
             echo "[SKIP] Image already present in graphroot: ${image}"
             status=0
         else
@@ -277,7 +278,7 @@ pull_with_lock() {
         sleep $((2 + RANDOM % 4))
     done
 
-    if command podman --storage-conf="${CONTAINERS_STORAGE_CONF}" image exists "${image}" 2>/dev/null; then
+    if command podman image exists "${image}" 2>/dev/null; then
         echo "[SKIP] Image already present in graphroot: ${image}"
         status=0
     else

@@ -132,24 +132,25 @@ Preferred launch mode: run `bash slurm_nextflow.sh ...` from a login node. In th
 
 If you instead use `sbatch slurm_nextflow.sh ...`, the same pre-pull runs inline inside the orchestrator allocation before Nextflow launches. `template/run.sh` also uses inline pre-pull.
 
-GoodWorkflows now keeps the rootless Podman `graphRoot` on node-local scratch and keeps a shared OCI archive cache on `NXF_WORK`. The standalone pre-pull job populates that shared cache first, and each task then loads the required image from the cache into its own node-local Podman store before `podman run`.
+GoodWorkflows keeps the rootless Podman `graphRoot` on the user's **existing NFS-backed image store** (`NXF_PODMAN_GRAPHROOT`) and directs only transient runtime state (`runroot`, `TMPDIR`, `XDG_RUNTIME_DIR`) to node-local scratch. The standalone pre-pull job populates the shared image store first; each task reuses those images directly with no copy step.
 
 #### Podman storage prerequisite
 
-Rootless Podman must not use gscratch, NFS, or other distributed filesystems for `graphRoot`. On exacloud that layout fails at runtime with errors like `crun: open .../overlay/.../merged: Permission denied`.
+The pipeline generates a task-local `storage.conf` automatically so that:
 
-The pipeline now writes a task-local `storage.conf` automatically. To use it safely, each SLURM allocation must have node-local scratch available through one of these paths:
+- `graphroot` points to `NXF_PODMAN_GRAPHROOT` (your shared image store — **not** the default home-directory Podman store, which is typically quota-constrained on HPC clusters)
+- `runroot`, `TMPDIR`, and `XDG_RUNTIME_DIR` go to node-local scratch
+
+This keeps large image layers on shared storage where quota is not a concern, while container runtime state stays on fast local disk. Each SLURM allocation must have node-local scratch available through one of these paths:
 
 - `SLURM_TMPDIR` from the requested local disk allocation. This repository already requests `--gres=disk:1028`.
 - `TMPDIR`, if your site exposes node-local scratch there instead of `SLURM_TMPDIR`.
 - Common node-local scratch roots such as `/tmp`, `/var/tmp`, `/scratch`, `/localscratch`, `/local`, or `/lscratch`, when those are writable on compute nodes.
 - `NXF_PODMAN_LOCAL_SCRATCH` if your cluster exposes node-local scratch through a different path.
 
-Shared image reuse happens through `${NXF_PODMAN_CACHEDIR:-${NXF_WORK}/.podman-oci-cache}`, which stores plain OCI archive files on shared storage. Those archives are safe on gscratch because they do not rely on rootless overlay mounts.
-
 On exacloud, rootless user sessions are not delegated the `cpu`/`cpuset` cgroup controllers, so Podman cannot honor container CPU or memory limits there. The SLURM profile therefore launches Podman with `--cgroups=disabled` and strips Nextflow's auto-generated `--cpu-shares` / `--memory` flags before `podman run`. CPU and memory limits are still enforced by SLURM for the job allocation.
 
-Per-task ephemeral state (Podman graph root, run root, `TMPDIR`, `XDG_RUNTIME_DIR`) is scoped to `${NXF_PODMAN_LOCAL_SCRATCH:-$SLURM_TMPDIR}/goodworkflows-podman/${SLURM_JOB_ID}` and cleaned up automatically by the `afterScript` hook.
+Per-task ephemeral runtime state (`runroot`, `TMPDIR`, `XDG_RUNTIME_DIR`) is scoped to `${NXF_PODMAN_LOCAL_SCRATCH:-$SLURM_TMPDIR}/goodworkflows-podman/${SLURM_JOB_ID}` and cleaned up automatically by the `afterScript` hook.
 
 Optional: fast-forward the checkout immediately before launch:
 

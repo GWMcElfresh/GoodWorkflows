@@ -39,6 +39,15 @@ if [[ -z "${NXF_PODMAN_GRAPHROOT:-}" ]]; then
     echo "ERROR: Cannot detect NXF_PODMAN_GRAPHROOT. Run 'podman info --format {{.Store.GraphRoot}}' to find your image store, then export NXF_PODMAN_GRAPHROOT=<path> before launching this script."
     exit 1
 fi
+# Warn early if the auto-detected graphroot looks like the default home-directory
+# Podman store, which is typically quota-constrained on HPC clusters. Image layers
+# for large containers can exhaust the home-directory quota and cause pull failures.
+if [[ -n "${HOME:-}" && "${NXF_PODMAN_GRAPHROOT}" == "${HOME}/.local/share/containers"* ]]; then
+    echo "WARNING: NXF_PODMAN_GRAPHROOT='${NXF_PODMAN_GRAPHROOT}' looks like the default home-directory Podman store."
+    echo "  Home directories on most HPC clusters are quota-constrained; container image layers"
+    echo "  can exhaust the quota and cause pull failures. Consider setting:"
+    echo "    export NXF_PODMAN_GRAPHROOT=/home/exacloud/gscratch/<lab>/dockerContainers"
+fi
 export NXF_PODMAN_GRAPHROOT
 
 # Submit mode: when invoked directly (not already inside a SLURM allocation),

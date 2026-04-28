@@ -79,3 +79,17 @@ These parameters affect only `--workflow integration`.
 | Parameter | Default | Description |
 |---|---|---|
 | `--help` | `false` | Print help text and exit. |
+
+---
+
+## HPC execution environment
+
+The following environment variables control how rootless Podman manages container images and scratch storage on HPC clusters. They are set in the shell before launch, not passed as `--param` flags.
+
+See [Section 6 of the usage guide](usage.md#6--container-image-pre-pull-and-caching) for the full HPC setup walkthrough.
+
+| Variable | Description |
+|---|---|
+| `NXF_PODMAN_GRAPHROOT` | Path to your existing shared Podman image store (NFS-backed). Auto-detected from `podman info`; override if auto-detection is unavailable or points to a quota-constrained home directory. |
+| `NXF_PODMAN_LOCAL_SCRATCH` | Optional path override for the node-local scratch base used for Podman `runroot`, `TMPDIR`, and `XDG_RUNTIME_DIR`. Image layers stay in `NXF_PODMAN_GRAPHROOT`. |
+| `NXF_PODMAN_PULL_LOCK_DIR` | Shared lock directory to serialize concurrent image pulls. Defaults to `${NXF_WORK}/.podman-pull-locks`. |

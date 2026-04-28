@@ -153,6 +153,8 @@ SYNC_REPO_BEFORE_RUN=true bash slurm_nextflow.sh \
   --labkey_folder /My/Project/Folder
 ```
 
+> **Container prerequisites:** When running on SLURM, Podman must be configured before your first run. See [Container image pre-pull and caching](../usage.md#6--container-image-pre-pull-and-caching) in the usage guide for graphroot setup, storage details, and all `NXF_PODMAN_*` environment variables.
+
 ---
 
 ## Resource profile (SLURM)

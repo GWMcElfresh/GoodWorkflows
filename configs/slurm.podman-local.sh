@@ -148,6 +148,17 @@ nxf_podman_detect_graphroot() {
     local gr
     gr="$(command podman info --format '{{.Store.GraphRoot}}' 2>/dev/null || true)"
     if [[ -n "${gr}" ]]; then
+        # Warn if the auto-detected graphroot is the default home-directory Podman store.
+        # On most HPC clusters $HOME is quota-constrained; container image layers can
+        # easily exhaust home-directory limits and cause pull failures.
+        local home_default
+        home_default="${HOME:-}/.local/share/containers"
+        if [[ -n "${HOME:-}" && "${gr}" == "${home_default}"* ]]; then
+            echo "WARNING: Podman graphRoot '${gr}' appears to be the default home-directory store." >&2
+            echo "  On HPC clusters this path is typically quota-constrained and can cause" >&2
+            echo "  image pull failures (disk quota exceeded). Set NXF_PODMAN_GRAPHROOT to a" >&2
+            echo "  high-capacity shared path (e.g. a lab gscratch directory) before launching." >&2
+        fi
         printf '%s' "${gr}"
         return 0
     fi
@@ -160,7 +171,7 @@ nxf_podman_detect_graphroot() {
 #   graphroot           -> NFS-backed user image store (images land here; already present = fast no-op)
 #   runroot / tmp / xdg -> node-local scratch (lock files and transient runtime state only)
 configure_prepull_storage() {
-    local local_scratch_root fuse_overlayfs_bin graphroot
+    local local_scratch_root graphroot
 
     graphroot="$(nxf_podman_detect_graphroot)"
     export NXF_PODMAN_GRAPHROOT="${graphroot}"
@@ -169,6 +180,7 @@ configure_prepull_storage() {
     JOB_STORAGE="${local_scratch_root%/}/goodworkflows-podman/${SLURM_JOB_ID:-$$}"
     export CONTAINERS_RUNROOT="${JOB_STORAGE}/run"
     export TMPDIR="${JOB_STORAGE}/tmp"
+    export PODMAN_TMPDIR="${JOB_STORAGE}/tmp"
     export XDG_RUNTIME_DIR="${JOB_STORAGE}/xdg-${UID}"
     export CONTAINERS_STORAGE_CONF="${JOB_STORAGE}/storage.conf"
     export NXF_PODMAN_PULL_LOCK_DIR="${NXF_PODMAN_PULL_LOCK_DIR:-${NXF_WORK_ROOT:-${PWD}/work}/.podman-pull-locks}"
@@ -177,18 +189,13 @@ configure_prepull_storage() {
              "${NXF_PODMAN_PULL_LOCK_DIR}" "${PWD}/logs" 2>/dev/null || true
     chmod 0700 "${XDG_RUNTIME_DIR}"
 
-    fuse_overlayfs_bin="$(command -v fuse-overlayfs || true)"
     {
         printf '[storage]\n'
         printf 'driver = "overlay"\n'
         printf 'graphroot = "%s"\n' "${graphroot}"
         printf 'runroot = "%s"\n\n' "${CONTAINERS_RUNROOT}"
-        printf '[storage.options]\n'
-        printf 'additionalimagestores = []\n\n'
         printf '[storage.options.overlay]\n'
-        if [[ -n "${fuse_overlayfs_bin}" ]]; then
-            printf 'mount_program = "%s"\n' "${fuse_overlayfs_bin}"
-        fi
+        printf 'force_mask = "0700"\n'
     } > "${CONTAINERS_STORAGE_CONF}"
 
     echo "[PODMAN_DIAG] mode=prepull"
@@ -203,11 +210,13 @@ configure_prepull_storage() {
 }
 
 # Storage configuration for individual Nextflow task processes.
-#   graphroot              -> node-local scratch (overlay upper-dirs only; small)
-#   additionalimagestores  -> NFS-backed user image store (image layers served read-only from here)
-#   runroot / tmp / xdg    -> node-local scratch
+#   graphroot  -> NFS-backed user image store (same as prepull; images already present)
+#   runroot    -> node-local scratch (container runtime state only; small)
+# Kernel overlay requires lower-dirs and upper-dir on the same filesystem, so both
+# graphroot and container overlay dirs must stay on NFS.  Container diffs are small
+# and are removed immediately by Podman --rm when the task finishes.
 configure_task_storage() {
-    local local_scratch_root fuse_overlayfs_bin graphroot
+    local local_scratch_root graphroot
 
     graphroot="$(nxf_podman_detect_graphroot)"
     export NXF_PODMAN_GRAPHROOT="${graphroot}"
@@ -216,29 +225,24 @@ configure_task_storage() {
     JOB_STORAGE="${local_scratch_root%/}/goodworkflows-podman/${SLURM_JOB_ID:-$$}"
     export CONTAINERS_RUNROOT="${JOB_STORAGE}/run"
     export TMPDIR="${JOB_STORAGE}/tmp"
+    export PODMAN_TMPDIR="${JOB_STORAGE}/tmp"
     export XDG_RUNTIME_DIR="${JOB_STORAGE}/xdg-${UID}"
     export CONTAINERS_STORAGE_CONF="${JOB_STORAGE}/storage.conf"
 
-    mkdir -p "${JOB_STORAGE}/storage" "${CONTAINERS_RUNROOT}" "${TMPDIR}" "${XDG_RUNTIME_DIR}"
+    mkdir -p "${JOB_STORAGE}" "${CONTAINERS_RUNROOT}" "${TMPDIR}" "${XDG_RUNTIME_DIR}"
     chmod 0700 "${XDG_RUNTIME_DIR}"
 
-    fuse_overlayfs_bin="$(command -v fuse-overlayfs || true)"
     {
         printf '[storage]\n'
         printf 'driver = "overlay"\n'
-        printf 'graphroot = "%s"\n' "${JOB_STORAGE}/storage"
+        printf 'graphroot = "%s"\n' "${graphroot}"
         printf 'runroot = "%s"\n\n' "${CONTAINERS_RUNROOT}"
-        printf '[storage.options]\n'
-        printf 'additionalimagestores = ["%s"]\n\n' "${graphroot}"
         printf '[storage.options.overlay]\n'
-        if [[ -n "${fuse_overlayfs_bin}" ]]; then
-            printf 'mount_program = "%s"\n' "${fuse_overlayfs_bin}"
-        fi
+        printf 'force_mask = "0700"\n'
     } > "${CONTAINERS_STORAGE_CONF}"
 
     echo "[PODMAN_DIAG] mode=task"
-    echo "[PODMAN_DIAG] graphroot_local=${JOB_STORAGE}/storage"
-    echo "[PODMAN_DIAG] additionalimagestores=${graphroot}"
+    echo "[PODMAN_DIAG] graphroot=${graphroot}"
     echo "[PODMAN_DIAG] job_storage=${JOB_STORAGE}"
     echo "[PODMAN_DIAG] containers_storage_conf=${CONTAINERS_STORAGE_CONF}"
     echo "[PODMAN_DIAG] containers_runroot=${CONTAINERS_RUNROOT}"
