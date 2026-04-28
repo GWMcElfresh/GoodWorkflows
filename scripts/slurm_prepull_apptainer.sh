@@ -16,8 +16,8 @@
 
 #SBATCH --job-name=nf-prepull
 #SBATCH --ntasks=1
-#SBATCH --cpus-per-task=1
-#SBATCH --mem=8000
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=48000
 #SBATCH --partition=batch
 #SBATCH --time=04:00:00
 #SBATCH --gres=disk:1028
@@ -106,9 +106,9 @@ apptainer_pull_once() {
     tmp_path="${sif_path}.tmp"
 
     if command -v timeout &>/dev/null; then
-        timeout 3600 command "${APPTAINER_BIN}" pull --name "${tmp_path}" "docker://${image}"
+        timeout 3600 command "${APPTAINER_BIN}" pull "${tmp_path}" "docker://${image}"
     else
-        command "${APPTAINER_BIN}" pull --name "${tmp_path}" "docker://${image}"
+        command "${APPTAINER_BIN}" pull "${tmp_path}" "docker://${image}"
     fi
 
     # Atomic rename: only make the SIF visible to Nextflow once fully written.

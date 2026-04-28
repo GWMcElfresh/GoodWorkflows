@@ -235,7 +235,7 @@ the pre-pull still happens before Nextflow starts, but it runs **inline inside t
 ### How it works
 
 1. `slurm_nextflow.sh` resolves `NXF_SINGULARITY_CACHEDIR` (defaulting to `${PIPELINE_ROOT}/apptainer-sif`) and exports it.
-2. `scripts/slurm_prepull_apptainer.sh` (or the inline pre-pull block) runs on a compute node. It converts each docker image to a SIF file via `apptainer pull --name <sif_path>.tmp docker://<image>`, then atomically renames the `.tmp` file on success. Any `*.img.tmp` partials left by an interrupted pull are removed by an `EXIT` trap. Existing SIF files are skipped.
+2. `scripts/slurm_prepull_apptainer.sh` (or the inline pre-pull block) runs on a compute node. It converts each docker image to a SIF file via `apptainer pull <sif_path>.tmp docker://<image>`, then atomically renames the `.tmp` file on success. Any `*.img.tmp` partials left by an interrupted pull are removed by an `EXIT` trap. Existing SIF files are skipped.
 3. Nextflow's `singularity.cacheDir` (set to `NXF_SINGULARITY_CACHEDIR`) tells Nextflow where to look for the pre-built SIF files. Each task launches as `apptainer exec <sif_path> ...`.
 4. `configs/slurm.apptainer-before.sh` (sourced by each task's `beforeScript`) loads the `apptainer` module and prints diagnostics. There is nothing to clean up per-task; SIF files are persistent shared cache.
 
