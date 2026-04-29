@@ -74,18 +74,12 @@ if (selectedWorkflow == 'integration' && !params.species_order) {
 }
 
 workflow {
-    switch (selectedWorkflow) {
-        case 'integration':
-            INTEGRATION_PIPELINE(params.input)
-            break
-        case 'ingest_export':
-            INGEST_EXPORT_PIPELINE(params.input)
-            break
-        case 'ingest_tabulate':
-            INGEST_TABULATE_PIPELINE(params.input)
-            break
-        default:
-            error "Unsupported workflow '${selectedWorkflow}'."
+    if (selectedWorkflow == 'integration') {
+        INTEGRATION_PIPELINE(params.input)
+    } else if (selectedWorkflow == 'ingest_export') {
+        INGEST_EXPORT_PIPELINE(params.input)
+    } else if (selectedWorkflow == 'ingest_tabulate') {
+        INGEST_TABULATE_PIPELINE(params.input)
     }
 }
 

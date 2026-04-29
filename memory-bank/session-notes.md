@@ -223,4 +223,45 @@ Two issues identified:
 - `.github/workflows/ci.yml` — ShellCheck diagnostics + removed slurm profile validation
 - `memory-bank/session-notes.md` — This entry
 
+---
+
+## 2026-04-29 — Fix Nextflow DSL2 Switch-Case Syntax Error in main.nf
+
+**Created by:** Cline
+**Summary:** Fixed a Nextflow DSL2 compilation error where a Groovy `switch` statement inside the `workflow {}` block caused `ScriptCompilationException` at line 78.
+
+### Root Cause
+Nextflow DSL2's `workflow {}` block has a restricted grammar that does not support Groovy control-flow constructs like `switch`. The parser v2 fails with `Unexpected input: '\n'` when encountering `case 'integration':` because it expects only process/workflow invocations and channel operations inside the block.
+
+### Fix
+Replaced the `switch` statement with `if/else` inside a single `workflow {}` block. Nextflow DSL2 supports `if/else` within `workflow {}` — it was specifically the Groovy `switch` construct that the parser v2 rejected. Using a single `workflow {}` block is the correct pattern because it ensures `workflow.onComplete` and `workflow.onError` handlers work properly.
+
+**Before:**
+```groovy
+workflow {
+    switch (selectedWorkflow) {
+        case 'integration':
+            INTEGRATION_PIPELINE(params.input)
+            break
+        ...
+    }
+}
+```
+
+**After:**
+```groovy
+workflow {
+    if (selectedWorkflow == 'integration') {
+        INTEGRATION_PIPELINE(params.input)
+    } else if (selectedWorkflow == 'ingest_export') {
+        INGEST_EXPORT_PIPELINE(params.input)
+    } else if (selectedWorkflow == 'ingest_tabulate') {
+        INGEST_TABULATE_PIPELINE(params.input)
+    }
+}
+```
+
+### Files Modified
+- `main.nf` — Replaced switch-case with if/else inside single workflow {} block
+- `memory-bank/session-notes.md` — This entry
 
