@@ -99,20 +99,80 @@ load_manifest_images() {
 
 apptainer_pull_once() {
     local image="$1"
-    local sif_name sif_path tmp_path
+    local sif_name sif_path tmp_name tmp_path pull_cwd pull_exit
 
     sif_name="$(image_to_sif_name "${image}")"
     sif_path="${NXF_SINGULARITY_CACHEDIR}/${sif_name}"
-    tmp_path="${sif_path}.tmp"
+    tmp_name="${sif_name}.tmp"
+    tmp_path="${NXF_SINGULARITY_CACHEDIR}/${tmp_name}"
 
-    if command -v timeout &>/dev/null; then
-        timeout 3600 command "${APPTAINER_BIN}" pull "${tmp_path}" "docker://${image}"
+    echo "[PULL][${image}] sif_name       : ${sif_name}"
+    echo "[PULL][${image}] NXF_SINGULARITY_CACHEDIR : ${NXF_SINGULARITY_CACHEDIR}"
+    echo "[PULL][${image}] expected tmp   : ${tmp_path}"
+    echo "[PULL][${image}] expected final : ${sif_path}"
+    echo "[PULL][${image}] APPTAINER_CACHEDIR : ${APPTAINER_CACHEDIR:-unset}"
+
+    # Snapshot the SIF dir before the pull so we can diff afterwards.
+    local before_snapshot after_snapshot
+    before_snapshot="$(ls -1 "${NXF_SINGULARITY_CACHEDIR}/" 2>/dev/null || true)"
+
+    # Run apptainer pull from inside NXF_SINGULARITY_CACHEDIR using a
+    # *relative* filename as the output argument. Some Apptainer builds
+    # strip the directory component from an absolute output path and write
+    # to CWD instead; using cd + relative name removes that ambiguity.
+    (
+        cd "${NXF_SINGULARITY_CACHEDIR}"
+        pull_cwd="$(pwd)"
+        echo "[PULL][${image}] pull CWD       : ${pull_cwd}"
+        if command -v timeout &>/dev/null; then
+            timeout 3600 "${APPTAINER_BIN}" pull "${tmp_name}" "docker://${image}"
+        else
+            "${APPTAINER_BIN}" pull "${tmp_name}" "docker://${image}"
+        fi
+    )
+    pull_exit=$?
+    echo "[PULL][${image}] apptainer exit : ${pull_exit}"
+
+    # Show what appeared in the SIF dir after the pull.
+    after_snapshot="$(ls -1 "${NXF_SINGULARITY_CACHEDIR}/" 2>/dev/null || true)"
+    local new_files
+    new_files="$(comm -13 <(echo "${before_snapshot}" | sort) <(echo "${after_snapshot}" | sort))"
+    if [[ -n "${new_files}" ]]; then
+        echo "[PULL][${image}] new files in SIF dir:"
+        echo "${new_files}" | sed 's/^/  /'
     else
-        command "${APPTAINER_BIN}" pull "${tmp_path}" "docker://${image}"
+        echo "[PULL][${image}] WARNING: no new files appeared in SIF dir after pull"
     fi
+
+    # Also snapshot the APPTAINER_CACHEDIR in case the file landed there instead.
+    if [[ -n "${APPTAINER_CACHEDIR:-}" ]]; then
+        echo "[PULL][${image}] searching APPTAINER_CACHEDIR for *.img.tmp or *.img files..."
+        find "${APPTAINER_CACHEDIR}" -maxdepth 3 \( -name "*.img" -o -name "*.img.tmp" \) -newer /proc/1 2>/dev/null \
+            | sed 's/^/  [APPTAINER_CACHEDIR] /' || true
+    fi
+
+    if [[ ${pull_exit} -ne 0 ]]; then
+        echo "ERROR: apptainer pull exited ${pull_exit} for image ${image}" >&2
+        return "${pull_exit}"
+    fi
+
+    # Verify the file landed where expected before attempting the rename.
+    if [[ ! -f "${tmp_path}" ]]; then
+        echo "ERROR: apptainer pull exited 0 but tmp SIF not found at: ${tmp_path}" >&2
+        echo "[PULL][${image}] Full SIF dir listing:" >&2
+        ls -la "${NXF_SINGULARITY_CACHEDIR}/" >&2 || true
+        # Try to find the file anywhere under home and gscratch to locate where it went.
+        echo "[PULL][${image}] Searching for ${tmp_name} under \$HOME and gscratch (up to 5s)..." >&2
+        timeout 5 find "${HOME}" /home/exacloud/gscratch -maxdepth 6 -name "${tmp_name}" 2>/dev/null \
+            | sed 's/^/  [FIND] /' >&2 || true
+        return 1
+    fi
+
+    echo "[PULL][${image}] tmp SIF confirmed at: ${tmp_path} ($(du -sh "${tmp_path}" | cut -f1))"
 
     # Atomic rename: only make the SIF visible to Nextflow once fully written.
     mv "${tmp_path}" "${sif_path}"
+    echo "[PULL][${image}] renamed to: ${sif_path}"
 }
 
 declare -a DISCOVERED_IMAGES
