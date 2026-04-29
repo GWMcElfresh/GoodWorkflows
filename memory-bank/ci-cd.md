@@ -2,39 +2,41 @@
 
 ## GitHub Actions Workflows
 
-The repository uses GitHub Actions for three layers of validation:
+The repository uses GitHub Actions for four layers of validation:
 
-### 1. Workflow Smoke Tests
+### 1. CI Workflow (`ci.yml`)
 
-**Script:** `scripts/ci/run_nextflow_smoke_tests.sh`
+**Triggers:** Push/PR to `main`, `copilot/**` branches; manual dispatch.
 
-Runs `main.nf` with `-profile test -stub-run` for each saved workflow:
-
-| Workflow | Command | Notes |
-|---|---|---|
-| `integration` | `nextflow run main.nf -profile test -stub-run --workflow integration --scmodal_use_cpu true ...` | GPU guard bypassed for CI |
-| `ingest_export` | `nextflow run main.nf -profile test -stub-run --workflow ingest_export ...` | — |
-| `ingest_tabulate` | `nextflow run main.nf -profile test -stub-run --workflow ingest_tabulate ...` | — |
+**Jobs:**
+- **lint_and_validate** — ShellCheck on HPC/CI scripts, Nextflow profile validation (test, local, slurm)
+- **workflow_smoke_tests** — Runs each saved workflow with `-profile test -stub-run` (matrix: ingest_export, ingest_tabulate, integration)
+- **module_smoke_tests** — Runs each module in isolation with `-profile test -stub-run` (matrix: ingest, ingest_metadata, export_counts, gene_harmonize, scmodal_integrate, tabulate)
+- **container_smoke** — Optional, manual-only: primes cached module images and smoke-tests rdiscvr, cellmembrane, scmodal containers
 
 **What it validates:**
 - DSL2 wiring (all channels connect correctly)
 - Process stub blocks execute
 - Workflow completes without errors
-- No containers or real computation needed
+- No containers or real computation needed (except optional container_smoke)
 
-### 2. Module Smoke Tests
+### 2. MCP Server Tests (`test-mcp.yml`)
 
-**Location:** `tests/modules/`
+**Triggers:** Push/PR to main/master on relevant paths (mcp-server, tests, workflows, modules, configs); manual dispatch.
 
-Each module has an independent test wrapper that exercises it in isolation:
+**Matrix:** Python 3.10, 3.11
 
-| Test File | Module Tested |
-|---|---|
-| `tests/modules/scmodal_integrate.nf` | SCMODAL_INTEGRATE |
+**Steps:**
+1. Checkout → Setup Python (with pip cache) → Install Python deps
+2. Setup Node.js 20 (with npm cache, keyed on `mcp-server/package-lock.json`) → `npm ci` → `npm run build`
+3. Setup Java 17 → Install Nextflow
+4. Run unit tests → integration tests → e2e tests (all with `continue-on-error: true`)
+5. **Check test results** step — aggregates outcomes and fails the job if any test layer failed
+6. Upload artifacts: test-results (JUnit XML), Nextflow logs, generated workflows
 
-These run with `-profile test -stub-run` to validate each module's DSL2 interface independently.
+**Key design:** Tests use `continue-on-error: true` so all layers run, but a final check step fails the job if any layer failed.
 
-### 3. Docs Validation and Deploy
+### 3. Docs Validation and Deploy (`docs.yml`)
 
 **Trigger:** PRs and pushes that touch workflows, docs, schema, or docs tooling.
 

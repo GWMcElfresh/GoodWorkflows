@@ -18,4 +18,3 @@ runs/
 # MCP server build artifacts
 mcp-server/build/
 mcp-server/node_modules/
-package-lock.json

@@ -121,6 +121,9 @@ jobs:
       # -------------------------------------------------------------------
       # Run Tests
       # -------------------------------------------------------------------
+      - name: Create test-results directory
+        run: mkdir -p test-results
+
       - name: Run unit tests
         id: unit_tests
         run: |
@@ -154,6 +157,26 @@ jobs:
             | tee test-results/e2e-output.txt
         continue-on-error: true
 
+      - name: Check test results
+        if: always()
+        run: |
+          FAILED=0
+          if [ "${{ steps.unit_tests.outcome }}" != "success" ]; then
+            echo "::error::Unit tests failed with outcome: ${{ steps.unit_tests.outcome }}"
+            FAILED=1
+          fi
+          if [ "${{ steps.integration_tests.outcome }}" != "success" ]; then
+            echo "::error::Integration tests failed with outcome: ${{ steps.integration_tests.outcome }}"
+            FAILED=1
+          fi
+          if [ "${{ steps.e2e_tests.outcome }}" != "success" ]; then
+            echo "::error::E2E tests failed with outcome: ${{ steps.e2e_tests.outcome }}"
+            FAILED=1
+          fi
+          if [ "$FAILED" -eq 1 ]; then
+            exit 1
+          fi
+
       # -------------------------------------------------------------------
       # Upload artifacts
       # -------------------------------------------------------------------
@@ -169,6 +192,7 @@ jobs:
       - name: Upload Nextflow logs
         if: always()
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: nextflow-logs-py${{ matrix.python-version }}
           path: |
@@ -176,16 +200,19 @@ jobs:
             .nextflow.log
             .nextflow/
           retention-days: 7
+          if-no-files-found: ignore
 
       - name: Upload generated workflows
         if: always()
         uses: actions/upload-artifact@v4
+        continue-on-error: true
         with:
           name: generated-workflows-py${{ matrix.python-version }}
           path: |
             workflows/e2e_*.nf
             workflows/test_*.nf
           retention-days: 7
+          if-no-files-found: ignore
 
       # -------------------------------------------------------------------
       # Summary

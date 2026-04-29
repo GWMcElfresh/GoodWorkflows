@@ -138,6 +138,8 @@ Three layers of testing:
 - DSL2 validator checks structural patterns without needing Nextflow itself
 - E2E tests use `-profile test` and `-stub-run` for fast execution
 - All tests use `continue-on-error: true` so all layers run even if one fails
+- A final "Check test results" step aggregates outcomes and fails the job if any layer failed
+
 
 ### Files Created (12 files)
 - `tests/helpers/__init__.py`
@@ -153,3 +155,42 @@ Three layers of testing:
 - `tests/integration/__init__.py`, `tests/integration/test_discovery.py`, `tests/integration/test_composition.py`, `tests/integration/test_bio.py`
 - `tests/e2e/__init__.py`, `tests/e2e/test_full_pipeline.py`
 - `.github/workflows/test-mcp.yml`
+
+---
+
+## 2026-04-29 — CI/CD Debugging and Fixes
+
+**Created by:** Cline
+**Summary:** Debugged and fixed multiple CI/CD issues across all three GitHub Actions workflows.
+
+### Issues Found and Fixed
+
+#### 1. Node.js npm cache failure (test-mcp.yml) — ROOT CAUSE
+- **Symptom:** `Some specified paths were not resolved, unable to cache dependencies` on `actions/setup-node@v4`
+- **Root cause:** `.gitignore` had `package-lock.json` which excluded `mcp-server/package-lock.json` from git tracking. On checkout, the file didn't exist, so `cache-dependency-path` couldn't resolve.
+- **Fix:** Removed `package-lock.json` from `.gitignore`. The lockfile should be committed for reproducible CI builds.
+
+#### 2. Missing test-results directory (test-mcp.yml)
+- **Symptom:** pytest would fail trying to write to `test-results/unit-output.txt` etc.
+- **Fix:** Added `mkdir -p test-results` step before pytest runs.
+
+#### 3. Job always passes green despite test failures (test-mcp.yml)
+- **Symptom:** All three test steps had `continue-on-error: true` but nothing ever failed the job. The summary showed "skipped" for all tests.
+- **Fix:** Added a "Check test results" step after all tests that checks each step's outcome and exits with code 1 if any failed.
+
+#### 4. Artifact upload warnings (test-mcp.yml)
+- **Symptom:** `No files were found with the provided path` warnings for Nextflow logs and generated workflows artifacts.
+- **Fix:** Added `if-no-files-found: ignore` and `continue-on-error: true` to these artifact upload steps, since these files may legitimately not exist in MCP-only test runs.
+
+#### 5. Non-existent action versions (ci.yml, docs.yml) — FALSE POSITIVE
+- **Initial assessment:** `actions/checkout@v5` and `actions/setup-java@v5` were thought to not exist.
+- **Correction:** Both `@v5` and `@v6` of `actions/checkout` exist. The `@v5` references were valid.
+- **Action:** Reverted all `@v5` → `@v4` changes back to `@v5`. No net change to `ci.yml` or `docs.yml` for action versions.
+
+### Files Modified
+- `.gitignore` — Removed `package-lock.json` line
+- `.github/workflows/test-mcp.yml` — Added mkdir, check step, artifact fixes
+- `memory-bank/ci-cd.md` — Updated to reflect all 4 workflows and current design
+- `memory-bank/session-notes.md` — This entry
+
+
