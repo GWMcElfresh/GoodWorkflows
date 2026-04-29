@@ -3,7 +3,7 @@ nextflow.enable.dsl = 2
 include { INGEST } from '../modules/local/rdiscvr/ingest/main.nf'
 include { EXPORT_COUNTS } from '../modules/local/cellmembrane/seurat/main.nf'
 include { GENE_HARMONIZE } from '../modules/local/gene_harmonize/main.nf'
-include { SCMODAL_INTEGRATE } from '../modules/local/nmf_vae/gpu/main.nf'
+include { SCMODAL_INTEGRATE } from '../modules/local/scModal/gpu/main.nf'
 
 /**
  * Build the metadata channel consumed by the full multi-species workflow.
