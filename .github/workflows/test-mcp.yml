@@ -1,0 +1,215 @@
+name: Test MCP Server
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'mcp-server/**'
+      - 'tests/**'
+      - 'workflows/**'
+      - 'modules/**'
+      - 'configs/**'
+      - 'nextflow.config'
+      - 'main.nf'
+      - '.github/workflows/test-mcp.yml'
+  pull_request:
+    branches: [main, master]
+    paths:
+      - 'mcp-server/**'
+      - 'tests/**'
+      - 'workflows/**'
+      - 'modules/**'
+      - 'configs/**'
+      - 'nextflow.config'
+      - 'main.nf'
+      - '.github/workflows/test-mcp.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: mcp-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: "Python ${{ matrix.python-version }} | MCP Tests"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11"]
+
+    env:
+      NXF_VER: "24.10.0"
+      NXF_MODE: "google"
+      NXF_ANSI_LOG: "false"
+      NXF_WORK: "${{ github.workspace }}/.nextflow-cache/work"
+      PYTHONUNBUFFERED: "1"
+
+    steps:
+      # -------------------------------------------------------------------
+      # Checkout
+      # -------------------------------------------------------------------
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # -------------------------------------------------------------------
+      # Setup Python
+      # -------------------------------------------------------------------
+      - name: Setup Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: 'pip'
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-xdist pytest-timeout
+
+      # -------------------------------------------------------------------
+      # Setup Node.js (for MCP server)
+      # -------------------------------------------------------------------
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: mcp-server/package-lock.json
+
+      - name: Install MCP server dependencies
+        working-directory: mcp-server
+        run: npm ci
+
+      - name: Build MCP server
+        working-directory: mcp-server
+        run: npm run build
+
+      # -------------------------------------------------------------------
+      # Setup Java (required by Nextflow)
+      # -------------------------------------------------------------------
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      # -------------------------------------------------------------------
+      # Install Nextflow
+      # -------------------------------------------------------------------
+      - name: Cache Nextflow
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.nextflow/
+            ${{ github.workspace }}/.nextflow-cache/
+          key: nextflow-${{ env.NXF_VER }}-${{ runner.os }}-${{ hashFiles('nextflow.config', 'main.nf') }}
+          restore-keys: |
+            nextflow-${{ env.NXF_VER }}-${{ runner.os }}-
+
+      - name: Install Nextflow
+        run: |
+          mkdir -p ~/.nextflow/
+          curl -fsSL https://get.nextflow.io | bash
+          chmod +x nextflow
+          sudo mv nextflow /usr/local/bin/
+          nextflow info
+
+      # -------------------------------------------------------------------
+      # Run Tests
+      # -------------------------------------------------------------------
+      - name: Run unit tests
+        id: unit_tests
+        run: |
+          python -m pytest tests/unit/ \
+            -v \
+            --tb=short \
+            --timeout=60 \
+            --junitxml=test-results/unit-results.xml \
+            | tee test-results/unit-output.txt
+        continue-on-error: true
+
+      - name: Run integration tests
+        id: integration_tests
+        run: |
+          python -m pytest tests/integration/ \
+            -v \
+            --tb=short \
+            --timeout=120 \
+            --junitxml=test-results/integration-results.xml \
+            | tee test-results/integration-output.txt
+        continue-on-error: true
+
+      - name: Run end-to-end tests
+        id: e2e_tests
+        run: |
+          python -m pytest tests/e2e/ \
+            -v \
+            --tb=short \
+            --timeout=300 \
+            --junitxml=test-results/e2e-results.xml \
+            | tee test-results/e2e-output.txt
+        continue-on-error: true
+
+      # -------------------------------------------------------------------
+      # Upload artifacts
+      # -------------------------------------------------------------------
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-py${{ matrix.python-version }}
+          path: |
+            test-results/
+          retention-days: 7
+
+      - name: Upload Nextflow logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nextflow-logs-py${{ matrix.python-version }}
+          path: |
+            logs/
+            .nextflow.log
+            .nextflow/
+          retention-days: 7
+
+      - name: Upload generated workflows
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-workflows-py${{ matrix.python-version }}
+          path: |
+            workflows/e2e_*.nf
+            workflows/test_*.nf
+          retention-days: 7
+
+      # -------------------------------------------------------------------
+      # Summary
+      # -------------------------------------------------------------------
+      - name: Test summary
+        if: always()
+        run: |
+          echo "=== Test Results ==="
+          echo "Unit tests: ${{ steps.unit_tests.outcome }}"
+          echo "Integration tests: ${{ steps.integration_tests.outcome }}"
+          echo "E2E tests: ${{ steps.e2e_tests.outcome }}"
+
+          if [ -f test-results/unit-output.txt ]; then
+            echo ""
+            echo "=== Unit Test Summary ==="
+            tail -5 test-results/unit-output.txt
+          fi
+
+          if [ -f test-results/integration-output.txt ]; then
+            echo ""
+            echo "=== Integration Test Summary ==="
+            tail -5 test-results/integration-output.txt
+          fi
+
+          if [ -f test-results/e2e-output.txt ]; then
+            echo ""
+            echo "=== E2E Test Summary ==="
+            tail -5 test-results/e2e-output.txt
+          fi

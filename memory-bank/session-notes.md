@@ -87,3 +87,69 @@ All content was derived from reading the actual source files:
 - Smoke test: `tools/list` returns all 10 tools with correct schemas
 - `discover_repository` correctly discovers 3 workflows, 6 modules, 4 profiles
 - GPU detection: `integration_pipeline` correctly flagged as `type: "mixed"`
+
+---
+
+## 2026-04-29 — MCP Server CI/CD Test Suite
+
+**Created by:** Cline
+**Summary:** Built a complete three-layer test suite and GitHub Actions CI workflow for the MCP server.
+
+### Test Architecture
+
+Three layers of testing:
+
+1. **Unit tests** (`tests/unit/`)
+   - `test_schemas.py` — Validates all 10 JSON Schema definitions, tests valid/invalid outputs for every tool type
+   - `test_dsl2_validator.py` — Tests DSL2 syntax validation (shebang, workflow sections, braces, includes, collect patterns)
+
+2. **Integration tests** (`tests/integration/`)
+   - `test_discovery.py` — Runs against real repo: discovers all 3 workflows, 6 modules, validates stubs/labels/GPU flags, config inheritance, DAG structure
+   - `test_composition.py` — Tests suggest_pipeline (with/without GPU), compose_workflow (with/without tabulate), validate_workflow (all 3 workflows + error cases)
+   - `test_bio.py` — Tests analyze_samplesheet (valid, multi-species, single-species, missing columns, empty) and suggest_params (all workflows, with context)
+
+3. **End-to-end tests** (`tests/e2e/`)
+   - `test_full_pipeline.py` — Full flow: discover → analyze → suggest → compose → validate → run (all 3 workflows)
+   - Mutation detection: invalid workflow names, missing params, empty module lists
+
+### Helper Modules
+- `tests/helpers/mcp_client.py` — MCP stdio client that spawns the Node.js server, handles JSON-RPC handshake, and provides `call_tool()` interface
+- `tests/helpers/schema_validator.py` — Lightweight JSON Schema validator with schemas for all 10 tool outputs
+- `tests/helpers/dsl2_validator.py` — DSL2 syntax checker (shebang, workflow sections, include resolution, collect patterns, brace balancing)
+
+### Test Fixtures
+- `tests/fixtures/samplesheet_valid.csv` — 3 samples, 3 species (human, macaque, mouse)
+- `tests/fixtures/samplesheet_single_species.csv` — 3 samples, all human
+- `tests/fixtures/samplesheet_missing_cols.csv` — Missing `species` column
+- `tests/fixtures/samplesheet_empty.csv` — Header only, no data rows
+
+### CI/CD Pipeline (`.github/workflows/test-mcp.yml`)
+- Triggers: push/PR to main/master on relevant paths, workflow_dispatch
+- Matrix: Python 3.10, 3.11
+- Steps: checkout → Python → Node.js → npm ci + build → Java → Nextflow → unit → integration → e2e
+- Artifacts: test results (JUnit XML), Nextflow logs, generated workflows
+- Concurrency: cancel-in-progress per ref
+- Timeout: 15 minutes total
+
+### Design Decisions
+- MCP client communicates via stdio JSON-RPC (no HTTP server needed)
+- Session-scoped MCP server fixture (one server instance for all tests)
+- Schema validation is lightweight (no jsonschema dependency) — checks required fields, types, enums
+- DSL2 validator checks structural patterns without needing Nextflow itself
+- E2E tests use `-profile test` and `-stub-run` for fast execution
+- All tests use `continue-on-error: true` so all layers run even if one fails
+
+### Files Created (12 files)
+- `tests/helpers/__init__.py`
+- `tests/helpers/mcp_client.py`
+- `tests/helpers/schema_validator.py`
+- `tests/helpers/dsl2_validator.py`
+- `tests/conftest.py`
+- `tests/fixtures/samplesheet_valid.csv`
+- `tests/fixtures/samplesheet_single_species.csv`
+- `tests/fixtures/samplesheet_missing_cols.csv`
+- `tests/fixtures/samplesheet_empty.csv`
+- `tests/unit/__init__.py`, `tests/unit/test_schemas.py`, `tests/unit/test_dsl2_validator.py`
+- `tests/integration/__init__.py`, `tests/integration/test_discovery.py`, `tests/integration/test_composition.py`, `tests/integration/test_bio.py`
+- `tests/e2e/__init__.py`, `tests/e2e/test_full_pipeline.py`
+- `.github/workflows/test-mcp.yml`
