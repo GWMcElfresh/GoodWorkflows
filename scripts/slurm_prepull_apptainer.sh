@@ -19,7 +19,7 @@
 #SBATCH --cpus-per-task=2
 #SBATCH --mem=48000
 #SBATCH --partition=batch
-#SBATCH --time=04:00:00
+#SBATCH --time=08:00:00
 #SBATCH --gres=disk:1028
 #SBATCH --output=logs/slurm-prepull-%j.out
 #SBATCH --error=logs/slurm-prepull-%j.err
@@ -153,7 +153,7 @@ apptainer_pull_once() {
         export APPTAINER_TMPDIR="${local_scratch}"
         echo "[PULL][${image}] TMPDIR set to  : ${TMPDIR}"
         if command -v timeout &>/dev/null; then
-            timeout 3600 "${APPTAINER_BIN}" pull "${disable_cache_flag[@]}" "${tmp_name}" "docker://${image}"
+            timeout 7200 "${APPTAINER_BIN}" pull "${disable_cache_flag[@]}" "${tmp_name}" "docker://${image}"
         else
             "${APPTAINER_BIN}" pull "${disable_cache_flag[@]}" "${tmp_name}" "docker://${image}"
         fi
