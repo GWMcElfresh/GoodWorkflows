@@ -1,0 +1,71 @@
+# Cline Rules for GoodWorkflows
+
+## Session Start Protocol
+- On every new session, read all files in `memory-bank/` to regain project context:
+  - `project-brief.md` — What this repo is and who it's for
+  - `architecture.md` — DSL2 module graph, workflow composition, config layering
+  - `tech-stack.md` — Technologies, containers, libraries in use
+  - `conventions.md` — Naming, patterns, error handling rules
+  - `workflows.md` — Detailed breakdown of each saved workflow
+  - `modules.md` — Catalog of all DSL2 processes with I/O specs
+  - `configs.md` — All config profiles with parameter tables
+  - `ci-cd.md` — CI pipeline, smoke tests, docs deploy
+  - `session-notes.md` — What was done in previous sessions
+
+## Session End Protocol
+- Append a dated entry to `memory-bank/session-notes.md` summarizing:
+  - What was changed and why
+  - Any architectural decisions made
+  - Any memory bank files that need updating to stay in sync
+
+## Project-Specific Rules
+
+### Never Edit Generated Files
+- `site/` — MkDocs build output
+- `.nextflow/` — Nextflow cache
+- `work/` — Nextflow work directory
+- `outputs/` — Published pipeline results
+- `logs/` — Nextflow reports and SLURM logs
+- `test-results/` — CI test artifacts
+- `.ci/docker-cache/` — CI container cache
+
+### Code Conventions (see conventions.md for full details)
+- Process names: `UPPER_SNAKE_CASE`
+- Workflow names: `UPPER_SNAKE_CASE`
+- Module directories: `snake_case`
+- Workflow files: `snake_case.nf`
+- Config files: `lowercase.config`
+- Shell scripts: `snake_case.sh`
+- Documentation: `kebab-case.md`
+
+### Every Process MUST Have a Stub Block
+- Stub blocks create expected output files (even if empty/touch)
+- This enables `-stub-run` for CI smoke tests
+
+### Channel Patterns
+- Per-sample: `tuple val(meta), path(file)` where meta has `id`, `output_file_id`, `species`
+- Aggregation: Use `.collect()` before passing to multi-input processes
+
+### Sensitive Values
+- Never hardcode credentials in params
+- LabKey auth via `.netrc` mounted read-only into containers
+
+### Config Layering
+- `base.config` → profile config (local/slurm/slurm_singularity/test)
+- Never duplicate params between base and profile configs
+
+### When Adding a New Module
+1. Create `modules/local/<category>/<name>/main.nf`
+2. Add `stub:` block
+3. Add process label
+4. Add resource specs to relevant config profiles
+5. Update `memory-bank/modules.md`
+6. Add module smoke test in `tests/modules/`
+
+### When Adding a New Workflow
+1. Create `workflows/<name>.nf`
+2. Include required modules
+3. Add to `main.nf` switch block
+4. Add to supported workflows list
+5. Update `memory-bank/workflows.md`
+6. Add workflow smoke test to CI

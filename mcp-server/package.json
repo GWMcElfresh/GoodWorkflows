@@ -1,0 +1,19 @@
+{
+  "name": "nextflow-workflows-server",
+  "version": "0.1.0",
+  "description": "MCP server providing structured access to the GoodWorkflows DSL2 Nextflow repository",
+  "type": "module",
+  "main": "build/index.js",
+  "scripts": {
+    "build": "tsc && node -e \"require('fs').chmodSync('build/index.js', '755')\"",
+    "watch": "tsc --watch",
+    "start": "node build/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.4.0"
+  }
+}
