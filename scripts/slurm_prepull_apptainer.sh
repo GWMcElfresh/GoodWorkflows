@@ -99,7 +99,8 @@ load_manifest_images() {
 
 apptainer_pull_once() {
     local image="$1"
-    local sif_name sif_path tmp_name tmp_path pull_cwd pull_exit
+    local attempt="${2:-1}"
+    local sif_name sif_path tmp_name tmp_path pull_exit
 
     sif_name="$(image_to_sif_name "${image}")"
     sif_path="${NXF_SINGULARITY_CACHEDIR}/${sif_name}"
@@ -111,23 +112,50 @@ apptainer_pull_once() {
     echo "[PULL][${image}] expected tmp   : ${tmp_path}"
     echo "[PULL][${image}] expected final : ${sif_path}"
     echo "[PULL][${image}] APPTAINER_CACHEDIR : ${APPTAINER_CACHEDIR:-unset}"
+    echo "[PULL][${image}] attempt        : ${attempt}"
+
+    # Use node-local scratch for squashfs/SIF build temp files.
+    # mksquashfs (used by apptainer to build SIF) performs many small random writes;
+    # running it on NFS causes indefinite stalls. SLURM_TMPDIR is the job's local
+    # scratch allocation; /tmp is always local and is the safe fallback.
+    local local_scratch="${SLURM_TMPDIR:-${TMPDIR:-/tmp}}"
+    echo "[PULL][${image}] local_scratch  : ${local_scratch}"
+    echo "[PULL][${image}] SLURM_TMPDIR   : ${SLURM_TMPDIR:-unset}"
+
+    # Remove any stale .tmp file from a previous interrupted attempt.
+    if [[ -f "${tmp_path}" ]]; then
+        echo "[PULL][${image}] removing stale tmp file: ${tmp_path}"
+        rm -f "${tmp_path}"
+    fi
 
     # Snapshot the SIF dir before the pull so we can diff afterwards.
     local before_snapshot after_snapshot
     before_snapshot="$(ls -1 "${NXF_SINGULARITY_CACHEDIR}/" 2>/dev/null || true)"
 
+    # On retry attempts, disable the OCI blob cache to bypass potentially stale
+    # or locked cache entries left by previous interrupted runs.
+    local disable_cache_flag=()
+    if [[ ${attempt} -gt 1 ]]; then
+        disable_cache_flag=("--disable-cache")
+        echo "[PULL][${image}] attempt ${attempt}: adding --disable-cache to bypass stale cache"
+    fi
+
     # Run apptainer pull from inside NXF_SINGULARITY_CACHEDIR using a
     # *relative* filename as the output argument. Some Apptainer builds
     # strip the directory component from an absolute output path and write
     # to CWD instead; using cd + relative name removes that ambiguity.
+    # TMPDIR and APPTAINER_TMPDIR are overridden to local scratch so the
+    # squashfs packing step does not stall on NFS.
     (
         cd "${NXF_SINGULARITY_CACHEDIR}"
-        pull_cwd="$(pwd)"
-        echo "[PULL][${image}] pull CWD       : ${pull_cwd}"
+        echo "[PULL][${image}] pull CWD       : $(pwd)"
+        export TMPDIR="${local_scratch}"
+        export APPTAINER_TMPDIR="${local_scratch}"
+        echo "[PULL][${image}] TMPDIR set to  : ${TMPDIR}"
         if command -v timeout &>/dev/null; then
-            timeout 3600 "${APPTAINER_BIN}" pull "${tmp_name}" "docker://${image}"
+            timeout 3600 "${APPTAINER_BIN}" pull "${disable_cache_flag[@]}" "${tmp_name}" "docker://${image}"
         else
-            "${APPTAINER_BIN}" pull "${tmp_name}" "docker://${image}"
+            "${APPTAINER_BIN}" pull "${disable_cache_flag[@]}" "${tmp_name}" "docker://${image}"
         fi
     )
     pull_exit=$?
@@ -344,7 +372,7 @@ pull_with_lock() {
             status=0
         else
             for attempt in 1 2 3; do
-                if apptainer_pull_once "${image}"; then
+                if apptainer_pull_once "${image}" "${attempt}"; then
                     echo "[OK] Pulled ${image} -> ${sif_path}"
                     status=0
                     break
@@ -370,7 +398,7 @@ pull_with_lock() {
         status=0
     else
         for attempt in 1 2 3; do
-            if apptainer_pull_once "${image}"; then
+            if apptainer_pull_once "${image}" "${attempt}"; then
                 echo "[OK] Pulled ${image} -> ${sif_path}"
                 status=0
                 break
