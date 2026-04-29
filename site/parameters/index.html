@@ -856,6 +856,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#hpc-execution-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HPC execution environment
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1166,6 +1177,17 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#hpc-execution-environment" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HPC execution environment
+      
+    </span>
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -1379,6 +1401,32 @@ Using it outside CI will produce stub outputs with no scientific validity and wi
 <td><code>--help</code></td>
 <td><code>false</code></td>
 <td>Print help text and exit.</td>
+</tr>
+</tbody>
+</table>
+<hr />
+<h2 id="hpc-execution-environment">HPC execution environment<a class="headerlink" href="#hpc-execution-environment" title="Permanent link">&para;</a></h2>
+<p>The following environment variables control how rootless Podman manages container images and scratch storage on HPC clusters. They are set in the shell before launch, not passed as <code>--param</code> flags.</p>
+<p>See <a href="../usage/#6-container-image-pre-pull-and-sif-cache">Section 6 of the usage guide</a> for the full HPC setup walkthrough.</p>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NXF_PODMAN_GRAPHROOT</code></td>
+<td>Path to your existing shared Podman image store (NFS-backed). Auto-detected from <code>podman info</code>; override if auto-detection is unavailable or points to a quota-constrained home directory.</td>
+</tr>
+<tr>
+<td><code>NXF_PODMAN_LOCAL_SCRATCH</code></td>
+<td>Optional path override for the node-local scratch base used for Podman <code>runroot</code>, <code>TMPDIR</code>, and <code>XDG_RUNTIME_DIR</code>. Image layers stay in <code>NXF_PODMAN_GRAPHROOT</code>.</td>
+</tr>
+<tr>
+<td><code>NXF_PODMAN_PULL_LOCK_DIR</code></td>
+<td>Shared lock directory to serialize concurrent image pulls. Defaults to <code>${NXF_WORK}/.podman-pull-locks</code>.</td>
 </tr>
 </tbody>
 </table>

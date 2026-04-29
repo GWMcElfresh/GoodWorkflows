@@ -1219,7 +1219,7 @@
 
 
 <h1 id="goodworkflows">GoodWorkflows<a class="headerlink" href="#goodworkflows" title="Permanent link">&para;</a></h1>
-<p>A DSL2 <strong>Nextflow</strong> pipeline for composing reusable single-cell RNA-seq workflows and running them on <strong>SLURM + Podman</strong> HPC systems.</p>
+<p>A DSL2 <strong>Nextflow</strong> pipeline for composing reusable single-cell RNA-seq workflows and running them on <strong>SLURM + Apptainer</strong> HPC systems.</p>
 <hr />
 <h2 id="workflow-selection-guide">Workflow selection guide<a class="headerlink" href="#workflow-selection-guide" title="Permanent link">&para;</a></h2>
 <table>
@@ -1295,7 +1295,7 @@ entry for <code>labkey_base_url</code> is configured before running.</p>
 <a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a>├── slurm_nextflow.sh       # HPC SLURM submission wrapper
 <a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a>└── slurm_sync_repo.sh      # Lightweight HPC repo sync job
 </code></pre></div>
-<p>For routine SLURM runs, prefer copying <code>template/</code> into <code>runs/&lt;name&gt;/</code> and submitting <code>run.sh</code>. Use <code>bash slurm_nextflow.sh ...</code> when you want the repository-root launcher and a standalone pre-pull job submitted before orchestration. The detailed comparison lives in <a href="usage/">Usage</a>.</p>
+<p>For routine SLURM runs, prefer copying <code>template/</code> into <code>runs/&lt;name&gt;/</code> and submitting <code>run.sh</code>. Use <code>bash slurm_nextflow.sh ...</code> when you want the repository-root launcher and a standalone Apptainer SIF pre-pull job submitted before orchestration. The detailed comparison lives in <a href="usage/">Usage</a>.</p>
 <hr />
 <h2 id="representative-outputs">Representative outputs<a class="headerlink" href="#representative-outputs" title="Permanent link">&para;</a></h2>
 <p>The docs site ships with seeded synthetic examples so the workflow pages can show safe, reproducible output shapes without live LabKey access.</p>

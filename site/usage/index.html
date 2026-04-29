@@ -641,22 +641,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-container-image-pre-pull-and-caching" class="md-nav__link">
+  <a href="#6-container-image-pre-pull-and-sif-cache" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6 — Container image pre-pull and caching
+        6 — Container image pre-pull and SIF cache
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="6 — Container image pre-pull and caching">
+    <nav class="md-nav" aria-label="6 — Container image pre-pull and SIF cache">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#podman-storage-prerequisite" class="md-nav__link">
+  <a href="#apptainer-sif-cache" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Podman storage prerequisite
+        Apptainer SIF cache
       
     </span>
   </a>
@@ -1458,22 +1458,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#6-container-image-pre-pull-and-caching" class="md-nav__link">
+  <a href="#6-container-image-pre-pull-and-sif-cache" class="md-nav__link">
     <span class="md-ellipsis">
       
-        6 — Container image pre-pull and caching
+        6 — Container image pre-pull and SIF cache
       
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="6 — Container image pre-pull and caching">
+    <nav class="md-nav" aria-label="6 — Container image pre-pull and SIF cache">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#podman-storage-prerequisite" class="md-nav__link">
+  <a href="#apptainer-sif-cache" class="md-nav__link">
     <span class="md-ellipsis">
       
-        Podman storage prerequisite
+        Apptainer SIF cache
       
     </span>
   </a>
@@ -1649,8 +1649,8 @@
 <td><a href="https://www.nextflow.io/docs/latest/getstarted.html">Install guide</a></td>
 </tr>
 <tr>
-<td><strong>SLURM + Podman</strong></td>
-<td>Required for <code>--profile slurm</code> (HPC). Rootless Podman must be working.</td>
+<td><strong>SLURM + Apptainer</strong></td>
+<td>Required for <code>-profile slurm_singularity</code> (HPC). Apptainer (≥ 1.0) must be installed or loadable via <code>module load apptainer</code>.</td>
 </tr>
 <tr>
 <td><strong><code>~/.netrc</code></strong></td>
@@ -1830,44 +1830,54 @@
 <a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span>--labkey_folder<span class="w"> </span>/My/Project/Folder
 </code></pre></div>
 <hr />
-<h2 id="6-container-image-pre-pull-and-caching">6 — Container image pre-pull and caching<a class="headerlink" href="#6-container-image-pre-pull-and-caching" title="Permanent link">&para;</a></h2>
-<p>When running with <code>-profile slurm</code> (HPC), every workflow task uses a rootless Podman container. Without coordination, Podman would pull the same multi-GB image in parallel from every node, exhausting disk quota and causing <code>disk quota exceeded</code> (exit 125) failures.</p>
-<p>GoodWorkflows solves this with a <strong>pre-pull job</strong> that pulls all images before the orchestrator starts, exports them into a shared OCI archive cache on <code>NXF_WORK</code>, and keeps each task's rootless Podman <code>graphRoot</code> on node-local scratch.</p>
-<h3 id="podman-storage-prerequisite">Podman storage prerequisite<a class="headerlink" href="#podman-storage-prerequisite" title="Permanent link">&para;</a></h3>
-<p>GoodWorkflows solves this by splitting Podman storage into two parts:</p>
-<ol>
-<li>A node-local Podman <code>graphRoot</code> and <code>runroot</code> under <code>${NXF_PODMAN_LOCAL_SCRATCH:-$SLURM_TMPDIR}/goodworkflows-podman/${SLURM_JOB_ID}</code>.</li>
-<li>A shared OCI archive cache under <code>${NXF_PODMAN_CACHEDIR:-${NXF_WORK}/.podman-oci-cache}</code>.</li>
-</ol>
-<p>This matters because rootless Podman overlay storage must not live on gscratch, NFS, or other distributed filesystems. On exacloud that design fails at runtime with errors like <code>crun: open .../overlay/.../merged: Permission denied</code>.</p>
-<p>The pipeline now generates a task-local <code>storage.conf</code> automatically. You do not need to point your personal <code>~/.config/containers/storage.conf</code> at gscratch anymore.</p>
-<p>To use the generated local storage safely, each SLURM allocation must expose node-local scratch through one of these paths:</p>
-<ul>
-<li><code>SLURM_TMPDIR</code>, which should be present when local disk is allocated. This repository already requests <code>--gres=disk:1028</code>.</li>
-<li><code>NXF_PODMAN_LOCAL_SCRATCH</code>, if your site uses a different node-local scratch path.</li>
-</ul>
-<p>The shared OCI archive cache remains on <code>NXF_WORK</code> because plain archive files are safe on shared storage even though rootless overlay mounts are not.</p>
-<p>On exacloud, rootless user sessions are not delegated the <code>cpu</code> or <code>cpuset</code> cgroup controllers. That means a plain <code>podman run --cpu-shares ... --memory ...</code> fails with <code>crun: the requested cgroup controller 'cpu' is not available</code>. The SLURM profile avoids this by launching Podman with <code>--cgroups=disabled</code> and stripping Nextflow's auto-generated Podman resource flags before container startup. Scheduler-enforced CPU and memory limits still come from SLURM.</p>
+<h2 id="6-container-image-pre-pull-and-sif-cache">6 — Container image pre-pull and SIF cache<a class="headerlink" href="#6-container-image-pre-pull-and-sif-cache" title="Permanent link">&para;</a></h2>
+<p>When running with <code>-profile slurm_singularity</code> (HPC), every workflow task uses an Apptainer SIF container. Without a pre-pull step, Apptainer would attempt to convert each docker image on every compute node simultaneously, hitting registry rate-limits and wasting time. GoodWorkflows solves this with a mandatory pre-pull that converts all required docker images to SIF files once, storing them in a shared directory (<code>NXF_SINGULARITY_CACHEDIR</code>) before any task starts.</p>
+<table>
+<thead>
+<tr>
+<th>Context</th>
+<th>What happens</th>
+<th>SIF location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Pre-pull job</strong></td>
+<td><code>apptainer pull docker://&lt;image&gt;</code> writes a <code>.img</code> SIF file; existing SIFs are skipped</td>
+<td><code>NXF_SINGULARITY_CACHEDIR</code> (shared NFS)</td>
+</tr>
+<tr>
+<td><strong>Task execution</strong></td>
+<td>Nextflow passes the pre-built SIF to <code>apptainer exec</code>; no conversion needed</td>
+<td>Same shared directory</td>
+</tr>
+</tbody>
+</table>
+<h3 id="apptainer-sif-cache">Apptainer SIF cache<a class="headerlink" href="#apptainer-sif-cache" title="Permanent link">&para;</a></h3>
+<p>SIF files land in <code>${PIPELINE_ROOT}/apptainer-sif/</code> by default. This directory must be on a shared filesystem visible to all compute nodes (gscratch is fine). Override with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">NXF_SINGULARITY_CACHEDIR</span><span class="o">=</span>/home/exacloud/gscratch/mylab/singularity-sifs
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>bash<span class="w"> </span>slurm_nextflow.sh<span class="w"> </span>--workflow<span class="w"> </span>ingest_tabulate<span class="w"> </span>...
+</code></pre></div>
+<p><code>APPTAINER_CACHEDIR</code> (the OCI blob/layer cache set in <code>~/.bashrc</code>) is a separate directory used internally by Apptainer to avoid re-downloading image layers. It is passed through to compute nodes automatically; no extra configuration is needed.</p>
 <h3 id="launch-modes">Launch modes<a class="headerlink" href="#launch-modes" title="Permanent link">&para;</a></h3>
 <p>Recommended for routine named runs:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a>sbatch<span class="w"> </span>run.sh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>sbatch<span class="w"> </span>run.sh
 </code></pre></div>
 <p>This performs pre-pull inline inside the same allocation before Nextflow starts.</p>
 <p>When you specifically want pre-pull as a separate job first:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>bash<span class="w"> </span>slurm_nextflow.sh<span class="w"> </span>--workflow<span class="w"> </span>integration<span class="w"> </span>...
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>bash<span class="w"> </span>slurm_nextflow.sh<span class="w"> </span>--workflow<span class="w"> </span>integration<span class="w"> </span>...
 </code></pre></div>
 <p>This submits a standalone pre-pull SLURM job first, then submits the orchestrator with <code>--dependency=afterok:&lt;PREPULL_JOB_ID&gt;</code>. Pre-pull is a hard prerequisite for orchestration.</p>
 <p>If you instead run:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>sbatch<span class="w"> </span>slurm_nextflow.sh<span class="w"> </span>--workflow<span class="w"> </span>integration<span class="w"> </span>...
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>sbatch<span class="w"> </span>slurm_nextflow.sh<span class="w"> </span>--workflow<span class="w"> </span>integration<span class="w"> </span>...
 </code></pre></div>
-<p>the pre-pull still happens before Nextflow starts, but it runs <strong>inline inside the orchestrator allocation</strong> rather than as a separate job. <code>template/run.sh</code> also uses inline pre-pull.</p>
+<p>the pre-pull still happens before Nextflow starts, but it runs <strong>inline inside the orchestrator allocation</strong> rather than as a separate job.</p>
 <h3 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
 <ol>
-<li><code>scripts/slurm_prepull_images.sh</code> (or the inline pre-pull block) runs on a compute node.</li>
-<li>It creates a task-local Podman store under <code>${NXF_PODMAN_LOCAL_SCRATCH:-$SLURM_TMPDIR}/goodworkflows-podman/${SLURM_JOB_ID}</code>.</li>
-<li>Each image is pulled into that node-local store and exported to <code>${NXF_PODMAN_CACHEDIR}</code> as an OCI archive.</li>
-<li>Each task's <code>beforeScript</code> creates its own node-local Podman store, loads the required OCI archive from shared storage, strips Nextflow's Podman CPU/memory cgroup flags for rootless runs, and falls back to a locked registry pull only if the archive is missing.</li>
-<li>The <code>afterScript</code> removes the task-local Podman directory when the task finishes.</li>
+<li><code>slurm_nextflow.sh</code> resolves <code>NXF_SINGULARITY_CACHEDIR</code> (defaulting to <code>${PIPELINE_ROOT}/apptainer-sif</code>) and exports it.</li>
+<li><code>scripts/slurm_prepull_apptainer.sh</code> (or the inline pre-pull block) runs on a compute node. It converts each docker image to a SIF file via <code>apptainer pull &lt;sif_path&gt;.tmp docker://&lt;image&gt;</code>, then atomically renames the <code>.tmp</code> file on success. Any <code>*.img.tmp</code> partials left by an interrupted pull are removed by an <code>EXIT</code> trap. Existing SIF files are skipped.</li>
+<li>Nextflow's <code>singularity.cacheDir</code> (set to <code>NXF_SINGULARITY_CACHEDIR</code>) tells Nextflow where to look for the pre-built SIF files. Each task launches as <code>apptainer exec &lt;sif_path&gt; ...</code>.</li>
+<li><code>configs/slurm.apptainer-before.sh</code> (sourced by each task's <code>beforeScript</code>) loads the <code>apptainer</code> module and prints diagnostics. There is nothing to clean up per-task; SIF files are persistent shared cache.</li>
 </ol>
 <h3 id="environment-variables">Environment variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h3>
 <table>
@@ -1880,58 +1890,58 @@
 </thead>
 <tbody>
 <tr>
-<td><code>NXF_PODMAN_LOCAL_SCRATCH</code></td>
-<td>unset</td>
-<td>Optional override for the node-local scratch base used for Podman graphroot and runroot.</td>
+<td><code>NXF_SINGULARITY_CACHEDIR</code></td>
+<td><code>${PIPELINE_ROOT}/apptainer-sif</code></td>
+<td>Directory where pre-built SIF files are stored. Must be on shared NFS visible to all compute nodes.</td>
 </tr>
 <tr>
-<td><code>NXF_PODMAN_CACHEDIR</code></td>
-<td><code>${NXF_WORK}/.podman-oci-cache</code></td>
-<td>Shared OCI archive cache populated by pre-pull and consumed by tasks on other nodes.</td>
+<td><code>APPTAINER_CACHEDIR</code></td>
+<td>set in <code>~/.bashrc</code></td>
+<td>OCI blob/layer cache used by Apptainer internally during <code>apptainer pull</code>. Separate from the SIF output directory.</td>
 </tr>
 <tr>
-<td><code>NXF_PODMAN_PULL_LOCK_DIR</code></td>
-<td><code>${NXF_WORK}/.podman-pull-locks</code></td>
-<td>Shared lock directory coordinating concurrent per-task fallback pulls.</td>
+<td><code>NXF_APPTAINER_PULL_LOCK_DIR</code></td>
+<td><code>${NXF_WORK}/.apptainer-pull-locks</code></td>
+<td>Lock directory coordinating concurrent pulls in the pre-pull job.</td>
 </tr>
 </tbody>
 </table>
 <h3 id="updating-scriptsimage-manifesttxt">Updating <code>scripts/image-manifest.txt</code><a class="headerlink" href="#updating-scriptsimage-manifesttxt" title="Permanent link">&para;</a></h3>
 <p>The pre-pull script discovers images by parsing the Nextflow config. As a fallback (if dynamic discovery returns zero images), it reads <code>scripts/image-manifest.txt</code>. Keep this file up to date whenever you add or update a container image:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>ghcr.io/bimberlabinternal/cellmembrane:latest
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>ghcr.io/bimberlabinternal/rdiscvr:latest
-<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a>ghcr.io/gwmcelfresh/scmodal-cuda:latest
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>ghcr.io/bimberlabinternal/cellmembrane:latest
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>ghcr.io/bimberlabinternal/rdiscvr:latest
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>ghcr.io/gwmcelfresh/scmodal-cuda:latest
 </code></pre></div>
 <p>One image URI per line; blank lines and <code>#</code> comments are ignored.</p>
 <hr />
 <h2 id="7-monitor-a-running-job">7 — Monitor a running job<a class="headerlink" href="#7-monitor-a-running-job" title="Permanent link">&para;</a></h2>
 <h3 id="live-log">Live log<a class="headerlink" href="#live-log" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>tail<span class="w"> </span>-f<span class="w"> </span>runs/my_run_name/logs/nextflow.log
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>tail<span class="w"> </span>-f<span class="w"> </span>runs/my_run_name/logs/nextflow.log
 </code></pre></div>
 <h3 id="slurm-job-status">SLURM job status<a class="headerlink" href="#slurm-job-status" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>squeue<span class="w"> </span>-u<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">USER</span><span class="si">}</span><span class="s2">&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>squeue<span class="w"> </span>-u<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">USER</span><span class="si">}</span><span class="s2">&quot;</span>
 </code></pre></div>
 <h3 id="html-report">HTML report<a class="headerlink" href="#html-report" title="Permanent link">&para;</a></h3>
 <p>After the pipeline completes, open <code>logs/report.html</code> in a browser for a full per-process summary (CPU time, memory usage, wall time).</p>
 <hr />
 <h2 id="8-resume-after-failure">8 — Resume after failure<a class="headerlink" href="#8-resume-after-failure" title="Permanent link">&para;</a></h2>
 <p><code>run.sh</code> (and <code>slurm_nextflow.sh</code>) always pass <code>-resume</code> to Nextflow. Simply resubmit the job after fixing any issues:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>sbatch<span class="w"> </span>run.sh
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>sbatch<span class="w"> </span>run.sh
 </code></pre></div>
 <p>Nextflow will skip all already-completed steps and continue from where it left off.</p>
 <div class="admonition tip">
 <p class="admonition-title">When to clear the work directory</p>
 <p><code>work/</code> can be deleted to force a full re-run, or to reclaim disk space after a successful run:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>rm<span class="w"> </span>-rf<span class="w"> </span>runs/my_run_name/work
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>rm<span class="w"> </span>-rf<span class="w"> </span>runs/my_run_name/work
 </code></pre></div>
 </div>
 <hr />
 <h2 id="9-alternative-repo-root-launcher">9 — Alternative repo-root launcher<a class="headerlink" href="#9-alternative-repo-root-launcher" title="Permanent link">&para;</a></h2>
 <p><code>slurm_nextflow.sh</code> in the repository root is the alternative launcher that targets the checkout itself as the run context (work dir and logs relative to the repo). Use it when you do not want the <code>runs/</code> pattern, or when you want the pre-pull submitted as its own SLURM job before orchestration starts:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># From the GoodWorkflows checkout root:</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>bash<span class="w"> </span>slurm_nextflow.sh<span class="w"> </span>--workflow<span class="w"> </span>integration<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span>--labkey_base_url<span class="w"> </span>https://labkey.example.org<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">  </span>--labkey_folder<span class="w"> </span>/My/Project/Folder
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># From the GoodWorkflows checkout root:</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>bash<span class="w"> </span>slurm_nextflow.sh<span class="w"> </span>--workflow<span class="w"> </span>integration<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span>--labkey_base_url<span class="w"> </span>https://labkey.example.org<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">  </span>--labkey_folder<span class="w"> </span>/My/Project/Folder
 </code></pre></div>
 <p>If you use <code>sbatch slurm_nextflow.sh ...</code>, it is still valid, but the pre-pull runs inline inside the orchestrator allocation instead of as a separate job.</p>
 <p>It can also be launched from a different directory since it resolves <code>PIPELINE_ROOT</code> from its own file path.</p>

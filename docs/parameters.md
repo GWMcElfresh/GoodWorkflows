@@ -86,7 +86,7 @@ These parameters affect only `--workflow integration`.
 
 The following environment variables control how rootless Podman manages container images and scratch storage on HPC clusters. They are set in the shell before launch, not passed as `--param` flags.
 
-See [Section 6 of the usage guide](usage.md#6--container-image-pre-pull-and-caching) for the full HPC setup walkthrough.
+See [Section 6 of the usage guide](usage.md#6-container-image-pre-pull-and-sif-cache) for the full HPC setup walkthrough.
 
 | Variable | Description |
 |---|---|
