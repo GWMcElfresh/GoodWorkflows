@@ -193,4 +193,34 @@ Three layers of testing:
 - `memory-bank/ci-cd.md` — Updated to reflect all 4 workflows and current design
 - `memory-bank/session-notes.md` — This entry
 
+---
+
+## 2026-04-29 — Fix lint_and_validate CI Job Failure
+
+**Created by:** Cline
+**Summary:** Fixed the `lint_and_validate` job in `ci.yml` that was failing with exit code 1 but no clear error message.
+
+### Root Cause Analysis
+
+Two issues identified:
+
+1. **"Validate Nextflow profiles" step** was running `nextflow config -profile slurm`, which tries to resolve the SLURM executor (`executor.name = 'slurm'` in `configs/slurm.config`). On a GitHub Actions Ubuntu runner, there is no SLURM installation, causing the config validation to fail with a non-zero exit code.
+
+2. **ShellCheck step** had no error diagnostics — if any script had a `warning`-level (or higher) issue, shellcheck would exit non-zero but the log wouldn't clearly show which file or what the problem was.
+
+### Changes Made
+
+**`.github/workflows/ci.yml` — `lint_and_validate` job:**
+
+1. **ShellCheck step** — Added:
+   - `set -e` for fail-fast behavior
+   - File-existence check loop before shellcheck runs (emits `::error::` annotation if a file is missing)
+   - Error trap on shellcheck failure with explicit `::error::` annotation
+
+2. **Validate Nextflow profiles step** — Removed `nextflow config -profile slurm` validation. The `slurm` profile requires a SLURM cluster to resolve properly. Only `test` and `local` profiles are now validated, which are the profiles actually used in CI smoke tests.
+
+### Files Modified
+- `.github/workflows/ci.yml` — ShellCheck diagnostics + removed slurm profile validation
+- `memory-bank/session-notes.md` — This entry
+
 

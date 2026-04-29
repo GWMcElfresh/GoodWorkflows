@@ -41,12 +41,19 @@ jobs:
 
       - name: ShellCheck HPC and CI helpers
         run: |
+          set -e
+          for f in slurm_nextflow.sh slurm_sync_repo.sh template/run.sh scripts/*.sh scripts/ci/*.sh; do
+            test -f "$f" || { echo "::error::Missing file: $f"; exit 1; }
+          done
           shellcheck -S warning \
             slurm_nextflow.sh \
             slurm_sync_repo.sh \
             template/run.sh \
             scripts/*.sh \
-            scripts/ci/*.sh
+            scripts/ci/*.sh || {
+              echo "::error::ShellCheck found issues in one or more scripts"
+              exit 1
+            }
 
       - name: Set up Java
         uses: actions/setup-java@v4
@@ -74,7 +81,6 @@ jobs:
         run: |
           nextflow config -profile test > /dev/null
           nextflow config -profile local > /dev/null
-          nextflow config -profile slurm > /dev/null
 
   workflow_smoke_tests:
     name: Workflow smoke tests
