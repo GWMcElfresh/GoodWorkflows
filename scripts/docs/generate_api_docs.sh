@@ -5,7 +5,7 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TMP_DIR="${PROJECT_DIR}/.tmp"
 XDG_CONFIG_HOME_LOCAL="${TMP_DIR}/nf-docs-xdg"
 NFDOCS_CONFIG_DIR="${XDG_CONFIG_HOME_LOCAL}/nf-docs"
-NFDOCS_OUTPUT_DIR="${PROJECT_DIR}/docs/api"
+NFDOCS_OUTPUT_DIR="${PROJECT_DIR}/docs/api/generated"
 NFDOCS_WORKSPACE_DIR="${TMP_DIR}/nf-docs-workspace"
 
 if ! command -v rsync >/dev/null 2>&1; then
@@ -46,7 +46,7 @@ rsync -a --delete \
     --exclude 'work/' \
     --exclude 'outputs/' \
     --exclude 'logs/' \
-    --exclude 'docs/api/' \
+    --exclude 'docs/api/generated/' \
     --exclude '.nextflow/' \
     --exclude '.nextflow*' \
     --exclude '.git/' \

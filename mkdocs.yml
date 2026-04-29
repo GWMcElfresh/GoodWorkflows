@@ -58,7 +58,7 @@ nav:
   - Parameters: parameters.md
   - API Reference:
     - Overview: api/index.md
-    - Inputs: api/inputs.md
+    - Inputs: api/generated/inputs.md
     - Configuration: api/config.md
-    - Workflows: api/workflows.md
-    - Functions: api/functions.md
+    - Workflows: api/generated/workflows.md
+    - Functions: api/generated/functions.md

@@ -82,6 +82,9 @@ jobs:
       - name: Generate synthetic example plots
         run: uvx --with matplotlib python scripts/docs/generate_example_plots.py
 
+      - name: Debug docs tree
+        run: ls -R docs/api
+
       - name: Build docs
         run: mkdocs build --strict
 
