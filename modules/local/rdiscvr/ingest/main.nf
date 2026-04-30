@@ -53,7 +53,7 @@ process INGEST {
 
         download.file(url = url, destfile = out_path, mode = "wb",
                       timeout = 600)
-        if (!file.exists(out_path) || file.info(out_path)$size == 0) {
+        if (!file.exists(out_path) || is.na(file.info(out_path)[["size"]]) || file.info(out_path)[["size"]] == 0) {
             stop("Download failed or produced empty file for sample: ", sample_id)
         }
         seurat_obj <- readRDS(out_path)
