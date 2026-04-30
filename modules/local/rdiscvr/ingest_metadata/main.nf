@@ -21,11 +21,6 @@ process INGEST_METADATA {
     output:
     tuple val(meta), path("${meta.id}_metadata.csv"), emit: metadata
 
-    stub:
-    """
-    printf 'cDNA_ID\n' > "${meta.id}_metadata.csv"
-    """
-
     script:
     """
     #!/usr/bin/env Rscript
@@ -99,5 +94,10 @@ process INGEST_METADATA {
     message("[INGEST_METADATA] Rows loaded: ", nrow(metadata_df))
     message("[INGEST_METADATA] Columns     : ", ncol(metadata_df))
     message("[INGEST_METADATA] Saved metadata table to: ", metadata_path)
+    """
+
+    stub:
+    """
+    printf 'cDNA_ID\n' > "${meta.id}_metadata.csv"
     """
 }

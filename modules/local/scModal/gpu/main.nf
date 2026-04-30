@@ -18,16 +18,6 @@ process SCMODAL_INTEGRATE {
     output:
     path 'model_outputs/', emit: model
 
-    stub:
-    """
-    mkdir -p model_outputs
-    touch model_outputs/ckpt.pth
-    touch model_outputs/latent_clustered.h5ad
-    touch model_outputs/training_history.csv
-    touch model_outputs/gpu_info.txt
-    touch model_outputs/run_summary.json
-    """
-
     script:
     """
     python3 - << 'NF_PYEOF'
@@ -149,5 +139,15 @@ process SCMODAL_INTEGRATE {
         )
     )
     NF_PYEOF
+    """
+
+    stub:
+    """
+    mkdir -p model_outputs
+    touch model_outputs/ckpt.pth
+    touch model_outputs/latent_clustered.h5ad
+    touch model_outputs/training_history.csv
+    touch model_outputs/gpu_info.txt
+    touch model_outputs/run_summary.json
     """
 }

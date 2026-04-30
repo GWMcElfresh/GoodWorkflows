@@ -4,6 +4,14 @@ process GENERATE_SYNTHETIC_METADATA {
     output:
     path 'sample_metadata.csv', emit: metadata
 
+    script:
+    """
+    Rscript ${projectDir}/tests/fixtures/simulate_trial_data.R \
+        --output-dir . \
+        --target metadata \
+        --seed 20260414
+    """
+
     stub:
     '''
     cat > sample_metadata.csv <<'EOF'
@@ -15,14 +23,6 @@ bc04,SAMPLE_02,SUBJ_02,BCG,Mtb,Day 28,Lung-L,0.7,IV-BCG,1.8,Synthetic Trial A,hu
 bc05,SAMPLE_02,SUBJ_02,BCG,Mtb,Day 28,Lung-L,0.7,IV-BCG,1.8,Synthetic Trial A,human,TNK,NK,,Gamma/Delta,0.41
 EOF
     '''
-
-    script:
-    """
-    Rscript ${projectDir}/tests/fixtures/simulate_trial_data.R \
-        --output-dir . \
-        --target metadata \
-        --seed 20260414
-    """
 }
 
 process GENERATE_SYNTHETIC_RDS {
@@ -31,11 +31,6 @@ process GENERATE_SYNTHETIC_RDS {
     output:
     path 'sample.rds', emit: rds
 
-    stub:
-    '''
-    printf 'synthetic rds placeholder\n' > sample.rds
-    '''
-
     script:
     """
     Rscript ${projectDir}/tests/fixtures/simulate_trial_data.R \
@@ -43,6 +38,11 @@ process GENERATE_SYNTHETIC_RDS {
         --target rds \
         --seed 20260414
     """
+
+    stub:
+    '''
+    printf 'synthetic rds placeholder\n' > sample.rds
+    '''
 }
 
 process GENERATE_SYNTHETIC_COUNTS {
@@ -50,6 +50,14 @@ process GENERATE_SYNTHETIC_COUNTS {
 
     output:
     path 'sample_counts', emit: counts_dir
+
+    script:
+    """
+    Rscript ${projectDir}/tests/fixtures/simulate_trial_data.R \
+        --output-dir . \
+        --target counts \
+        --seed 20260414
+    """
 
     stub:
     '''
@@ -59,14 +67,6 @@ process GENERATE_SYNTHETIC_COUNTS {
     touch sample_counts/barcodes.tsv
     touch sample_counts/obs_meta.csv
     '''
-
-    script:
-    """
-    Rscript ${projectDir}/tests/fixtures/simulate_trial_data.R \
-        --output-dir . \
-        --target counts \
-        --seed 20260414
-    """
 }
 
 process GENERATE_SYNTHETIC_HARMONIZED {
@@ -74,6 +74,14 @@ process GENERATE_SYNTHETIC_HARMONIZED {
 
     output:
     path 'harmonized_inputs', emit: harmonized
+
+    script:
+    """
+    Rscript ${projectDir}/tests/fixtures/simulate_trial_data.R \
+        --output-dir . \
+        --target harmonized \
+        --seed 20260414
+    """
 
     stub:
     '''
@@ -85,12 +93,4 @@ process GENERATE_SYNTHETIC_HARMONIZED {
     touch harmonized_inputs/ortholog_mapping.csv
     printf '4\n' > harmonized_inputs/n_shared.txt
     '''
-
-    script:
-    """
-    Rscript ${projectDir}/tests/fixtures/simulate_trial_data.R \
-        --output-dir . \
-        --target harmonized \
-        --seed 20260414
-    """
 }

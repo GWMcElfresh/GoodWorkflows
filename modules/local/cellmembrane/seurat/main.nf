@@ -19,15 +19,6 @@ process EXPORT_COUNTS {
     output:
     tuple val(meta), path("${meta.id}_counts"), emit: counts_dir
 
-    stub:
-    """
-    mkdir -p "${meta.id}_counts"
-    touch "${meta.id}_counts/matrix.mtx"
-    touch "${meta.id}_counts/features.tsv"
-    touch "${meta.id}_counts/barcodes.tsv"
-    touch "${meta.id}_counts/obs_meta.csv"
-    """
-
     script:
     """
     #!/usr/bin/env Rscript
@@ -71,5 +62,14 @@ process EXPORT_COUNTS {
     message("[EXPORT_COUNTS] Cells exported: ", ncol(counts))
     message("[EXPORT_COUNTS] Genes exported: ", nrow(counts))
     message("[EXPORT_COUNTS] Output directory: ", out_dir)
+    """
+
+    stub:
+    """
+    mkdir -p "${meta.id}_counts"
+    touch "${meta.id}_counts/matrix.mtx"
+    touch "${meta.id}_counts/features.tsv"
+    touch "${meta.id}_counts/barcodes.tsv"
+    touch "${meta.id}_counts/obs_meta.csv"
     """
 }

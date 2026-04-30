@@ -20,17 +20,6 @@ process GENE_HARMONIZE {
     output:
     path('harmonized_outputs'), emit: harmonized
 
-    stub:
-    """
-    mkdir -p harmonized_outputs
-    touch harmonized_outputs/00_human_harmonized.h5ad
-    touch harmonized_outputs/01_macaque_harmonized.h5ad
-    touch harmonized_outputs/integration_manifest.csv
-    touch harmonized_outputs/ortholog_mapping.csv
-    touch harmonized_outputs/shared_genes.csv
-    printf '2000\n' > harmonized_outputs/n_shared.txt
-    """
-
     script:
     """
     python3 - << 'NF_PYEOF'
@@ -303,5 +292,16 @@ process GENE_HARMONIZE {
     pd.DataFrame(manifest_rows).to_csv(output_dir / "integration_manifest.csv", index=False)
     (output_dir / "n_shared.txt").write_text(f"{len(shared_gene_order)}\n")
     NF_PYEOF
+    """
+
+    stub:
+    """
+    mkdir -p harmonized_outputs
+    touch harmonized_outputs/00_human_harmonized.h5ad
+    touch harmonized_outputs/01_macaque_harmonized.h5ad
+    touch harmonized_outputs/integration_manifest.csv
+    touch harmonized_outputs/ortholog_mapping.csv
+    touch harmonized_outputs/shared_genes.csv
+    printf '2000\n' > harmonized_outputs/n_shared.txt
     """
 }

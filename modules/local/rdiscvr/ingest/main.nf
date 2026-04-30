@@ -21,12 +21,6 @@ process INGEST {
     tuple val(meta), path("${meta.id}.rds"), emit: rds
     tuple val(meta), path("${meta.id}_metadata.csv"), emit: metadata
 
-    stub:
-    """
-    touch "${meta.id}.rds"
-    touch "${meta.id}_metadata.csv"
-    """
-
     script:
     """
     #!/usr/bin/env Rscript
@@ -86,5 +80,11 @@ process INGEST {
     message("[INGEST] Genes loaded: ", nrow(seurat_obj))
     message("[INGEST] Saved Seurat object to: ", out_path)
     message("[INGEST] Saved metadata table to: ", metadata_path)
+    """
+
+    stub:
+    """
+    touch "${meta.id}.rds"
+    touch "${meta.id}_metadata.csv"
     """
 }

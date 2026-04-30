@@ -44,11 +44,6 @@ process TABULATE {
     output:
     path('subjectIdTable.csv'), emit: subject_table
 
-    stub:
-    """
-    printf 'cDNA_ID\n' > subjectIdTable.csv
-    """
-
     script:
     """
     #!/usr/bin/env Rscript
@@ -358,5 +353,10 @@ process TABULATE {
             ncol(subject_table), ' columns')
 
     readr::write_csv(subject_table, 'subjectIdTable.csv')
+    """
+
+    stub:
+    """
+    printf 'cDNA_ID\n' > subjectIdTable.csv
     """
 }
