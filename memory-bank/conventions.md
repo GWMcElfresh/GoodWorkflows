@@ -19,6 +19,7 @@
 ```
 base.config          ← Always loaded (nextflow.config includes it)
   ├── local.config   ← -profile local
+  ├── local-gpu.config ← -profile local_gpu
   ├── slurm.config   ← -profile slurm
   ├── slurm_singularity.config ← -profile slurm_singularity
   └── test.config    ← -profile test
@@ -94,7 +95,7 @@ Output files are now published directly into the top-level publish directory (e.
 
 - **SLURM:** Retry on exit 1 (up to 3 attempts with jitter), retry on 125/137 (up to 5 attempts)
 - **Local:** Retry on OOM (exit 137) with increasing memory (`8.GB * task.attempt`)
-- **GPU guard:** `INTEGRATION_PIPELINE` errors if executor is local and `--scmodal_use_cpu` is not true
+- **GPU guard:** `INTEGRATION_PIPELINE` errors if executor is local and neither `--scmodal_use_cpu` nor `-profile local_gpu` is active
 
 ## Commit Style
 

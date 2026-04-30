@@ -49,6 +49,40 @@ workDir = "${projectDir}/work"
 
 ---
 
+## local-gpu.config (`-profile local_gpu`)
+
+**For local workstations with an NVIDIA GPU (8-12 GB VRAM, 32 GB RAM).**
+
+| Setting | Value |
+|---|---|
+| Container runtime | Podman with `--gpus all` |
+| Executor | local |
+| CPUs | 4 |
+| Memory | 16 GB |
+| Time | 24 hours |
+| Max forks | 1 |
+
+### Per-Label Overrides
+
+| Label | CPUs | Memory | Retry |
+|---|---|---|---|
+| `process_ingest` | 2 | `4.GB * task.attempt` | Retry on OOM (exit 137), max 2 retries |
+| `process_export` | 2 | 4 GB | — |
+| `process_harmonize` | 2 | 8 GB | — |
+| `process_tabulate` | 2 | `4.GB * task.attempt` | Retry on OOM (exit 137), max 2 retries |
+| `process_gpu` | 4 | 16 GB | — |
+
+### Auth
+`.netrc` mounted at `/root/.netrc:ro` for ingest processes.
+
+### Design Notes
+- `maxForks=1` globally ensures only one process runs at a time — memory is never split across concurrent jobs.
+- GPU process gets 16 GB system RAM; VRAM (8-12 GB) is managed by PyTorch inside the container.
+- The user is responsible for supplying datasets that fit within available VRAM.
+- Sets `params.local_gpu = true` to signal the GPU guard in `INTEGRATION_PIPELINE`.
+
+---
+
 ## local.config (`-profile local`)
 
 **For local macOS/Linux development.**

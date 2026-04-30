@@ -195,6 +195,51 @@ Three layers of testing:
 
 ---
 
+## 2026-04-30 — Add local-gpu Profile
+
+**Created by:** Cline
+**Summary:** Added a new `local_gpu` profile for running GPU workflows (specifically `INTEGRATION_PIPELINE`) on local workstations with an NVIDIA GPU via Podman GPU passthrough.
+
+### Motivation
+The `integration_pipeline` workflow requires a GPU for SCMODAL_INTEGRATE. Previously, the only GPU-capable profile was `slurm_singularity` (HPC). The `local` profile blocked GPU workflows entirely. The `local_gpu` profile fills this gap for developer workstations.
+
+### Changes Made
+
+1. **`configs/local-gpu.config` (NEW)** — Podman with `--gpus all`, local executor, maxForks=1, 4 CPU / 16 GB global, per-label overrides (GPU: 4 CPU / 16 GB), OOM retry on ingest+tabulate, `.netrc` mount. Sets `params.local_gpu = true`.
+
+2. **`nextflow.config`** — Added `local_gpu { includeConfig 'configs/local-gpu.config' }` to `profiles {}`.
+
+3. **`configs/base.config`** — Added `local_gpu = false` param default.
+
+4. **`workflows/integration_pipeline.nf`** — Relaxed GPU guard: now errors only if `!params.local_gpu && workflow.profile == 'local'` (i.e., blocks plain `local` but allows `local_gpu`). The `scmodal_use_cpu` bypass still works for CI.
+
+5. **`memory-bank/configs.md`** — Added `local-gpu.config` section with full parameter table and design notes.
+
+6. **`memory-bank/conventions.md`** — Added `local-gpu.config` to config inheritance diagram. Updated GPU guard description.
+
+### Design Decisions
+- `maxForks=1` globally ensures only one process runs at a time — memory is never split across concurrent jobs.
+- GPU process gets 16 GB system RAM; VRAM (8-12 GB) is managed by PyTorch inside the container.
+- The user is responsible for supplying datasets that fit within available VRAM.
+- `local_gpu` is an explicit opt-in via `-profile local_gpu` (no auto-detection). The existing `standard`/`auto` profile logic (Linux + SLURM → slurm, else local) remains unchanged.
+- The GPU guard uses `workflow.profile` (a valid DSL2 property) to detect the active profile, combined with `params.local_gpu` as a safety check.
+
+### Usage
+```
+nextflow run main.nf -profile local_gpu --input samplesheet.csv --labkey_base_url ... --labkey_folder ...
+```
+
+### Files Modified
+- `configs/local-gpu.config` — Created
+- `nextflow.config` — Added local_gpu profile
+- `configs/base.config` — Added local_gpu param
+- `workflows/integration_pipeline.nf` — Relaxed GPU guard
+- `memory-bank/configs.md` — Documented new profile
+- `memory-bank/conventions.md` — Updated inheritance diagram and GPU guard description
+- `memory-bank/session-notes.md` — This entry
+
+---
+
 ## 2026-04-29 — Fix Workflow Smoke Test Failures (def inside workflow blocks)
 
 **Created by:** Cline

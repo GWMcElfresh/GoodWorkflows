@@ -55,6 +55,12 @@ workflow INTEGRATION_PIPELINE {
             SCMODAL_INTEGRATE will run its stub block; outputs have no scientific validity.
             """.stripIndent()
         }
+    } else if (!params.local_gpu && workflow.profile == 'local') {
+        error """
+        ERROR: INTEGRATION_PIPELINE requires a GPU but the 'local' profile is active.
+        Use -profile local_gpu for local GPU execution, or -profile slurm_singularity for HPC.
+        To force CPU-only stub execution (CI only), use --scmodal_use_cpu true.
+        """.stripIndent()
     }
     ch_samples = buildIntegrationPipelineSamplesChannel(samplesheet)
 
