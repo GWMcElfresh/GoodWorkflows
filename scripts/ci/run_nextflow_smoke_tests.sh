@@ -40,11 +40,11 @@ case "${TEST_KIND}" in
         run_nextflow "${PROJECT_DIR}/main.nf" --workflow "${TEST_NAME}" "${EXTRA_PIPELINE_ARGS[@]}"
         case "${TEST_NAME}" in
             ingest_export)
-                test -f "${TEST_ROOT}/outputs/ingest/SAMPLE_01/SAMPLE_01.rds"
-                test -f "${TEST_ROOT}/outputs/counts/SAMPLE_01/SAMPLE_01_counts/matrix.mtx"
+                test -f "${TEST_ROOT}/outputs/ingest/SAMPLE_01.rds"
+                test -f "${TEST_ROOT}/outputs/counts/SAMPLE_01_counts/matrix.mtx"
                 ;;
             ingest_tabulate)
-                test -f "${TEST_ROOT}/outputs/ingest/SAMPLE_01/SAMPLE_01_metadata.csv"
+                test -f "${TEST_ROOT}/outputs/ingest/SAMPLE_01_metadata.csv"
                 test -f "${TEST_ROOT}/outputs/tabulate/subjectIdTable.csv"
                 ;;
             integration)
@@ -61,13 +61,13 @@ case "${TEST_KIND}" in
         run_nextflow "${PROJECT_DIR}/tests/modules/${TEST_NAME}.nf"
         case "${TEST_NAME}" in
             ingest)
-                test -f "${TEST_ROOT}/outputs/ingest/TEST_SAMPLE/TEST_SAMPLE.rds"
+                test -f "${TEST_ROOT}/outputs/ingest/TEST_SAMPLE.rds"
                 ;;
             ingest_metadata)
-                test -f "${TEST_ROOT}/outputs/ingest/TEST_SAMPLE/TEST_SAMPLE_metadata.csv"
+                test -f "${TEST_ROOT}/outputs/ingest/TEST_SAMPLE_metadata.csv"
                 ;;
             export_counts)
-                test -f "${TEST_ROOT}/outputs/counts/TEST_SAMPLE/TEST_SAMPLE_counts/matrix.mtx"
+                test -f "${TEST_ROOT}/outputs/counts/TEST_SAMPLE_counts/matrix.mtx"
                 ;;
             gene_harmonize)
                 test -f "${TEST_ROOT}/outputs/harmonized/harmonized_outputs/integration_manifest.csv"

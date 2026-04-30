@@ -6,12 +6,12 @@
  */
 
 process EXPORT_COUNTS {
-    tag "${meta.id}"
+    tag 'export-counts'
     label 'process_export'
 
     container 'ghcr.io/bimberlabinternal/cellmembrane:latest'
 
-    publishDir "${params.outdir}/counts/${meta.id}", mode: 'copy'
+    publishDir "${params.outdir}/counts", mode: 'copy'
 
     input:
     tuple val(meta), path(rds)

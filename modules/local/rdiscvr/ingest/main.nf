@@ -7,12 +7,12 @@
  */
 
 process INGEST {
-    tag "${meta.id}"
+    tag 'ingest'
     label 'process_ingest'
 
     container 'ghcr.io/bimberlabinternal/rdiscvr:latest'
 
-    publishDir "${params.outdir}/ingest/${meta.id}", mode: 'copy'
+    publishDir "${params.outdir}/ingest", mode: 'copy'
 
     input:
     val(meta)
