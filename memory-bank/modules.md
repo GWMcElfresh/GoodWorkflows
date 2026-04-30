@@ -28,16 +28,33 @@ All modules live under `modules/local/`. Each is a single-step DSL2 process with
 
 | | Details |
 |---|---|
-| **Purpose** | Download only cell metadata (no RDS) via `Rdiscvr::DownloadMetadataForSeuratObject()` |
-| **Input** | `val(meta)` — map with `id`, `output_file_id`, `species` |
-| **Output** | `tuple val(meta), path("{id}_metadata.csv")` |
-| **Auth** | `.netrc` mounted read-only |
-| **Stub** | `printf 'cDNA_ID\n' > {id}_metadata.csv` |
-| **Notes** | Normalizes `cellbarcode` → `barcode`, `RIRA_Immune_v2.cellclass` → `RIRA_Immune.cellclass` |
-| **Tag** | `'ingest-metadata'` (static — Nextflow 26.04.0 constraint) |
-| **publishDir** | `${params.outdir}/ingest` (flattened — no `/{id}` subdirectory) |
+| | **Purpose** | Download only cell metadata (no RDS) via `Rdiscvr::DownloadMetadataForSeuratObject()` |
+| | **Input** | `val(meta)` — map with `id`, `output_file_id`, `species` |
+| | **Output** | `tuple val(meta), path("{id}_metadata.csv")` |
+| | **Auth** | `.netrc` mounted read-only |
+| | **Stub** | `printf 'cDNA_ID\n' > {id}_metadata.csv` |
+| | **Notes** | Normalizes `cellbarcode` → `barcode`, `RIRA_Immune_v2.cellclass` → `RIRA_Immune.cellclass` |
+| | **Tag** | `'ingest-metadata'` (static — Nextflow 26.04.0 constraint) |
+| | **publishDir** | `${params.outdir}/ingest` (flattened — no `/{id}` subdirectory) |
 
-### 3. EXPORT_COUNTS
+### 3. INGEST_URL
+**Path:** `modules/local/rdiscvr/ingest_url/main.nf`  
+**Label:** `process_ingest_url`  
+**Container:** `ghcr.io/bimberlabinternal/rdiscvr:latest`
+
+| | Details |
+|---|---|
+| | **Purpose** | Download a data file from a public URL. Infers file type from URL suffix and converts to Seurat object. Supports: `.rds` (readRDS), `.csv`/`.tsv`/`.txt` (data.table::fread), `.h5ad` (SeuratDisk::LoadH5Seurat). Generic tables stored as metadata; counts-like matrices auto-built into Seurat. |
+| | **Input** | `val(meta)` — map with `id`, `species`, `url` |
+| | **Output** | `tuple val(meta), path("{id}.rds")` — converted Seurat RDS |
+| | **Output** | `tuple val(meta), path("{id}_metadata.csv")` — extracted cell metadata |
+| | **Dependencies** | `data.table` (for CSV/TSV/TXT), `SeuratDisk` (optional, for h5ad), both available in rdiscvr image |
+| | **Auth** | None — no `.netrc` mount needed |
+| | **Stub** | `touch {id}.rds` + `touch {id}_metadata.csv` |
+| | **Tag** | `'ingest_url'` |
+| | **publishDir** | `${params.outdir}/ingest` (flattened) |
+
+### 4. EXPORT_COUNTS
 **Path:** `modules/local/cellmembrane/seurat/main.nf`  
 **Label:** `process_export`  
 **Container:** `ghcr.io/bimberlabinternal/cellmembrane:latest`
@@ -52,7 +69,7 @@ All modules live under `modules/local/`. Each is a single-step DSL2 process with
 | **Tag** | `'export-counts'` (static — Nextflow 26.04.0 constraint) |
 | **publishDir** | `${params.outdir}/counts` (flattened — no `/{id}` subdirectory) |
 
-### 4. GENE_HARMONIZE
+### 5. GENE_HARMONIZE
 **Path:** `modules/local/gene_harmonize/main.nf`  
 **Label:** `process_harmonize`  
 **Container:** `${params.scmodal_container}` (default: `ghcr.io/gwmcelfresh/scmodal:sha-37c41f9`)
@@ -71,7 +88,7 @@ All modules live under `modules/local/`. Each is a single-step DSL2 process with
 | **Processing** | normalize_total → log1p → z-score (per species) |
 | **Stub** | Creates directory + touches all expected output files |
 
-### 5. TABULATE
+### 6. TABULATE
 **Path:** `modules/local/rdiscvr/tabulate/main.nf`  
 **Label:** `process_tabulate`  
 **Container:** `ghcr.io/bimberlabinternal/rdiscvr:latest`
@@ -90,7 +107,7 @@ All modules live under `modules/local/`. Each is a single-step DSL2 process with
 | **Dedup** | Deduplicates barcodes within each ID group before counting |
 | **Stub** | `printf 'cDNA_ID\n' > subjectIdTable.csv` |
 
-### 6. SCMODAL_INTEGRATE
+### 7. SCMODAL_INTEGRATE
 **Path:** `modules/local/scModal/gpu/main.nf`  
 **Label:** `process_gpu`  
 **Container:** `${params.scmodal_container}`
@@ -112,18 +129,22 @@ All modules live under `modules/local/`. Each is a single-step DSL2 process with
 ## Module Dependency Graph
 
 ```
-INGEST ──────────────▶ EXPORT_COUNTS ──────────────▶ GENE_HARMONIZE ──────────────▶ SCMODAL_INTEGRATE
-  │                        │                              │                              │
-  ├── {id}.rds            ├── {id}_counts/               ├── harmonized_outputs/        ├── model_outputs/
-  └── {id}_metadata.csv   │   ├── matrix.mtx             │   ├── {NN}_{sp}_harmonized   │   ├── ckpt.pth
-                           │   ├── features.tsv           │   ├── integration_manifest   │   ├── latent_clustered
-                           │   ├── barcodes.tsv           │   ├── ortholog_mapping       │   ├── training_history
-                           │   └── obs_meta.csv           │   ├── shared_genes           │   ├── gpu_info.txt
-                           └──────────────────────────────│   └── n_shared.txt           │   └── run_summary.json
-                                                          └──────────────────────────────│
-                                                                                         │
-INGEST_METADATA ──────▶ TABULATE                                                         │
-  │                        │                                                              │
-  └── {id}_metadata.csv    └── subjectIdTable.csv                                         │
-                                                                                         │
-(INGEST_METADATA + TABULATE are an independent metadata-only path)                       │
+INGEST (LabKey) ──────┐
+INGEST_URL (URL) ─────┤
+                       ├─▶ EXPORT_COUNTS ──────────────▶ GENE_HARMONIZE ──────────────▶ SCMODAL_INTEGRATE
+                       │        │                              │                              │
+                       │        ├── {id}_counts/               ├── harmonized_outputs/        ├── model_outputs/
+                       │        │   ├── matrix.mtx             │   ├── {NN}_{sp}_harmonized   │   ├── ckpt.pth
+                       │        │   ├── features.tsv           │   ├── integration_manifest   │   ├── latent_clustered
+                       │        │   ├── barcodes.tsv           │   ├── ortholog_mapping       │   ├── training_history
+                       │        │   └── obs_meta.csv           │   ├── shared_genes           │   ├── gpu_info.txt
+                       │        └──────────────────────────────│   └── n_shared.txt           │   └── run_summary.json
+                       │                                       └──────────────────────────────│
+                       │                                                                      │
+INGEST_METADATA ──────┤                                                                      │
+INGEST_URL ───────────┤                                                                      │
+                       ├─▶ TABULATE                                                         │
+                       │        │                                                              │
+                       │        └── subjectIdTable.csv                                         │
+                       │                                                                      │
+(INGEST_URL can feed either the integration or tabulate branch; INGEST_METADATA is LabKey-only)

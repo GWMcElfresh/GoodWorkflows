@@ -1,6 +1,7 @@
 nextflow.enable.dsl = 2
 
 include { INGEST } from '../modules/local/rdiscvr/ingest/main.nf'
+include { INGEST_URL } from '../modules/local/rdiscvr/ingest_url/main.nf'
 include { EXPORT_COUNTS } from '../modules/local/cellmembrane/seurat/main.nf'
 
 /**
@@ -37,9 +38,11 @@ def buildIngestExportSamplesChannel(samplesheetPath) {
 
             if (hasOutputFileId) {
                 meta.output_file_id = row.output_file_id.toString()
+                meta.mode = 'labkey'
             }
             if (hasUrl) {
                 meta.url = row.url.toString()
+                meta.mode = meta.mode ?: 'url'
             }
 
             meta
@@ -59,10 +62,18 @@ workflow INGEST_EXPORT_PIPELINE {
     main:
     ch_samples = buildIngestExportSamplesChannel(samplesheet)
 
-    INGEST(ch_samples)
-    EXPORT_COUNTS(INGEST.out.rds)
+    // Branch: LabKey (output_file_id) vs URL (public download)
+    ch_labkey = ch_samples.branch { meta ->
+        labkey: meta.mode == 'labkey'
+        url:    meta.mode == 'url'
+    }
+
+    ch_ingested_rds = INGEST(ch_labkey.labkey).rds
+        .mix(INGEST_URL(ch_labkey.url).rds)
+
+    EXPORT_COUNTS(ch_ingested_rds)
 
     emit:
-    rds = INGEST.out.rds
+    rds = ch_ingested_rds
     counts = EXPORT_COUNTS.out.counts_dir
 }

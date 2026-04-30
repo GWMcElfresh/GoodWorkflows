@@ -4,6 +4,158 @@ Running log of changes, decisions, and context from each Cline session.
 
 ---
 
+## 2026-04-30 — File-Type-Agnostic INGEST_URL + CI Smoke Test + Docs Review
+
+### What was changed and why
+
+The user requested three improvements:
+1. **File-type-agnostic INGEST_URL**: The module should infer format from URL suffix instead of assuming `.rds`
+2. **Smoke test coverage**: Add `ingest_url` to the module smoke test matrix
+3. **Review for recurring bugs**: Check session notes history for patterns to avoid
+
+### 1. Rewrote INGEST_URL for file-type agnosticism
+
+**File:** `modules/local/rdiscvr/ingest_url/main.nf`
+
+The module now auto-detects file type from the URL suffix and handles each:
+
+| Suffix | Handler | Dependencies |
+|---|---|---|
+| `.rds` | `readRDS()` → Seurat (unchanged path) | `Seurat` (base) |
+| `.csv`, `.tsv`, `.txt` | `data.table::fread()` → smart matrix detection → `CreateSeuratObject()` | `data.table` (in rdiscvr image) |
+| `.h5ad` | `SeuratDisk::LoadH5Seurat()` → Seurat | `SeuratDisk` (optional, with install guidance) |
+| Unknown | Fallback to `readRDS()` with clear error if fails | `Seurat` |
+
+For CSV/TSV/TXT files:
+- If the table looks like a counts matrix (character first column with unique values + all numeric remaining columns), it builds a sparse Seurat object directly
+- Otherwise, it stores the table in `@meta.data` with a dummy assay
+
+Runs in the `rdiscvr` container (for `data.table`). Still no LabKey, `.netrc`, or Rdiscvr dependencies.
+
+Added `timeout = 600` on `download.file()`. Added post-download file existence + size validation. Added `source_url` metadata.
+
+### 2. Added ingest_url module smoke test
+
+**New file:** `tests/modules/ingest_url.nf`
+- Follows the exact same pattern as other module tests (bare assignment for `meta`, `Channel.of()`)
+- Uses `url: 'https://example.org/test.rds'` — the stub block will `touch` expected files
+
+### 3. Added ingest_url to CI matrix
+
+**File:** `.github/workflows/ci.yml` — Module matrix now: `[ingest, ingest_metadata, ingest_url, export_counts, gene_harmonize, scmodal_integrate, tabulate]`
+
+**File:** `scripts/ci/run_nextflow_smoke_tests.sh` — Added `ingest_url` case that checks for both `TEST_SAMPLE.rds` and `TEST_SAMPLE_metadata.csv`
+
+### 4. Recurring bug patterns review (from session notes)
+
+Reviewed all prior entries. The new INGEST_URL module and test are clean:
+- ✅ `tag 'ingest_url'` — static string (not `${meta.id}`)
+- ✅ `publishDir "${params.outdir}/ingest"` — no `${meta.id}` in path
+- ✅ No `def` inside workflow block in smoke test (`meta = [...]` bare assignment)
+- ✅ `nextflow.enable.dsl = 2` only in top-level test script (not in included helpers)
+- ✅ Module main.nf has no `nextflow.enable.dsl = 2` declaration (modules are `include`d, they don't declare DSL)
+- ✅ The `-ansi-log false` flag in `run_nextflow_smoke_tests.sh` still present but noted as cosmetic — not a breakage risk in CI
+
+### 5. Documentation updates
+
+**`memory-bank/modules.md`:**
+- Updated INGEST_URL entry (module #3): file-type-agnostic description, dependency notes, supported suffixes
+- Dependency graph already correctly shows INGEST_URL feeding both integration and tabulate branches
+
+**`memory-bank/ci-cd.md`:**
+- Added `ingest_url` to module smoke test matrix listing
+
+**`memory-bank/session-notes.md`:**
+- This entry
+
+### Architectural decisions
+- **File-type inference is suffix-based** (not magic bytes). Simple, predictable, works with URLs where content-type headers may be unreliable.
+- **CSV/TSV/TXT handled uniformly** via `data.table::fread()` which auto-detects delimiters.
+- **h5ad support is optional** — `SeuratDisk` may not be in the rdiscvr image by default, so we `requireNamespace()` and give clear install instructions rather than hard-failing.
+- **rdiscvr container is used** for `data.table` already present there; no new container needed.
+- **Generic tables stored as metadata** rather than rejected — this lets INGEST_URL feed TABULATE directly even when the input isn't a counts matrix.
+
+### Documentation tasks to follow up
+- [ ] `docs/workflows/ingest-export.md` — Document dual-ingest branching with URL mode example
+- [ ] `docs/workflows/ingest-tabulate.md` — Same
+- [ ] `docs/data-formats.md` — Document supported URL file types for INGEST_URL
+- [ ] `docs/api/inputs.md` — Update INGEST_URL container reference and supported formats
+- [ ] `template/gw/README.md` — Note that INGEST_URL now handles CSV/TSV/TXT in addition to RDS
+
+---
+
+## 2026-04-30 — Three fixes: species alias, template samplesheet, dual-ingest refactor
+
+### What was changed and why
+
+#### Problem 1: Macaque gene renaming failure in `template/gw/fetch_example_data.sh`
+- The `babelgene::orthologs()` call used `species = 'macaque'` which is not a valid babelgene species name.
+- **Fix:** Added `speciate()` function that maps common names to babelgene-compatible scientific names:
+  - `macaque` → `rhesus macaque` (babelgene canonical name, matching *Macaca mulatta*)
+  - `human` → `human`
+  - `mouse` → `mouse`
+  - Unknown species pass through with a warning.
+- Changed gene renaming call from `species = species_label` to `species = speciate(species_label)`.
+
+#### Problem 2: Template samplesheet missing `output_file_id` column
+- `template/gw/samplesheet.csv` only had `sample_id`, `species`, `url` — missing the `output_file_id` column expected by the samplesheet parser.
+- **Fix:** Added `output_file_id,,` as the 3rd column (between `species` and `url`). All 4 columns now present: `sample_id`, `species`, `output_file_id`, `url`.
+- Added `NG_BUILD` and `REF_GTF` env var unset stanzas to `fetch_example_data.sh` to suppress unrelated warning logs.
+
+#### Problem 3: `.netrc` required even for URL-based downloads
+- The original `INGEST` module required `.netrc` for all modes. URL-based downloads should not need LabKey auth.
+- **Fix:** Created a new separate module `INGEST_URL` (`modules/local/rdiscvr/ingest_url/main.nf`) that only handles URL-based Seurat downloads with NO `.netrc`, NO LabKey, NO Rdiscvr dependency.
+
+### Architecture: Dual-ingest branching pattern
+
+All three workflow files now use a `.branch{}` pattern to route samples to the correct ingest:
+
+```groovy
+ch_labkey = ch_samples.branch { meta ->
+    labkey: meta.mode == 'labkey'
+    url:    meta.mode == 'url'
+}
+
+ch_ingested_rds = INGEST(ch_labkey.labkey).rds
+    .mix(INGEST_URL(ch_labkey.url).rds)
+```
+
+This pattern is applied in:
+- `workflows/ingest_export.nf` — `INGEST` / `INGEST_URL` → `EXPORT_COUNTS`
+- `workflows/ingest_tabulate.nf` — `INGEST_METADATA` / `INGEST_URL` (metadata channel) → `TABULATE`
+- `workflows/integration_pipeline.nf` — `INGEST` / `INGEST_URL` → `EXPORT_COUNTS` → `GENE_HARMONIZE` → `SCMODAL_INTEGRATE`
+
+### Files changed
+
+| File | Change |
+|---|---|
+| `template/gw/fetch_example_data.sh` | Added `speciate()` function, use it for gene renaming; unset `NG_BUILD`/`REF_GTF` to suppress warnings |
+| `template/gw/samplesheet.csv` | Added `output_file_id` column (empty for URL-based samples) |
+| `modules/local/rdiscvr/ingest_url/main.nf` | **NEW** — URL-only ingest module, no auth, no Rdiscvr |
+| `workflows/ingest_export.nf` | Added `INGEST_URL` import, `.branch{}` pattern, mode routing |
+| `workflows/ingest_tabulate.nf` | Added `INGEST_URL` import, `.branch{}` pattern; URL mode uses `INGEST_URL.metadata` instead of `INGEST_METADATA` |
+| `workflows/integration_pipeline.nf` | Added `INGEST_URL` import, `.branch{}` pattern |
+| `configs/local.config` | Added `withLabel: 'process_ingest_url'` block (no `.netrc` mount) |
+| `configs/local-gpu.config` | Added `withLabel: 'process_ingest_url'` block (no `.netrc` mount) |
+| `configs/slurm.config` | Added `withLabel: 'process_ingest_url'` block (no `.netrc` mount) |
+| `configs/slurm_singularity.config` | Added `withLabel: 'process_ingest_url'` block (no `.netrc` bind mount) |
+| `main.nf` | Already had conditional warning for LabKey params (no change needed) |
+| `memory-bank/modules.md` | Added INGEST_URL as module #3, renumbered 4-7, updated dependency graph |
+
+### Architectural decisions
+- **INGEST_URL is a completely separate module** (not a `switch` inside INGEST). This avoids bloat in the existing `INGEST` module, keeps the Rdiscvr import optional for URL-only mode, and makes container-level dependency boundaries clear.
+- **The `.branch{}` pattern is applied at the workflow level**, not inside the module. This is the DSL2 idiomatic approach for fan-out based on metadata.
+- **INGEST_URL emits BOTH `.rds` and `.metadata` channels**, matching `INGEST`'s output signature. This allows it to substitute directly in both the integration branch and the tabulate branch.
+- **No `.netrc` mount for `process_ingest_url`** in any profile, ensuring URL-based workflows run without requiring local `.netrc` configuration.
+
+### Memory bank files to keep in sync
+- `memory-bank/modules.md` — Updated with INGEST_URL (#3), renumbered, new dependency graph
+- `memory-bank/workflows.md` — Should be updated to document the dual-ingest branching in each workflow
+- `memory-bank/configs.md` — Should reflect new `process_ingest_url` label in all profiles
+- `memory-bank/architecture.md` — Should reflect the dual-ingest fan-out pattern
+
+---
+
 ## 2026-04-30 — MCP analyzeSamplesheet: url OR output_file_id
 
 **Created by:** Cline  
@@ -453,277 +605,4 @@ nextflow run main.nf -profile local_gpu --input samplesheet.csv --labkey_base_ur
 
 Nextflow DSL2 does not allow `def` function definitions or `def` variable declarations inside a `workflow { }` block. The `main.nf` entry workflow contained `def helpMessage() { ... }` at line 15, which caused the parser to fail with `Unexpected input: '('`.
 
-Additionally, `workflows/integration_pipeline.nf` had `def execName = ...` inside the named workflow's `main:` section, which is also invalid DSL2.
-
-**Important distinction:** `def` function definitions ARE valid at the top level of scripts that contain only named workflows (no entry workflow). This is why `ingest_export.nf` and `ingest_tabulate.nf` work fine with top-level `def build...SamplesChannel()`. However, `main.nf` has an **entry workflow** (`workflow { ... }`), which changes the top-level rules — only `include`, `process`, and `workflow` declarations are allowed at the top level when an entry workflow is present.
-
-### Changes Made
-
-**`main.nf`:**
-- Removed the `def helpMessage() { ... }` function entirely.
-- Inlined the help message `log.info` directly inside the `if (params.help)` block within the entry workflow. This avoids both the top-level function definition issue and the `def` inside workflow issue.
-- Changed `def supportedWorkflows = [...]` to `supportedWorkflows = [...]` (bare assignment) inside the workflow block.
-- Changed `def selectedWorkflow = ...` to `selectedWorkflow = ...` (bare assignment) inside the workflow block.
-
-**`workflows/integration_pipeline.nf`:**
-- Changed `def execName = ...` to `execName = ...` (bare assignment) inside the named workflow's `main:` section.
-
-### Verified No Changes Needed
-- `workflows/ingest_export.nf` — Top-level `def buildIngestExportSamplesChannel()` is valid DSL2 (no entry workflow in this file). No `def` declarations inside the workflow `main:` section.
-- `workflows/ingest_tabulate.nf` — Top-level `def buildIngestTabulateSamplesChannel()` is valid DSL2 (no entry workflow in this file). No `def` declarations inside the workflow `main:` section.
-
-### Key Takeaways
-- **Scripts with an entry workflow** (`workflow { ... }`): Only `include`, `process`, and `workflow` declarations at top level. No `def` functions or `def` variables at top level. Inside the workflow block, use bare assignments only.
-- **Scripts with only named workflows** (no entry workflow): `def` function definitions ARE valid at top level (they are script declarations). Inside named workflow `main:` sections, use bare assignments only.
-- **Inside any workflow block** (entry or named): Never use `def` for variable declarations or function definitions. Use bare assignments.
-- The `ingest_metadata`, `export_counts`, `gene_harmonize`, and `scmodal_integrate` module smoke tests were already passing because they don't go through `main.nf` — they run their own test scripts directly.
-
-### Files Modified
-- `main.nf` — Inlined helpMessage() directly in workflow block, removed def from variable assignments
-- `workflows/integration_pipeline.nf` — Removed def from execName assignment; replaced `session?.config?.executor?.name` with `workflow.config.executor?.name`
-- `memory-bank/session-notes.md` — This entry
-
-### Follow-up Fix (2026-04-30): session → workflow.config
-- `workflows/integration_pipeline.nf` line 50: `session` is not directly accessible in workflow scope. Changed `session?.config?.executor?.name` to `workflow.config.executor?.name`, which is the valid DSL2 way to access executor config in a workflow block.
-
----
-
-## 2026-04-29 — Nextflow 26.04.0 Process-Scope Directive Fix
-
-**Created by:** Cline (from user-provided summary)
-**Summary:** Fixed `No such variable: meta` errors caused by Nextflow 26.04.0 enforcing that process-scope directives (`tag`, `publishDir`) are evaluated before the `input:` block is parsed.
-
-### Root Cause
-Nextflow 26.04.0 tightened evaluation order: `tag` and `publishDir` are now resolved at parse time, before `input:` variables like `meta` exist. GString interpolation of `${meta.id}` in those directives fails with `No such variable: meta`. Older Nextflow versions evaluated these lazily at runtime.
-
-### Affected Modules (3 files changed)
-
-| Module | File | Change |
-|---|---|---|
-| INGEST | `modules/local/rdiscvr/ingest/main.nf` | `tag 'ingest'` (was `"${meta.id}"`), `publishDir` stripped `/${meta.id}` |
-| INGEST_METADATA | `modules/local/rdiscvr/ingest_metadata/main.nf` | `tag 'ingest-metadata'` (was `"${meta.id}"`), `publishDir` stripped `/${meta.id}` |
-| EXPORT_COUNTS | `modules/local/cellmembrane/seurat/main.nf` | `tag 'export-counts'` (was `"${meta.id}"`), `publishDir` stripped `/${meta.id}` |
-
-### Smoke Test Update
-`scripts/ci/run_nextflow_smoke_tests.sh` — Updated 5 `-f` path assertions to match the flattened publish layout (e.g., `outputs/ingest/SAMPLE_01.rds` instead of `outputs/ingest/SAMPLE_01/SAMPLE_01.rds`).
-
-### Key Takeaway
-- **`tag`**: Always use static string literals
-- **`publishDir`**: Never reference input variables in the path
-- **`output:` and `script:` blocks**: GString interpolation of input variables remains valid
-- **Consequence**: Output files are published flat into the top-level publish directory (no per-sample subdirectories)
-
-### Memory Bank Updates
-- `conventions.md` — Added "Nextflow 26.04.0 Process-Scope Directive Constraints" section
-- `modules.md` — Updated INGEST, INGEST_METADATA, EXPORT_COUNTS entries with static tags and flattened publishDir
-- `workflows.md` — Updated all three workflow output directory structures to reflect flattened layout
-- `session-notes.md` — This entry
-
----
-
-## 2026-04-29 — Fix Module Smoke Test Failures
-
-**Created by:** Cline
-**Summary:** Fixed multiple syntax and configuration errors causing all 6 module smoke tests to fail with `ScriptCompilationException`.
-
-### Root Cause Analysis
-
-Three issues identified:
-
-1. **Duplicate `nextflow.enable.dsl = 2` in `synthetic_fixtures.nf`** — The helper file `tests/modules/helpers/synthetic_fixtures.nf` declared `nextflow.enable.dsl = 2` on line 1. When included from any module test script (which also declares DSL2), Nextflow's parser v2 treats the duplicate declaration as a syntax error. This cascaded to all subsequent `include` statements, causing "process not found" errors for every imported module.
-
-2. **`nextflowVersion` warning in `base.config`** — The top-level `nextflowVersion = '>=24.04'` in `configs/base.config` is not a recognized Nextflow config option. The parser v2 emits `Unrecognized config option 'nextflowVersion'` as a warning. While non-fatal, it adds noise to CI logs.
-
-3. **`export_counts.nf` include path** — The test script `tests/modules/export_counts.nf` includes `EXPORT_COUNTS` from `../../modules/local/cellmembrane/seurat/main.nf`. This path is correct and the process exists, but the cascading error from `synthetic_fixtures.nf` made it appear broken.
-
-### Changes Made
-
-**`tests/modules/helpers/synthetic_fixtures.nf`:**
-- Removed `nextflow.enable.dsl = 2` from line 1. This file is always included by other scripts that already declare DSL2. Helper/include files should not redeclare the DSL version.
-
-**`configs/base.config`:**
-- Changed `nextflowVersion = '>=24.04'` to `manifest { nextflowVersion = '>=24.04' }`. The `manifest` scope is the correct Nextflow config location for the `nextflowVersion` directive.
-
-### Files Modified
-- `tests/modules/helpers/synthetic_fixtures.nf` — Removed duplicate DSL2 declaration
-- `configs/base.config` — Moved nextflowVersion into manifest scope
-- `memory-bank/session-notes.md` — This entry
-
----
-
-## 2026-04-29 — Fix lint_and_validate CI Job Failure
-
-**Created by:** Cline
-**Summary:** Fixed the `lint_and_validate` job in `ci.yml` that was failing with exit code 1 but no clear error message.
-
-### Root Cause Analysis
-
-Two issues identified:
-
-1. **"Validate Nextflow profiles" step** was running `nextflow config -profile slurm`, which tries to resolve the SLURM executor (`executor.name = 'slurm'` in `configs/slurm.config`). On a GitHub Actions Ubuntu runner, there is no SLURM installation, causing the config validation to fail with a non-zero exit code.
-
-2. **ShellCheck step** had no error diagnostics — if any script had a `warning`-level (or higher) issue, shellcheck would exit non-zero but the log wouldn't clearly show which file or what the problem was.
-
-### Changes Made
-
-**`.github/workflows/ci.yml` — `lint_and_validate` job:**
-
-1. **ShellCheck step** — Added:
-   - `set -e` for fail-fast behavior
-   - File-existence check loop before shellcheck runs (emits `::error::` annotation if a file is missing)
-   - Error trap on shellcheck failure with explicit `::error::` annotation
-
-2. **Validate Nextflow profiles step** — Removed `nextflow config -profile slurm` validation. The `slurm` profile requires a SLURM cluster to resolve properly. Only `test` and `local` profiles are now validated, which are the profiles actually used in CI smoke tests.
-
-### Files Modified
-- `.github/workflows/ci.yml` — ShellCheck diagnostics + removed slurm profile validation
-- `memory-bank/session-notes.md` — This entry
-
----
-
-## 2026-04-29 — Fix Nextflow DSL2 Switch-Case Syntax Error in main.nf
-
-**Created by:** Cline
-**Summary:** Fixed a Nextflow DSL2 compilation error where a Groovy `switch` statement inside the `workflow {}` block caused `ScriptCompilationException` at line 78.
-
-### Root Cause
-Nextflow DSL2's `workflow {}` block has a restricted grammar that does not support Groovy control-flow constructs like `switch`. The parser v2 fails with `Unexpected input: '\n'` when encountering `case 'integration':` because it expects only process/workflow invocations and channel operations inside the block.
-
-### Fix
-Replaced the `switch` statement with `if/else` inside a single `workflow {}` block. Nextflow DSL2 supports `if/else` within `workflow {}` — it was specifically the Groovy `switch` construct that the parser v2 rejected. Using a single `workflow {}` block is the correct pattern because it ensures `workflow.onComplete` and `workflow.onError` handlers work properly.
-
-**Before:**
-```groovy
-workflow {
-    switch (selectedWorkflow) {
-        case 'integration':
-            INTEGRATION_PIPELINE(params.input)
-            break
-        ...
-    }
-}
-```
-
-**After:**
-```groovy
-workflow {
-    if (selectedWorkflow == 'integration') {
-        INTEGRATION_PIPELINE(params.input)
-    } else if (selectedWorkflow == 'ingest_export') {
-        INGEST_EXPORT_PIPELINE(params.input)
-    } else if (selectedWorkflow == 'ingest_tabulate') {
-        INGEST_TABULATE_PIPELINE(params.input)
-    }
-}
-```
-
-### Files Modified
-- `main.nf` — Replaced switch-case with if/else inside single workflow {} block
-- `memory-bank/session-notes.md` — This entry
-
----
-
-## 2026-04-29 — Add Nextflow DSL2 Syntax Reference to Memory Bank
-
-**Created by:** Cline (from user-provided file)
-**Summary:** Added `nextflow_synatx.md` as a comprehensive Nextflow DSL2 syntax reference to the memory bank, and updated all related files to reference it.
-
-### New File
-- `memory-bank/nextflow_synatx.md` — Comprehensive Nextflow DSL2 syntax reference covering:
-  - Comments (single-line `//`, multi-line `/* */`, Javadoc `/** */`)
-  - Script declarations (shebang `#!/usr/bin/env nextflow`, feature flags, includes, params, workflows, processes, functions, enums, records, output blocks)
-  - Statements (variables, assignments, if/else, return, throw, try/catch)
-  - Expressions (literals, closures, operators, precedence)
-  - Deprecations (`addParams`, `params` clause of include, `when:`, `shell:`)
-
-### Files Updated
-- `.clinerules` — Added `nextflow_synatx.md` to Session Start Protocol list
-- `memory-bank/conventions.md` — Added callout box at top referencing `nextflow_synatx.md` as the syntax reference
-- `memory-bank/session-notes.md` — This entry
-
----
-
-## 2026-04-30 — Fix integration_pipeline.nf: Remove Fragile Executor Detection
-
-**Created by:** Cline
-**Summary:** Fixed the `No such variable: config` error in `workflows/integration_pipeline.nf` line 50 by removing the fragile executor-detection logic entirely.
-
-### Root Cause
-Line 50 used `workflow.config.executor?.name` which is not a valid DSL2 construct — the `workflow` object in a named workflow's `main:` section does not expose a `config` property. Two prior fix attempts had already failed:
-1. `session?.config?.executor?.name` — `session` not accessible in workflow scope
-2. `workflow.config.executor?.name` — `config` not a property of `workflow`
-
-### Fix
-Removed the executor-detection guard entirely. The logic now simply:
-1. Checks `params.scmodal_use_cpu` — if true and not in GitHub Actions, emits a warning
-2. If `scmodal_use_cpu` is false (default), SCMODAL_INTEGRATE runs normally and will naturally fail on non-GPU executors
-
-This eliminates the need to introspect the executor at all. The GPU guard was a nice-to-have early error but was causing CI failures due to DSL2 scope limitations.
-
-### Before (line 50):
-```groovy
-execName = (workflow.config.executor?.name ?: workflow.profile ?: 'local').toString()
-if (execName == 'local') {
-    if (!params.scmodal_use_cpu) {
-        error "..."  // block local executor without --scmodal_use_cpu
-    }
-    if (!System.getenv('GITHUB_ACTIONS')) {
-        log.warn "..."  // warn about CI-only flag
-    }
-}
-```
-
-### After (line 50):
-```groovy
-if (params.scmodal_use_cpu) {
-    if (!System.getenv('GITHUB_ACTIONS')) {
-        log.warn """
-        WARNING: --scmodal_use_cpu is true but GITHUB_ACTIONS env is not set.
-        This flag is intended for GitHub Actions CI smoke tests only.
-        SCMODAL_INTEGRATE will run its stub block; outputs have no scientific validity.
-        """.stripIndent()
-    }
-}
-```
-
-### Files Modified
-- `workflows/integration_pipeline.nf` — Removed executor detection, simplified to scmodal_use_cpu + GITHUB_ACTIONS check
-- `memory-bank/session-notes.md` — This entry
-
----
-
-## 2026-04-30 — Bazzite /gw Dependency Updates
-
-### Changes Made
-Updated the `template/gw/` quickstart files to reflect current Bazzite package availability and fix a Seurat v3→v5 compatibility issue.
-
-### 1. Java Version Bump (java-17 → java-25-openjdk)
-Bazzite no longer ships `java-17-openjdk`. Updated `setup.sh` to check for and suggest `java-25-openjdk` instead.
-
-### 2. System Dependencies Section Added to setup.sh
-Added a consolidated system dependency check (section 1, before Nextflow install) that verifies all required packages at once:
-- `java-25-openjdk`
-- `libcurl-devel`
-- `libuv`
-- `cmake`
-- `openssl-devel`
-- `libxml2-devel`
-
-If any are missing, the script prints a single `sudo rpm-ostree install` command with all missing packages and exits with a note about the required reboot. Previously, only Java was checked and the error message was buried in the Java-specific block.
-
-### 3. Seurat v3→v5 Assay Update in fetch_example_data.sh
-The `pbmc3k.final` object from SeuratData uses a v3 assay, which does not support feature renaming. This caused the warning:
-```
-Warning: Renaming features in v3/v4 assays is not supported
-```
-Added `pbmc <- Seurat::UpdateSeuratObject(pbmc3k.final)` after loading the dataset to convert to v5 assay before any gene renaming operations.
-
-### 4. README.md Prerequisites Updated
-Added the system packages line to the Prerequisites section listing all required `rpm-ostree` packages.
-
-### Files Modified
-- `template/gw/setup.sh` — Java version string, new system deps check section, updated `# Requires` comment
-- `template/gw/fetch_example_data.sh` — Added `UpdateSeuratObject()` call on line 103
-- `template/gw/README.md` — Added system packages to prerequisites
-- `memory-bank/session-notes.md` — This entry
-
+Additionally, `workflows/integration_pipeline.nf` had `def execName = ...` inside the named workflow's `main:` section, which is also invalid

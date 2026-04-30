@@ -1,6 +1,7 @@
 nextflow.enable.dsl = 2
 
 include { INGEST } from '../modules/local/rdiscvr/ingest/main.nf'
+include { INGEST_URL } from '../modules/local/rdiscvr/ingest_url/main.nf'
 include { EXPORT_COUNTS } from '../modules/local/cellmembrane/seurat/main.nf'
 include { GENE_HARMONIZE } from '../modules/local/gene_harmonize/main.nf'
 include { SCMODAL_INTEGRATE } from '../modules/local/scModal/gpu/main.nf'
@@ -39,9 +40,11 @@ def buildIntegrationPipelineSamplesChannel(samplesheetPath) {
 
             if (hasOutputFileId) {
                 meta.output_file_id = row.output_file_id.toString()
+                meta.mode = 'labkey'
             }
             if (hasUrl) {
                 meta.url = row.url.toString()
+                meta.mode = meta.mode ?: 'url'
             }
 
             meta
@@ -51,7 +54,7 @@ def buildIntegrationPipelineSamplesChannel(samplesheetPath) {
 /**
  * Integration pipeline entrypoint.
  *
- * Downloads Seurat objects from LabKey, exports raw counts, harmonizes genes
+ * Downloads Seurat objects, exports raw counts, harmonizes genes
  * across species, and trains scMODAL to create a shared latent embedding.
  * This workflow is GPU-backed and intended for SLURM execution.
  */
@@ -77,8 +80,16 @@ workflow INTEGRATION_PIPELINE {
     }
     ch_samples = buildIntegrationPipelineSamplesChannel(samplesheet)
 
-    INGEST(ch_samples)
-    EXPORT_COUNTS(INGEST.out.rds)
+    // Branch: LabKey (output_file_id) vs URL (public download)
+    ch_labkey = ch_samples.branch { meta ->
+        labkey: meta.mode == 'labkey'
+        url:    meta.mode == 'url'
+    }
+
+    ch_ingested_rds = INGEST(ch_labkey.labkey).rds
+        .mix(INGEST_URL(ch_labkey.url).rds)
+
+    EXPORT_COUNTS(ch_ingested_rds)
 
     ch_all_count_dirs = EXPORT_COUNTS.out.counts_dir
         .map { _meta, count_dir -> count_dir }
@@ -90,7 +101,7 @@ workflow INTEGRATION_PIPELINE {
     GENE_HARMONIZE.out.harmonized.subscribe { log.info "Harmonized species outputs staged: ${it}" }
 
     emit:
-    rds = INGEST.out.rds
+    rds = ch_ingested_rds
     counts = EXPORT_COUNTS.out.counts_dir
     harmonized = GENE_HARMONIZE.out.harmonized
     model = SCMODAL_INTEGRATE.out.model

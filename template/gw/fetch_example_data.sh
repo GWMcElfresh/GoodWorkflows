@@ -144,15 +144,30 @@ subset_c$species <- "mouse"
 # babelgene::orthologs() provides pre-computed human→other_species ortholog tables
 # from the HGNC Comparison of Orthology Predictions (HCOP) database.
 
+# babelgene expects specific species names. Map our short-form labels to
+# the exact common/scientific names that babelgene recognizes.
+SPECIES_ALIAS_MAP <- list(
+    "macaque" = "rhesus macaque",
+    "mouse"   = "mouse",
+    "human"   = "human"
+)
+
 rename_genes_to_species <- function(obj, target_species, species_label) {
     human_genes <- rownames(obj)
     message("[FETCH] Renaming ", length(human_genes), " genes for ", species_label, "...")
+
+    # Resolve alias to a babelgene-recognized species name
+    babelgene_species <- SPECIES_ALIAS_MAP[[species_label]]
+    if (is.null(babelgene_species)) {
+        babelgene_species <- species_label
+    }
+    message("[FETCH] Using babelgene species name: ", babelgene_species)
 
     # Get human→target orthologs (one-to-one only, to avoid ambiguity)
     ortho <- tryCatch(
         babelgene::orthologs(
             genes = human_genes,
-            species = target_species,
+            species = babelgene_species,
             human = TRUE,
             min_support = 1  # accept any support level to maximize coverage
         ),
@@ -232,10 +247,10 @@ echo ""
 echo "--- Generating samplesheet.csv ---"
 
 cat > "${SAMPLESHEET}" <<EOF
-sample_id,url,species
-PBMC_HUMAN,${DATA_DIR}/pbmc3k_human.rds,human
-PBMC_MACAQUE,${DATA_DIR}/pbmc3k_macaque.rds,macaque
-PBMC_MOUSE,${DATA_DIR}/pbmc3k_mouse.rds,mouse
+sample_id,output_file_id,url,species
+PBMC_HUMAN,,${DATA_DIR}/pbmc3k_human.rds,human
+PBMC_MACAQUE,,${DATA_DIR}/pbmc3k_macaque.rds,macaque
+PBMC_MOUSE,,${DATA_DIR}/pbmc3k_mouse.rds,mouse
 EOF
 
 echo -e "${GREEN}Samplesheet created: ${SAMPLESHEET}${NC}"

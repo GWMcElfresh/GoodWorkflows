@@ -66,6 +66,10 @@ case "${TEST_KIND}" in
             ingest_metadata)
                 test -f "${TEST_ROOT}/outputs/ingest/TEST_SAMPLE_metadata.csv"
                 ;;
+            ingest_url)
+                test -f "${TEST_ROOT}/outputs/ingest/TEST_SAMPLE.rds"
+                test -f "${TEST_ROOT}/outputs/ingest/TEST_SAMPLE_metadata.csv"
+                ;;
             export_counts)
                 test -f "${TEST_ROOT}/outputs/counts/TEST_SAMPLE_counts/matrix.mtx"
                 ;;
