@@ -1,4 +1,4 @@
-sample_id,output_file_id,species
-SAMPLE_01,100001,human
-SAMPLE_02,100002,macaque
-SAMPLE_03,100003,mouse
+sample_id,output_file_id,url,species
+SAMPLE_01,100001,,human
+SAMPLE_02,100002,,macaque
+SAMPLE_03,100003,,mouse

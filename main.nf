@@ -60,9 +60,16 @@ workflow {
         error "Please supply a samplesheet via --input. Run with --help for usage."
     }
 
+    // LabKey params are only required when the samplesheet uses output_file_id.
+    // URL-based samplesheets (meta.url) do not need LabKey credentials.
+    // We defer the actual validation to the INGEST process, which checks at runtime.
     if (selectedWorkflow in ['integration', 'ingest_export', 'ingest_tabulate']) {
         if (!params.labkey_base_url || !params.labkey_folder) {
-            error "Please supply --labkey_base_url and --labkey_folder for prime-seq downloads."
+            log.warn """
+            WARNING: --labkey_base_url and --labkey_folder are not set.
+            If your samplesheet uses 'output_file_id' (LabKey mode), the pipeline will fail.
+            If your samplesheet uses 'url' (public URL mode), this warning can be ignored.
+            """.stripIndent()
         }
     }
 

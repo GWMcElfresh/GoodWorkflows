@@ -11,11 +11,12 @@ All modules live under `modules/local/`. Each is a single-step DSL2 process with
 
 | | Details |
 |---|---|
-| **Purpose** | Download a Seurat object from LabKey/Prime-seq via `Rdiscvr::DownloadOutputFile()` |
-| **Input** | `val(meta)` — map with `id`, `output_file_id`, `species` |
+| **Purpose** | Download a Seurat object from either a public URL (`meta.url`) or LabKey/Prime-seq (`meta.output_file_id`). Auto-detects mode. |
+| **Input** | `val(meta)` — map with `id`, `species`, and either `url` or `output_file_id` |
 | **Output** | `tuple val(meta), path("{id}.rds")` — downloaded Seurat RDS |
 | **Output** | `tuple val(meta), path("{id}_metadata.csv")` — extracted cell metadata |
-| **Auth** | `.netrc` mounted at `/tmp/.netrc` (SLURM) or `/root/.netrc` (local) |
+| **URL mode** | Uses `download.file()` + `readRDS()`. No auth required. |
+| **LabKey mode** | Uses `Rdiscvr::DownloadOutputFile()`. Requires `.netrc` mounted at `/root/.netrc`. |
 | **Stub** | `touch {id}.rds` + `touch {id}_metadata.csv` |
 | **Tag** | `'ingest'` (static — Nextflow 26.04.0 forbids `${meta.id}` in process-scope directives) |
 | **publishDir** | `${params.outdir}/ingest` (flattened — no `/{id}` subdirectory) |

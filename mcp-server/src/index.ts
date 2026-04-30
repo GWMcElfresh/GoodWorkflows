@@ -470,7 +470,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
     },
     {
       name: 'analyze_samplesheet',
-      description: 'Analyze a samplesheet CSV file. Validates required fields (id, output_file_id, species), detects species mix, and warns if harmonization is needed.',
+      description: 'Analyze a samplesheet CSV file. Validates required fields (id, species, and either output_file_id or url), detects species mix, and warns if harmonization is needed.',
       inputSchema: {
         type: 'object',
         properties: {

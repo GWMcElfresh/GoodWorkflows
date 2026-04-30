@@ -4,6 +4,60 @@ Running log of changes, decisions, and context from each Cline session.
 
 ---
 
+## 2026-04-30 — MCP analyzeSamplesheet: url OR output_file_id
+
+**Created by:** Cline  
+**Summary:** Updated the MCP `analyze_samplesheet` tool to accept either `url` or `output_file_id` as the data source column, matching the dual-mode ingest module.
+
+### Changes Made
+
+#### `mcp-server/src/types.ts`
+- `SamplesheetRow`: Made `output_file_id` optional (`?`), added optional `url` field.
+- Changed index signature from `[key: string]: string` to `[key: string]: string | undefined` to accommodate optional properties.
+
+#### `mcp-server/src/bio/analyze-samplesheet.ts`
+- Updated JSDoc to reflect new required fields: `id`, `species`, and either `output_file_id` or `url`.
+- `requiredFields` array now only contains `['id', 'species']` (not `output_file_id`).
+- Added logic to detect `output_file_id` or `url` column presence and report accordingly.
+- Row validation now checks that at least one of `output_file_id` or `url` is present per row.
+- Error messages updated to say "output_file_id or url" instead of just "output_file_id".
+
+#### `mcp-server/src/index.ts`
+- Updated `analyze_samplesheet` tool description to say "id, species, and either output_file_id or url".
+
+### Verification
+- `tsc` compiles with zero errors.
+- Backward-compatible: existing samplesheets with `output_file_id` continue to work.
+
+---
+
+## 2026-04-30 — Bazzite /gw Audit Fixes
+
+**Created by:** Cline  
+**Summary:** Applied fixes from subagent audit of all /gw files.
+
+### Changes Made
+
+#### `template/gw/setup.sh`
+- **Added Java check** (step 1): Nextflow requires Java 11+. Checks `java` before attempting Nextflow install. On failure, tells user to `rpm-ostree install java-17-openjdk`.
+- **Fixed GPU test grep**: Changed from `podman run ... | grep ... || true` (which swallows failures) to capturing output in a variable and using `grep -qE` for the conditional check.
+- Renumbered steps 1→6 to accommodate the new Java check.
+
+#### `template/gw/run.sh`
+- **Removed `-ansi-log false`**: This flag is cosmetic and can cause issues on some Nextflow versions. Nextflow auto-detects ANSI support.
+
+#### `modules/local/rdiscvr/ingest/main.nf`
+- **Added `timeout = 300`** to `download.file()` call for URL mode.
+- **Added post-download validation**: Checks that the downloaded file exists and has non-zero size before attempting `readRDS()`.
+
+#### `workflows/ingest_export.nf` and `workflows/ingest_tabulate.nf`
+- Already had the correct URL/output_file_id dual-mode logic from Part 1. No changes needed.
+
+### Decisions
+- `fetch_example_data.sh` R heredoc was reviewed and found correct: `Rscript` exits non-zero on unhandled errors, and the `tryCatch` around `babelgene::orthologs()` is intentional graceful degradation.
+
+---
+
 ## 2026-04-29 — Initial Memory Bank Creation
 
 **Created by:** Cline  
@@ -191,6 +245,122 @@ Three layers of testing:
 - `.gitignore` — Removed `package-lock.json` line
 - `.github/workflows/test-mcp.yml` — Added mkdir, check step, artifact fixes
 - `memory-bank/ci-cd.md` — Updated to reflect all 4 workflows and current design
+- `memory-bank/session-notes.md` — This entry
+
+---
+
+## 2026-04-30 — Gene Renaming for Pseudo-Species Example Data
+
+### Context
+User feedback: the species flag propagates to gene names in the count matrix. The `fetch_example_data.sh` script was splitting pbmc3k (human data) into 3 subsets labeled human/macaque/mouse, but keeping human gene names in all subsets. This would cause `GENE_HARMONIZE` to fail because mygene queries gene symbols against each species' taxonomy ID — human gene symbols queried against macaque (taxid 9544) or mouse (taxid 10090) would find few/no matches.
+
+### Analysis of GENE_HARMONIZE Gene Flow
+1. `EXPORT_COUNTS` writes `features.tsv` from `rownames(seurat_obj)` (line 58 of `modules/local/cellmembrane/seurat/main.nf`)
+2. `GENE_HARMONIZE` reads `features.tsv` as gene names (line 86 of `modules/local/gene_harmonize/main.nf`)
+3. `GENE_HARMONIZE` queries mygene: `mg.querymany(genes, scopes="symbol", species=taxid)` (lines 117-125)
+4. mygene looks up each gene symbol against the species' taxonomy ID to find HomoloGene records
+5. HomoloGene IDs map orthologs across species → human gene symbol becomes "canonical gene"
+6. Shared canonical genes across all species become the final feature set
+
+**Critical constraint**: gene names in the Seurat object MUST be valid gene symbols for the declared species, otherwise mygene finds no ortholog mappings and the shared gene set is empty.
+
+### Solution
+Added gene renaming step in `fetch_example_data.sh` using the `babelgene` R package:
+- **Human subset**: keep original human gene names (no change needed)
+- **Macaque subset**: map human genes → macaque orthologs via `babelgene::orthologs(genes, species="macaque", human=TRUE)`
+- **Mouse subset**: map human genes → mouse orthologs via `babelgene::orthologs(genes, species="mouse", human=TRUE)`
+
+`babelgene` uses pre-computed ortholog tables from the HGNC Comparison of Orthology Predictions (HCOP) database — simpler and faster than mygene for this offline use case.
+
+The `rename_genes_to_species()` function:
+1. Queries babelgene for human→target orthologs (one-to-one only)
+2. Deduplicates to first ortholog per human gene
+3. Subsets the Seurat object to mappable genes only
+4. Renames features to target species symbols
+5. Handles edge cases: no orthologs found, duplicate target symbols
+
+### Files Modified
+- `template/gw/fetch_example_data.sh` — Added `babelgene` package check, `rename_genes_to_species()` function, gene renaming for macaque/mouse subsets
+- `memory-bank/session-notes.md` — This entry
+
+---
+
+## 2026-04-30 — Bazzite /gw Quickstart + INGEST URL Mode
+
+**Created by:** Cline
+**Summary:** Created a complete `template/gw/` quickstart directory for running GoodWorkflows on Bazzite (Fedora-based) workstations with NVIDIA GPU, and extended the INGEST module to support public URL-based downloads (no LabKey/.netrc required).
+
+### Motivation
+The user wants to run GoodWorkflows on their Bazzite machine (RTX 3070, Podman) without LabKey credentials. This required:
+1. A `/gw` directory with bootstrap scripts for the Bazzite environment
+2. An INGEST mode that downloads from public URLs instead of LabKey
+3. Relaxed LabKey validation in `main.nf` so URL-based samplesheets don't error
+
+### Changes Made
+
+#### 1. `configs/local-gpu.config` — Added `--privileged`
+- Added `--privileged` to Podman `runOptions` alongside `--gpus all`
+- Required for rootless Podman GPU passthrough on Fedora-based distros (Bazzite, Silverblue) where SELinux + CDI interaction blocks GPU access without the privileged flag
+- Updated comments to document the Bazzite-specific requirement
+
+#### 2. `modules/local/rdiscvr/ingest/main.nf` — URL Download Mode
+- Extended INGEST to support two download modes, auto-detected at runtime:
+  - **URL mode** (`meta.url` present): Uses `download.file()` + `readRDS()`. No auth required. Adds `source_url` metadata.
+  - **LabKey mode** (`meta.output_file_id` present): Uses `Rdiscvr::DownloadOutputFile()` with `.netrc` auth. Backward-compatible.
+- Error if neither `url` nor `output_file_id` is present
+- `Rdiscvr` library is only loaded in LabKey mode (not needed for URL mode)
+- Stub block unchanged (works for both modes)
+
+#### 3. `main.nf` — Relaxed LabKey Validation
+- Changed `error` to `log.warn` for missing `--labkey_base_url` / `--labkey_folder`
+- Warning message explains that URL-based samplesheets don't need LabKey credentials
+- Actual validation is deferred to the INGEST process at runtime
+
+#### 4. `template/gw/` — Bazzite Quickstart Directory (4 files)
+- **`setup.sh`** — Bootstrap script:
+  - Installs Nextflow to `~/bin/` if missing
+  - Verifies Podman is installed and rootless
+  - Tests NVIDIA GPU passthrough with `--privileged` using CUDA test image
+  - Pulls all 3 required container images (rdiscvr, cellmembrane, scmodal-cuda)
+  - Creates `runs/` directory
+- **`run.sh`** — Workflow launcher:
+  - Auto-detects pipeline root by walking up from `template/gw/`
+  - Creates timestamped run directories under `runs/<workflow>_<timestamp>/`
+  - Uses `-profile local_gpu` with `-resume`
+  - Passes through extra Nextflow params
+  - Defaults to `samplesheet.csv` in the gw directory
+- **`fetch_example_data.sh`** — Test data generator:
+  - Downloads pbmc3k via SeuratData
+  - Splits cells into 3 pseudo-species groups by cluster identity (round-robin)
+  - Saves as `data/pbmc3k_human.rds`, `data/pbmc3k_macaque.rds`, `data/pbmc3k_mouse.rds`
+  - Generates `samplesheet.csv` with `sample_id,url,species` columns
+  - Requires R with Seurat and SeuratData packages
+- **`README.md`** — Quickstart documentation:
+  - Prerequisites, quickstart steps, directory structure
+  - Profile and workflow tables
+  - Samplesheet format (URL mode vs LabKey mode)
+  - Custom run examples
+  - Troubleshooting section (GPU, containers, R packages)
+
+### Design Decisions
+- `--privileged` is the pragmatic solution for Bazzite GPU passthrough. The alternative (configuring CDI + SELinux policies) is fragile and distro-specific. The containers are trusted (ghcr.io).
+- URL mode uses `download.file()` (base R) to avoid the Rdiscvr dependency for public data
+- The INGEST module auto-detects mode via `nzchar(url)` / `nzchar(output_file_id)` — no new params needed
+- `fetch_example_data.sh` splits pbmc3k by cluster identity rather than random sampling to create biologically meaningful pseudo-species groups that exercise the harmonization + integration path
+- All scripts use `set -euo pipefail` and colored output for UX
+- The `runs/` directory is gitignored (per-run isolation)
+
+### Files Created
+- `template/gw/setup.sh`
+- `template/gw/run.sh`
+- `template/gw/fetch_example_data.sh`
+- `template/gw/README.md`
+
+### Files Modified
+- `configs/local-gpu.config` — Added `--privileged`
+- `modules/local/rdiscvr/ingest/main.nf` — URL download mode
+- `main.nf` — Relaxed LabKey validation
+- `memory-bank/modules.md` — Updated INGEST entry
 - `memory-bank/session-notes.md` — This entry
 
 ---

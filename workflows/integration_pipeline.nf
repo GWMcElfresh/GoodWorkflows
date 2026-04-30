@@ -9,7 +9,7 @@ include { SCMODAL_INTEGRATE } from '../modules/local/scModal/gpu/main.nf'
  * Build the metadata channel consumed by the integration multi-species workflow.
  *
  * The samplesheet must define one row per sample with the columns
- * `sample_id`, `output_file_id`, and `species`.
+ * `sample_id`, `species`, and either `output_file_id` (LabKey mode) or `url` (public download mode).
  *
  * @param samplesheetPath Path to the input samplesheet CSV file.
  * @return Channel emitting one metadata map per sample.
@@ -19,17 +19,30 @@ def buildIntegrationPipelineSamplesChannel(samplesheetPath) {
         .fromPath(samplesheetPath, checkIfExists: true)
         .splitCsv(header: true, strip: true)
         .map { row ->
-            ['sample_id', 'output_file_id', 'species'].each { column ->
+            ['sample_id', 'species'].each { column ->
                 if (!row[column]) {
                     error "Samplesheet is missing required value for column '${column}': ${row}"
                 }
             }
 
+            def hasOutputFileId = row.containsKey('output_file_id') && row.output_file_id?.trim()
+            def hasUrl = row.containsKey('url') && row.url?.trim()
+
+            if (!hasOutputFileId && !hasUrl) {
+                error "Samplesheet row must have either 'output_file_id' (LabKey mode) or 'url' (public download mode): ${row}"
+            }
+
             def meta = [
                 id: row.sample_id.toString(),
-                output_file_id: row.output_file_id.toString(),
                 species: row.species.toString()
             ]
+
+            if (hasOutputFileId) {
+                meta.output_file_id = row.output_file_id.toString()
+            }
+            if (hasUrl) {
+                meta.url = row.url.toString()
+            }
 
             meta
         }

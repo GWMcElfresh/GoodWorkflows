@@ -151,9 +151,10 @@ export interface RunResult {
 
 export interface SamplesheetRow {
   id: string;
-  output_file_id: string;
+  output_file_id?: string;
+  url?: string;
   species: string;
-  [key: string]: string;
+  [key: string]: string | undefined;
 }
 
 export interface SamplesheetAnalysis {

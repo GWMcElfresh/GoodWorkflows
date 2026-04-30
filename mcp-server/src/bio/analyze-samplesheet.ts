@@ -7,7 +7,7 @@ import { SamplesheetAnalysis, SamplesheetRow } from '../types.js';
 
 /**
  * Analyze a samplesheet CSV file.
- * Validates required fields: id, output_file_id, species.
+ * Validates required fields: id, species, and either output_file_id or url.
  * Detects species mix and warns if harmonization is needed.
  */
 export function analyzeSamplesheet(filePath: string): SamplesheetAnalysis {
@@ -19,7 +19,7 @@ export function analyzeSamplesheet(filePath: string): SamplesheetAnalysis {
       valid: false,
       row_count: 0,
       required_fields_present: [],
-      required_fields_missing: ['id', 'output_file_id', 'species'],
+      required_fields_missing: ['id', 'species', 'output_file_id or url'],
       species_detected: [],
       species_mix: false,
       needs_harmonization: false,
@@ -36,7 +36,7 @@ export function analyzeSamplesheet(filePath: string): SamplesheetAnalysis {
       valid: false,
       row_count: 0,
       required_fields_present: [],
-      required_fields_missing: ['id', 'output_file_id', 'species'],
+      required_fields_missing: ['id', 'species', 'output_file_id or url'],
       species_detected: [],
       species_mix: false,
       needs_harmonization: false,
@@ -47,9 +47,22 @@ export function analyzeSamplesheet(filePath: string): SamplesheetAnalysis {
 
   // Parse header
   const header = lines[0].split(',').map(h => h.trim());
-  const requiredFields = ['id', 'output_file_id', 'species'];
+  const requiredFields = ['id', 'species'];
   const requiredFieldsPresent = requiredFields.filter(f => header.includes(f));
   const requiredFieldsMissing = requiredFields.filter(f => !header.includes(f));
+
+  // Check for data source column: either output_file_id or url
+  const hasOutputFileId = header.includes('output_file_id');
+  const hasUrl = header.includes('url');
+  if (hasOutputFileId) {
+    requiredFieldsPresent.push('output_file_id');
+  }
+  if (hasUrl) {
+    requiredFieldsPresent.push('url');
+  }
+  if (!hasOutputFileId && !hasUrl) {
+    requiredFieldsMissing.push('output_file_id or url');
+  }
 
   if (requiredFieldsMissing.length > 0) {
     errors.push(`Missing required columns: ${requiredFieldsMissing.join(', ')}`);
@@ -59,11 +72,11 @@ export function analyzeSamplesheet(filePath: string): SamplesheetAnalysis {
   const rows: SamplesheetRow[] = [];
   for (let i = 1; i < lines.length; i++) {
     const values = lines[i].split(',').map(v => v.trim());
-    const row: Record<string, string> = {};
+    const row: Record<string, string | undefined> = {};
     for (let j = 0; j < header.length; j++) {
       row[header[j]] = values[j] || '';
     }
-    rows.push(row as SamplesheetRow);
+    rows.push(row as unknown as SamplesheetRow);
   }
 
   // Validate each row has required fields
@@ -72,11 +85,12 @@ export function analyzeSamplesheet(filePath: string): SamplesheetAnalysis {
     if (!row.id) {
       errors.push(`Row ${i + 2}: missing "id"`);
     }
-    if (!row.output_file_id) {
-      errors.push(`Row ${i + 2}: missing "output_file_id"`);
-    }
     if (!row.species) {
       errors.push(`Row ${i + 2}: missing "species"`);
+    }
+    // Must have at least one data source
+    if (!row.output_file_id && !row.url) {
+      errors.push(`Row ${i + 2}: missing both "output_file_id" and "url" — must provide one`);
     }
   }
 
