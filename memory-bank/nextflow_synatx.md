@@ -53,8 +53,15 @@ workflow {
 }
 ```
 
+
 :::{warning}
-Statements and script declarations can not be mixed at the same level.
+**Nextflow DSL2 Top-Level Constraint:**
+
+You cannot mix statements (like `def foo = ...`, `if`, or function definitions) with script declarations at the top level. All variable assignments, function definitions, and logic must be placed inside a `workflow { ... }`, `process { ... }`, or function block. Only `include`, `process`, and `workflow` blocks are allowed at the top level.
+
+Violating this will cause errors such as:
+
+    Statements cannot be mixed with script declarations -- move statements into a process, workflow, or function
 :::
 
 ### Shebang

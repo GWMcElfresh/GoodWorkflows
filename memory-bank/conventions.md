@@ -57,7 +57,17 @@ Every process MUST have a `stub:` block that creates the expected output files (
 - **Collected channels:** Use `.collect()` to gather all per-sample outputs into a single list before passing to aggregation processes (GENE_HARMONIZE, TABULATE)
 - **Samplesheet parsing:** Each workflow defines its own `build*SamplesChannel()` function
 
-## Nextflow 26.04.0 Process-Scope Directive Constraints
+## Nextflow 26.04.0 Process-Scope & Top-Level Constraints
+
+> **IMPORTANT:** In Nextflow DSL2, **all variable assignments (`def foo = ...`), function definitions, and logic (e.g., `if`, `for`, etc.) must be placed inside a `workflow { ... }`, `process { ... }`, or function block.**
+> 
+> Top-level statements (outside of these blocks) are forbidden and will cause errors like:
+> 
+>     Statements cannot be mixed with script declarations -- move statements into a process, workflow, or function
+> 
+> Only `include`, `process`, and `workflow` blocks are allowed at the top level.
+
+> **Process-scope directives** (`tag`, `publishDir`, etc.) cannot interpolate input variables (e.g., `${meta.id}`) because they are evaluated before the `input:` block. Use only static or global values in these directives.
 
 Nextflow 26.04.0 enforces that **process-scope directives** (`tag`, `publishDir`) are evaluated **before** the `input:` block is parsed. Any GString interpolation of an input variable (like `${meta.id}`) in those directives will fail with `No such variable: meta`.
 
