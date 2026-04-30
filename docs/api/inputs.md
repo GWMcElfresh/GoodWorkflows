@@ -128,7 +128,7 @@ Comma-separated celltype_col:parentValue pairs that extend or override the built
 
 Container image used for GENE_HARMONIZE and SCMODAL_INTEGRATE. Must include scmodal, torch, scanpy, and anndata.
 
-**Default:** `ghcr.io/gwmcelfresh/scmodal-cuda:latest`
+**Default:** `ghcr.io/gwmcelfresh/scmodal:sha-37c41f9`
 
 
 ### `--scmodal_latent` {#scmodal-latent}

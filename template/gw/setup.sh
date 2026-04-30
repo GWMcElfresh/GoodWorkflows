@@ -13,6 +13,7 @@
 #   5. Creates the runs/ directory for per-run isolation
 #
 # Requires: curl, podman, nvidia drivers
+# System deps: java-25-openjdk, libcurl-devel, libuv, cmake, openssl-devel, libxml2-devel
 # No sudo required if Podman rootless + NVIDIA CDI are already configured.
 
 set -euo pipefail
@@ -37,16 +38,41 @@ if [[ ! -f "${PIPELINE_ROOT}/main.nf" ]]; then
 fi
 echo -e "${GREEN}Pipeline root: ${PIPELINE_ROOT}${NC}"
 
-# --- 1. Check Java (required by Nextflow) ---
+# --- 1. Check system dependencies ---
 echo ""
-echo "--- Checking Java ---"
+echo "--- Checking system dependencies ---"
+
+MISSING_DEPS=()
+
+# Check Java (required by Nextflow)
 if command -v java &>/dev/null; then
     JAVA_VERSION=$(java -version 2>&1 | head -1)
     echo -e "${GREEN}Java found: ${JAVA_VERSION}${NC}"
 else
-    echo -e "${RED}ERROR: Java is not installed. Nextflow requires Java 11 or later.${NC}"
-    echo "On Bazzite, install with:"
-    echo "  rpm-ostree install java-17-openjdk"
+    MISSING_DEPS+=("java-25-openjdk")
+fi
+
+# Check other build/runtime dependencies
+for dep in libcurl-devel libuv cmake openssl-devel libxml2-devel; do
+    if rpm -q "${dep}" &>/dev/null; then
+        echo -e "${GREEN}Found: ${dep}${NC}"
+    else
+        MISSING_DEPS+=("${dep}")
+    fi
+done
+
+if [[ ${#MISSING_DEPS[@]} -gt 0 ]]; then
+    echo ""
+    echo -e "${YELLOW}The following system packages are missing:${NC}"
+    for dep in "${MISSING_DEPS[@]}"; do
+        echo "  - ${dep}"
+    done
+    echo ""
+    echo "Install them all at once with:"
+    echo -e "  ${GREEN}sudo rpm-ostree install ${MISSING_DEPS[*]}${NC}"
+    echo ""
+    echo "NOTE: rpm-ostree installs require a reboot to take effect."
+    echo "After reboot, re-run this script to continue."
     exit 1
 fi
 
@@ -133,7 +159,7 @@ echo "--- Pulling container images ---"
 IMAGES=(
     "ghcr.io/bimberlabinternal/rdiscvr:latest"
     "ghcr.io/bimberlabinternal/cellmembrane:latest"
-    "ghcr.io/gwmcelfresh/scmodal-cuda:latest"
+    "ghcr.io/gwmcelfresh/scmodal:sha-37c41f9"
 )
 
 for img in "${IMAGES[@]}"; do

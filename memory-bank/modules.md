@@ -55,7 +55,7 @@ All modules live under `modules/local/`. Each is a single-step DSL2 process with
 ### 4. GENE_HARMONIZE
 **Path:** `modules/local/gene_harmonize/main.nf`  
 **Label:** `process_harmonize`  
-**Container:** `${params.scmodal_container}` (default: `ghcr.io/gwmcelfresh/scmodal-cuda:latest`)
+**Container:** `${params.scmodal_container}` (default: `ghcr.io/gwmcelfresh/scmodal:sha-37c41f9`)
 
 | | Details |
 |---|---|

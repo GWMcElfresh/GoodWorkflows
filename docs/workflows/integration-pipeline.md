@@ -29,11 +29,11 @@ flowchart TD
     Gathers all sample count dirs"]
 
     GENE_HARMONIZE["**GENE_HARMONIZE**
-    (scmodal-cuda)
+    (scmodal)
     Ortholog mapping + AnnData per species"]
 
     SCMODAL["**SCMODAL_INTEGRATE**
-    (scmodal-cuda · GPU)
+    (scmodal · GPU)
     scMODAL VAE → latent embedding + Leiden clustering"]
 
     OUT_RDS["outputs/ingest/{id}/{id}.rds"]

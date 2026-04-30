@@ -7,6 +7,7 @@ Quickstart for running GoodWorkflows DSL2 Nextflow pipelines on a Bazzite (Fedor
 - **Bazzite** (or any Fedora-based Linux with Podman)
 - **NVIDIA GPU** (RTX 3070 or similar, 8+ GB VRAM)
 - **Podman** (pre-installed on Bazzite)
+- **System packages**: `java-25-openjdk`, `libcurl-devel`, `libuv`, `cmake`, `openssl-devel`, `libxml2-devel` (checked by `setup.sh`)
 - **R** (for `fetch_example_data.sh` — install with `rpm-ostree install R`)
 - **R packages**: `Seurat`, `SeuratData`, `babelgene` (auto-checked by `fetch_example_data.sh`)
 
@@ -120,7 +121,7 @@ Your samplesheet must have either a `url` column (for public data) or an `output
 Ensure the images are public:
 - `ghcr.io/bimberlabinternal/rdiscvr:latest`
 - `ghcr.io/bimberlabinternal/cellmembrane:latest`
-- `ghcr.io/gwmcelfresh/scmodal-cuda:latest`
+- `ghcr.io/gwmcelfresh/scmodal:sha-37c41f9`
 
 ### R packages not found
 ```bash

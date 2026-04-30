@@ -28,7 +28,7 @@ nextflow.config
 | `labkey_folder` | `''` | Must be set via CLI |
 | `species_order` | `human,macaque,mouse` | Comma-separated |
 | `export_assay` | `RNA` | Seurat assay to export |
-| `scmodal_container` | `ghcr.io/gwmcelfresh/scmodal-cuda:latest` | Shared container for harmonize + integrate |
+| `scmodal_container` | `ghcr.io/gwmcelfresh/scmodal:sha-37c41f9` | Shared container for harmonize + integrate |
 | `scmodal_use_cpu` | `false` | CI-only GPU bypass |
 | `scmodal_latent` | `20` | Latent dimensions |
 | `scmodal_training_steps` | `10000` | Training iterations |

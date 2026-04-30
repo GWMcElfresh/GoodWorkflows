@@ -99,7 +99,8 @@ InstallData("pbmc3k")
 
 message("[FETCH] Loading pbmc3k...")
 data("pbmc3k")
-pbmc <- pbmc3k.final
+message("[FETCH] Updating pbmc3k.final from v3 to v5 assay...")
+pbmc <- Seurat::UpdateSeuratObject(pbmc3k.final)
 
 message("[FETCH] Total cells: ", ncol(pbmc))
 message("[FETCH] Total genes: ", nrow(pbmc))

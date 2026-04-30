@@ -23,7 +23,7 @@
 |---|---|
 | `ghcr.io/bimberlabinternal/rdiscvr:latest` | INGEST, INGEST_METADATA, TABULATE |
 | `ghcr.io/bimberlabinternal/cellmembrane:latest` | EXPORT_COUNTS |
-| `ghcr.io/gwmcelfresh/scmodal-cuda:latest` | GENE_HARMONIZE, SCMODAL_INTEGRATE |
+| `ghcr.io/gwmcelfresh/scmodal:sha-37c41f9` | GENE_HARMONIZE, SCMODAL_INTEGRATE |
 
 ## HPC Infrastructure
 
@@ -51,7 +51,7 @@
 | **GitHub Actions** | Smoke tests, docs build, docs deploy |
 | **`-profile test -stub-run`** | Validates DSL2 wiring without containers or real computation |
 
-## Key Python Libraries (in scmodal-cuda container)
+## Key Python Libraries (in scmodal container)
 
 - `torch` — scMODAL model training
 - `scanpy` / `anndata` — single-cell data handling

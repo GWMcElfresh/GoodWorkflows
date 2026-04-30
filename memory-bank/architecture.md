@@ -70,7 +70,7 @@ base.config  →  profile-specific config (local / slurm / test)
 |---|---|
 | INGEST, INGEST_METADATA, TABULATE | `ghcr.io/bimberlabinternal/rdiscvr:latest` |
 | EXPORT_COUNTS | `ghcr.io/bimberlabinternal/cellmembrane:latest` |
-| GENE_HARMONIZE, SCMODAL_INTEGRATE | `ghcr.io/gwmcelfresh/scmodal-cuda:latest` (configurable via `params.scmodal_container`) |
+| GENE_HARMONIZE, SCMODAL_INTEGRATE | `ghcr.io/gwmcelfresh/scmodal:sha-37c41f9` (configurable via `params.scmodal_container`) |
 
 ## Key Design Decisions
 

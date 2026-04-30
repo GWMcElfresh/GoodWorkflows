@@ -210,6 +210,6 @@ jobs:
 
       - name: Smoke test scmodal image
         run: |
-          docker run --rm ghcr.io/gwmcelfresh/scmodal-cuda:latest \
+          docker run --rm ghcr.io/gwmcelfresh/scmodal:sha-37c41f9 \
             python3 -c "import scmodal, torch, scanpy, anndata; print('scmodal ok', torch.__version__)"
 

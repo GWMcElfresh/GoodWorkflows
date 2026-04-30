@@ -249,6 +249,40 @@ Three layers of testing:
 
 ---
 
+## 2026-04-30 — Fix scmodal Container Image Reference
+
+### Context
+User reported that the Bazzite setup was trying to pull `ghcr.io/gwmcelfresh/scmodal-cuda:latest` which returns 403 Forbidden. The correct image is `ghcr.io/gwmcelfresh/scmodal:sha-37c41f9`.
+
+### Changes Made
+Updated all references from `ghcr.io/gwmcelfresh/scmodal-cuda:latest` to `ghcr.io/gwmcelfresh/scmodal:sha-37c41f9` across the entire repository:
+
+**Source files (non-generated):**
+- `configs/base.config` — Default `scmodal_container` param
+- `template/gw/setup.sh` — Image pull list
+- `template/gw/README.md` — Troubleshooting section
+- `scripts/ci/cache_container_images.sh` — CI image cache list
+- `scripts/image-manifest.txt` — Fallback image manifest
+- `.github/workflows/ci.yml` — Container smoke test step name + image reference
+- `docs/api/inputs.md` — Default value
+- `docs/api/pipeline-api.json` — Default value
+- `docs/parameters.md` — Default value
+- `docs/usage.md` — Image manifest example
+- `docs/workflows/integration-pipeline.md` — DAG labels (scmodal-cuda → scmodal)
+- `memory-bank/architecture.md` — Container table
+- `memory-bank/configs.md` — Default value
+- `memory-bank/modules.md` — Container default
+- `memory-bank/tech-stack.md` — Container table + section heading
+- `memory-bank/session-notes.md` — Reference in prior entry
+
+**Not modified (generated files per .clinerules):**
+- `site/` — MkDocs build output
+- `.tmp/` — Temporary workspace
+- `.nf-docs-preview/` — Docs preview cache
+- `scMODAL-main/` — Upstream scMODAL repo (not our image reference)
+
+---
+
 ## 2026-04-30 — Gene Renaming for Pseudo-Species Example Data
 
 ### Context
@@ -321,7 +355,7 @@ The user wants to run GoodWorkflows on their Bazzite machine (RTX 3070, Podman) 
   - Installs Nextflow to `~/bin/` if missing
   - Verifies Podman is installed and rootless
   - Tests NVIDIA GPU passthrough with `--privileged` using CUDA test image
-  - Pulls all 3 required container images (rdiscvr, cellmembrane, scmodal-cuda)
+  - Pulls all 3 required container images (rdiscvr, cellmembrane, scmodal)
   - Creates `runs/` directory
 - **`run.sh`** — Workflow launcher:
   - Auto-detects pipeline root by walking up from `template/gw/`
@@ -654,5 +688,42 @@ if (params.scmodal_use_cpu) {
 
 ### Files Modified
 - `workflows/integration_pipeline.nf` — Removed executor detection, simplified to scmodal_use_cpu + GITHUB_ACTIONS check
+- `memory-bank/session-notes.md` — This entry
+
+---
+
+## 2026-04-30 — Bazzite /gw Dependency Updates
+
+### Changes Made
+Updated the `template/gw/` quickstart files to reflect current Bazzite package availability and fix a Seurat v3→v5 compatibility issue.
+
+### 1. Java Version Bump (java-17 → java-25-openjdk)
+Bazzite no longer ships `java-17-openjdk`. Updated `setup.sh` to check for and suggest `java-25-openjdk` instead.
+
+### 2. System Dependencies Section Added to setup.sh
+Added a consolidated system dependency check (section 1, before Nextflow install) that verifies all required packages at once:
+- `java-25-openjdk`
+- `libcurl-devel`
+- `libuv`
+- `cmake`
+- `openssl-devel`
+- `libxml2-devel`
+
+If any are missing, the script prints a single `sudo rpm-ostree install` command with all missing packages and exits with a note about the required reboot. Previously, only Java was checked and the error message was buried in the Java-specific block.
+
+### 3. Seurat v3→v5 Assay Update in fetch_example_data.sh
+The `pbmc3k.final` object from SeuratData uses a v3 assay, which does not support feature renaming. This caused the warning:
+```
+Warning: Renaming features in v3/v4 assays is not supported
+```
+Added `pbmc <- Seurat::UpdateSeuratObject(pbmc3k.final)` after loading the dataset to convert to v5 assay before any gene renaming operations.
+
+### 4. README.md Prerequisites Updated
+Added the system packages line to the Prerequisites section listing all required `rpm-ostree` packages.
+
+### Files Modified
+- `template/gw/setup.sh` — Java version string, new system deps check section, updated `# Requires` comment
+- `template/gw/fetch_example_data.sh` — Added `UpdateSeuratObject()` call on line 103
+- `template/gw/README.md` — Added system packages to prerequisites
 - `memory-bank/session-notes.md` — This entry
 

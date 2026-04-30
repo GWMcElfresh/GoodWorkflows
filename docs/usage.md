@@ -254,7 +254,7 @@ The pre-pull script discovers images by parsing the Nextflow config. As a fallba
 ```text
 ghcr.io/bimberlabinternal/cellmembrane:latest
 ghcr.io/bimberlabinternal/rdiscvr:latest
-ghcr.io/gwmcelfresh/scmodal-cuda:latest
+ghcr.io/gwmcelfresh/scmodal:sha-37c41f9
 ```
 
 One image URI per line; blank lines and `#` comments are ignored.

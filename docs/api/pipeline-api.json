@@ -118,7 +118,7 @@ INFO     Extraction complete: 3 workflows, 0 processes, 3 functions
       "type": "string",
       "description": "Container image used for GENE_HARMONIZE and SCMODAL_INTEGRATE. Must include scmodal, torch, scanpy, and anndata.",
       "required": false,
-      "default": "ghcr.io/gwmcelfresh/scmodal-cuda:latest",
+      "default": "ghcr.io/gwmcelfresh/scmodal:sha-37c41f9",
       "group": "scMODAL integration options"
     },
     {
