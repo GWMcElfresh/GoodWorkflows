@@ -231,8 +231,11 @@ Additionally, `workflows/integration_pipeline.nf` had `def execName = ...` insid
 
 ### Files Modified
 - `main.nf` — Inlined helpMessage() directly in workflow block, removed def from variable assignments
-- `workflows/integration_pipeline.nf` — Removed def from execName assignment
+- `workflows/integration_pipeline.nf` — Removed def from execName assignment; replaced `session?.config?.executor?.name` with `workflow.config.executor?.name`
 - `memory-bank/session-notes.md` — This entry
+
+### Follow-up Fix (2026-04-30): session → workflow.config
+- `workflows/integration_pipeline.nf` line 50: `session` is not directly accessible in workflow scope. Changed `session?.config?.executor?.name` to `workflow.config.executor?.name`, which is the valid DSL2 way to access executor config in a workflow block.
 
 ---
 
