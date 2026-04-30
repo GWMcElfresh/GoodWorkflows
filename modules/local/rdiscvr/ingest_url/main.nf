@@ -60,15 +60,15 @@ process INGEST_URL {
 
     # Determine file type from URL suffix
     url_lower <- tolower(url)
-    suffix <- if (grepl("\\\\.rds\\$", url_lower, ignore.case = TRUE)) {
+    suffix <- if (endsWith(url_lower, ".rds")) {
         "rds"
-    } else if (grepl("\\\\.csv\\$", url_lower, ignore.case = TRUE)) {
+    } else if (endsWith(url_lower, ".csv")) {
         "csv"
-    } else if (grepl("\\\\.tsv\\$", url_lower, ignore.case = TRUE)) {
+    } else if (endsWith(url_lower, ".tsv")) {
         "tsv"
-    } else if (grepl("\\\\.txt\\$", url_lower, ignore.case = TRUE)) {
+    } else if (endsWith(url_lower, ".txt")) {
         "txt"
-    } else if (grepl("\\\\.h5ad\\$", url_lower, ignore.case = TRUE)) {
+    } else if (endsWith(url_lower, ".h5ad")) {
         "h5ad"
     } else {
         "unknown"
@@ -168,9 +168,9 @@ process INGEST_URL {
 
     saveRDS(seurat_obj, file = out_path)
     metadata_df <- seurat_obj@meta.data
-    metadata_df\$sample_id <- sample_id
-    metadata_df\$species <- species
-    metadata_df\$source_url <- url
+    metadata_df[["sample_id"]] <- sample_id
+    metadata_df[["species"]] <- species
+    metadata_df[["source_url"]] <- url
     utils::write.csv(metadata_df, file = meta_path, row.names = TRUE)
 
     file.remove(dl_tmp)

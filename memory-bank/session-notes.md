@@ -210,6 +210,70 @@ This pattern is applied in:
 
 ---
 
+## 2026-04-30 — Fix INGEST_URL Groovy/R Escape Character Bug
+
+### Context
+User reported an `integration` workflow failure on Bazzite (Linux). The error log showed:
+```
+Error: '\,' is an unrecognized escape in character string (<input>:1:29)
+Execution halted
+```
+
+The `INGEST_URL` module's R script block (`script: """..."""`) uses Groovy triple-double-quoted strings. Groovy processes `\` and `$` as escape characters within `"""` strings before the R runtime sees them. The `grepl()` regex patterns like `"\\.rds\\$"` were being mangled by Groovy's string processing, producing invalid R syntax.
+
+### Root Cause
+In Groovy `"""` strings:
+- `\\` → `\` (escaped backslash produces literal backslash)
+- `\$` → `$` (escaped dollar sign prevents interpolation)
+- So source `"\\\\.rds\\\\$"` → R receives `\\.rds\$` → R error (`\$` is not a valid R escape)
+
+### Fix Applied
+
+**File: `modules/local/rdiscvr/ingest_url/main.nf`**
+
+Two changes:
+
+1. **Lines 63-75: Replaced `grepl()` regex suffix detection with `endsWith()`** (base R function, R ≥ 3.3.0). `endsWith()` uses literal string matching — no backslashes, no `$` anchors, no escape characters at all. Completely immune to Groovy string processing.
+
+   Before:
+   ```r
+   suffix <- if (grepl("\\.rds\\$", url_lower, ignore.case = TRUE)) {
+   ```
+   After:
+   ```r
+   suffix <- if (endsWith(url_lower, ".rds")) {
+   ```
+   (Same pattern for all 5 suffixes: .rds, .csv, .tsv, .txt, .h5ad)
+
+2. **Lines 171-173: Replaced `metadata_df\$` with `metadata_df[["..."]]` bracket notation.** The `\$` pattern worked (Groovy converts to `$`, R sees `metadata_df$sample_id`), but was fragile — any upstream templating change could break it. Bracket notation `[["..."]]` uses no special characters.
+
+   Before:
+   ```r
+   metadata_df\$sample_id <- sample_id
+   ```
+   After:
+   ```r
+   metadata_df[["sample_id"]] <- sample_id
+   ```
+
+### Verification
+- Nextflow not available on Windows dev machine (expected — pipeline runs on Bazzite)
+- The fix is self-evident: `endsWith()` and `[["..."]]` contain zero characters that Groovy interprets as escapes (`\`, `$`)
+- User should re-run on Bazzite: `bash run.sh --workflow integration`
+
+### Design Note
+When embedding R code in Groovy `"""` strings, prefer:
+- R functions that use literal strings (`endsWith()`, `grepl(fixed=TRUE)`) over regex patterns with backslashes
+- `[["..."]]` over `$` for data frame column access
+- Or compute values in Groovy/Nextflow and pass as `${variables}`
+- If regex is unavoidable, use `R"""..."""` (raw string) or double all backslashes
+
+### Files Modified
+- `modules/local/rdiscvr/ingest_url/main.nf` — Lines 63-75 (grepl → endsWith), lines 171-173 (\$ → [[ ]])
+- `memory-bank/session-notes.md` — This entry
+
+---
+
 ## 2026-04-29 — Initial Memory Bank Creation
 
 **Created by:** Cline  
