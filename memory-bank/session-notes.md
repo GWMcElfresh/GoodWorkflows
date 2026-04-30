@@ -392,3 +392,52 @@ workflow {
 - `memory-bank/conventions.md` — Added callout box at top referencing `nextflow_synatx.md` as the syntax reference
 - `memory-bank/session-notes.md` — This entry
 
+---
+
+## 2026-04-30 — Fix integration_pipeline.nf: Remove Fragile Executor Detection
+
+**Created by:** Cline
+**Summary:** Fixed the `No such variable: config` error in `workflows/integration_pipeline.nf` line 50 by removing the fragile executor-detection logic entirely.
+
+### Root Cause
+Line 50 used `workflow.config.executor?.name` which is not a valid DSL2 construct — the `workflow` object in a named workflow's `main:` section does not expose a `config` property. Two prior fix attempts had already failed:
+1. `session?.config?.executor?.name` — `session` not accessible in workflow scope
+2. `workflow.config.executor?.name` — `config` not a property of `workflow`
+
+### Fix
+Removed the executor-detection guard entirely. The logic now simply:
+1. Checks `params.scmodal_use_cpu` — if true and not in GitHub Actions, emits a warning
+2. If `scmodal_use_cpu` is false (default), SCMODAL_INTEGRATE runs normally and will naturally fail on non-GPU executors
+
+This eliminates the need to introspect the executor at all. The GPU guard was a nice-to-have early error but was causing CI failures due to DSL2 scope limitations.
+
+### Before (line 50):
+```groovy
+execName = (workflow.config.executor?.name ?: workflow.profile ?: 'local').toString()
+if (execName == 'local') {
+    if (!params.scmodal_use_cpu) {
+        error "..."  // block local executor without --scmodal_use_cpu
+    }
+    if (!System.getenv('GITHUB_ACTIONS')) {
+        log.warn "..."  // warn about CI-only flag
+    }
+}
+```
+
+### After (line 50):
+```groovy
+if (params.scmodal_use_cpu) {
+    if (!System.getenv('GITHUB_ACTIONS')) {
+        log.warn """
+        WARNING: --scmodal_use_cpu is true but GITHUB_ACTIONS env is not set.
+        This flag is intended for GitHub Actions CI smoke tests only.
+        SCMODAL_INTEGRATE will run its stub block; outputs have no scientific validity.
+        """.stripIndent()
+    }
+}
+```
+
+### Files Modified
+- `workflows/integration_pipeline.nf` — Removed executor detection, simplified to scmodal_use_cpu + GITHUB_ACTIONS check
+- `memory-bank/session-notes.md` — This entry
+

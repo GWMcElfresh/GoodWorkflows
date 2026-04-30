@@ -47,16 +47,7 @@ workflow INTEGRATION_PIPELINE {
     samplesheet
 
     main:
-    execName = (workflow.config.executor?.name ?: workflow.profile ?: 'local').toString()
-    if (execName == 'local') {
-        if (!params.scmodal_use_cpu) {
-            error """
-            The 'integration' workflow requires a GPU (SCMODAL_INTEGRATE) and cannot run with the local executor.
-            Use --workflow ingest_tabulate or --workflow ingest_export for local/Mac testing.
-            Run with -profile slurm on HPC for the integration pipeline.
-            To run smoke tests without GPU (CI only), pass --scmodal_use_cpu true.
-            """.stripIndent()
-        }
+    if (params.scmodal_use_cpu) {
         if (!System.getenv('GITHUB_ACTIONS')) {
             log.warn """
             WARNING: --scmodal_use_cpu is true but GITHUB_ACTIONS env is not set.
