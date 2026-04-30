@@ -47,7 +47,7 @@ workflow INTEGRATION_PIPELINE {
     samplesheet
 
     main:
-    def execName = (session?.config?.executor?.name ?: workflow.profile ?: 'local').toString()
+    execName = (session?.config?.executor?.name ?: workflow.profile ?: 'local').toString()
     if (execName == 'local') {
         if (!params.scmodal_use_cpu) {
             error """

@@ -195,6 +195,47 @@ Three layers of testing:
 
 ---
 
+## 2026-04-29 — Fix Workflow Smoke Test Failures (def inside workflow blocks)
+
+**Created by:** Cline
+**Summary:** Fixed DSL2 syntax errors in `main.nf` and `workflows/integration_pipeline.nf` that caused all three workflow smoke tests (ingest_export, ingest_tabulate, integration) to fail.
+
+### Root Cause
+
+Nextflow DSL2 does not allow `def` function definitions or `def` variable declarations inside a `workflow { }` block. The `main.nf` entry workflow contained `def helpMessage() { ... }` at line 15, which caused the parser to fail with `Unexpected input: '('`.
+
+Additionally, `workflows/integration_pipeline.nf` had `def execName = ...` inside the named workflow's `main:` section, which is also invalid DSL2.
+
+**Important distinction:** `def` function definitions ARE valid at the top level of scripts that contain only named workflows (no entry workflow). This is why `ingest_export.nf` and `ingest_tabulate.nf` work fine with top-level `def build...SamplesChannel()`. However, `main.nf` has an **entry workflow** (`workflow { ... }`), which changes the top-level rules — only `include`, `process`, and `workflow` declarations are allowed at the top level when an entry workflow is present.
+
+### Changes Made
+
+**`main.nf`:**
+- Removed the `def helpMessage() { ... }` function entirely.
+- Inlined the help message `log.info` directly inside the `if (params.help)` block within the entry workflow. This avoids both the top-level function definition issue and the `def` inside workflow issue.
+- Changed `def supportedWorkflows = [...]` to `supportedWorkflows = [...]` (bare assignment) inside the workflow block.
+- Changed `def selectedWorkflow = ...` to `selectedWorkflow = ...` (bare assignment) inside the workflow block.
+
+**`workflows/integration_pipeline.nf`:**
+- Changed `def execName = ...` to `execName = ...` (bare assignment) inside the named workflow's `main:` section.
+
+### Verified No Changes Needed
+- `workflows/ingest_export.nf` — Top-level `def buildIngestExportSamplesChannel()` is valid DSL2 (no entry workflow in this file). No `def` declarations inside the workflow `main:` section.
+- `workflows/ingest_tabulate.nf` — Top-level `def buildIngestTabulateSamplesChannel()` is valid DSL2 (no entry workflow in this file). No `def` declarations inside the workflow `main:` section.
+
+### Key Takeaways
+- **Scripts with an entry workflow** (`workflow { ... }`): Only `include`, `process`, and `workflow` declarations at top level. No `def` functions or `def` variables at top level. Inside the workflow block, use bare assignments only.
+- **Scripts with only named workflows** (no entry workflow): `def` function definitions ARE valid at top level (they are script declarations). Inside named workflow `main:` sections, use bare assignments only.
+- **Inside any workflow block** (entry or named): Never use `def` for variable declarations or function definitions. Use bare assignments.
+- The `ingest_metadata`, `export_counts`, `gene_harmonize`, and `scmodal_integrate` module smoke tests were already passing because they don't go through `main.nf` — they run their own test scripts directly.
+
+### Files Modified
+- `main.nf` — Inlined helpMessage() directly in workflow block, removed def from variable assignments
+- `workflows/integration_pipeline.nf` — Removed def from execName assignment
+- `memory-bank/session-notes.md` — This entry
+
+---
+
 ## 2026-04-29 — Nextflow 26.04.0 Process-Scope Directive Fix
 
 **Created by:** Cline (from user-provided summary)

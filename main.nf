@@ -10,9 +10,9 @@ include { INGEST_EXPORT_PIPELINE } from './workflows/ingest_export.nf'
 include { INGEST_TABULATE_PIPELINE } from './workflows/ingest_tabulate.nf'
 
 workflow {
-    def supportedWorkflows = ['integration', 'ingest_export', 'ingest_tabulate']
+    supportedWorkflows = ['integration', 'ingest_export', 'ingest_tabulate']
 
-    def helpMessage() {
+    if (params.help) {
         log.info """
         =========================================
          GoodWorkflows scRNA-seq Pipeline
@@ -47,14 +47,10 @@ workflow {
           nextflow run main.nf -profile slurm --workflow ingest_export --outdir ./outputs/dev
                 nextflow run main.nf -profile slurm --workflow ingest_tabulate --tabulate_id_cols cDNA_ID,SubjectId,Vaccine,Timepoint,Tissue
         """.stripIndent()
-    }
-
-    if (params.help) {
-        helpMessage()
         exit 0
     }
 
-    def selectedWorkflow = (params.workflow ?: 'integration').toString().trim()
+    selectedWorkflow = (params.workflow ?: 'integration').toString().trim()
 
     if (!(selectedWorkflow in supportedWorkflows)) {
         error "Unsupported workflow '${selectedWorkflow}'. Valid options: ${supportedWorkflows.join(', ')}"
