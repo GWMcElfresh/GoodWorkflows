@@ -17,6 +17,8 @@ All modules live under `modules/local/`. Each is a single-step DSL2 process with
 | **Output** | `tuple val(meta), path("{id}_metadata.csv")` — extracted cell metadata |
 | **Auth** | `.netrc` mounted at `/tmp/.netrc` (SLURM) or `/root/.netrc` (local) |
 | **Stub** | `touch {id}.rds` + `touch {id}_metadata.csv` |
+| **Tag** | `'ingest'` (static — Nextflow 26.04.0 forbids `${meta.id}` in process-scope directives) |
+| **publishDir** | `${params.outdir}/ingest` (flattened — no `/{id}` subdirectory) |
 
 ### 2. INGEST_METADATA
 **Path:** `modules/local/rdiscvr/ingest_metadata/main.nf`  
@@ -31,6 +33,8 @@ All modules live under `modules/local/`. Each is a single-step DSL2 process with
 | **Auth** | `.netrc` mounted read-only |
 | **Stub** | `printf 'cDNA_ID\n' > {id}_metadata.csv` |
 | **Notes** | Normalizes `cellbarcode` → `barcode`, `RIRA_Immune_v2.cellclass` → `RIRA_Immune.cellclass` |
+| **Tag** | `'ingest-metadata'` (static — Nextflow 26.04.0 constraint) |
+| **publishDir** | `${params.outdir}/ingest` (flattened — no `/{id}` subdirectory) |
 
 ### 3. EXPORT_COUNTS
 **Path:** `modules/local/cellmembrane/seurat/main.nf`  
@@ -44,6 +48,8 @@ All modules live under `modules/local/`. Each is a single-step DSL2 process with
 | **Output** | `tuple val(meta), path("{id}_counts")` — directory with matrix.mtx, features.tsv, barcodes.tsv, obs_meta.csv |
 | **Key param** | `--export_assay` (default: `RNA`) — which Seurat assay to extract |
 | **Stub** | Creates directory + touches all 4 expected files |
+| **Tag** | `'export-counts'` (static — Nextflow 26.04.0 constraint) |
+| **publishDir** | `${params.outdir}/counts` (flattened — no `/{id}` subdirectory) |
 
 ### 4. GENE_HARMONIZE
 **Path:** `modules/local/gene_harmonize/main.nf`  

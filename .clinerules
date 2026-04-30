@@ -11,6 +11,7 @@
   - `configs.md` — All config profiles with parameter tables
   - `ci-cd.md` — CI pipeline, smoke tests, docs deploy
   - `session-notes.md` — What was done in previous sessions
+  - `nextflow_synatx.md` — Nextflow DSL2 syntax reference (comments, declarations, statements, expressions, operators, deprecations)
 
 ## Session End Protocol
 - Append a dated entry to `memory-bank/session-notes.md` summarizing:

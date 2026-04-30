@@ -195,6 +195,39 @@ Three layers of testing:
 
 ---
 
+## 2026-04-29 — Nextflow 26.04.0 Process-Scope Directive Fix
+
+**Created by:** Cline (from user-provided summary)
+**Summary:** Fixed `No such variable: meta` errors caused by Nextflow 26.04.0 enforcing that process-scope directives (`tag`, `publishDir`) are evaluated before the `input:` block is parsed.
+
+### Root Cause
+Nextflow 26.04.0 tightened evaluation order: `tag` and `publishDir` are now resolved at parse time, before `input:` variables like `meta` exist. GString interpolation of `${meta.id}` in those directives fails with `No such variable: meta`. Older Nextflow versions evaluated these lazily at runtime.
+
+### Affected Modules (3 files changed)
+
+| Module | File | Change |
+|---|---|---|
+| INGEST | `modules/local/rdiscvr/ingest/main.nf` | `tag 'ingest'` (was `"${meta.id}"`), `publishDir` stripped `/${meta.id}` |
+| INGEST_METADATA | `modules/local/rdiscvr/ingest_metadata/main.nf` | `tag 'ingest-metadata'` (was `"${meta.id}"`), `publishDir` stripped `/${meta.id}` |
+| EXPORT_COUNTS | `modules/local/cellmembrane/seurat/main.nf` | `tag 'export-counts'` (was `"${meta.id}"`), `publishDir` stripped `/${meta.id}` |
+
+### Smoke Test Update
+`scripts/ci/run_nextflow_smoke_tests.sh` — Updated 5 `-f` path assertions to match the flattened publish layout (e.g., `outputs/ingest/SAMPLE_01.rds` instead of `outputs/ingest/SAMPLE_01/SAMPLE_01.rds`).
+
+### Key Takeaway
+- **`tag`**: Always use static string literals
+- **`publishDir`**: Never reference input variables in the path
+- **`output:` and `script:` blocks**: GString interpolation of input variables remains valid
+- **Consequence**: Output files are published flat into the top-level publish directory (no per-sample subdirectories)
+
+### Memory Bank Updates
+- `conventions.md` — Added "Nextflow 26.04.0 Process-Scope Directive Constraints" section
+- `modules.md` — Updated INGEST, INGEST_METADATA, EXPORT_COUNTS entries with static tags and flattened publishDir
+- `workflows.md` — Updated all three workflow output directory structures to reflect flattened layout
+- `session-notes.md` — This entry
+
+---
+
 ## 2026-04-29 — Fix Module Smoke Test Failures
 
 **Created by:** Cline
@@ -293,5 +326,25 @@ workflow {
 
 ### Files Modified
 - `main.nf` — Replaced switch-case with if/else inside single workflow {} block
+- `memory-bank/session-notes.md` — This entry
+
+---
+
+## 2026-04-29 — Add Nextflow DSL2 Syntax Reference to Memory Bank
+
+**Created by:** Cline (from user-provided file)
+**Summary:** Added `nextflow_synatx.md` as a comprehensive Nextflow DSL2 syntax reference to the memory bank, and updated all related files to reference it.
+
+### New File
+- `memory-bank/nextflow_synatx.md` — Comprehensive Nextflow DSL2 syntax reference covering:
+  - Comments (single-line `//`, multi-line `/* */`, Javadoc `/** */`)
+  - Script declarations (shebang `#!/usr/bin/env nextflow`, feature flags, includes, params, workflows, processes, functions, enums, records, output blocks)
+  - Statements (variables, assignments, if/else, return, throw, try/catch)
+  - Expressions (literals, closures, operators, precedence)
+  - Deprecations (`addParams`, `params` clause of include, `when:`, `shell:`)
+
+### Files Updated
+- `.clinerules` — Added `nextflow_synatx.md` to Session Start Protocol list
+- `memory-bank/conventions.md` — Added callout box at top referencing `nextflow_synatx.md` as the syntax reference
 - `memory-bank/session-notes.md` — This entry
 

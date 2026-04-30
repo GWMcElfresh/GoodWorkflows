@@ -1,5 +1,7 @@
 # Conventions
 
+> **Syntax Reference:** For Nextflow DSL2 syntax details (comments, declarations, statements, expressions, operators, deprecations), see [`nextflow_synatx.md`](nextflow_synatx.md).
+
 ## File Naming
 
 | Type | Convention | Examples |
@@ -54,6 +56,29 @@ Every process MUST have a `stub:` block that creates the expected output files (
 - **Per-sample channels:** `tuple val(meta), path(file)` — meta is a map with `id`, `output_file_id`, `species`
 - **Collected channels:** Use `.collect()` to gather all per-sample outputs into a single list before passing to aggregation processes (GENE_HARMONIZE, TABULATE)
 - **Samplesheet parsing:** Each workflow defines its own `build*SamplesChannel()` function
+
+## Nextflow 26.04.0 Process-Scope Directive Constraints
+
+Nextflow 26.04.0 enforces that **process-scope directives** (`tag`, `publishDir`) are evaluated **before** the `input:` block is parsed. Any GString interpolation of an input variable (like `${meta.id}`) in those directives will fail with `No such variable: meta`.
+
+### Rules
+
+- **`tag`**: Must use static string literals only (e.g., `tag 'ingest'`, not `tag "${meta.id}"`)
+- **`publishDir`**: Must not reference input variables in the path (e.g., `publishDir "${params.outdir}/ingest"`, not `publishDir "${params.outdir}/ingest/${meta.id}"`)
+- **`output:` block**: GString interpolation of input variables remains valid here (e.g., `path("${meta.id}.rds")` is fine)
+- **`script:` block**: GString interpolation of input variables remains valid here
+
+### Affected Modules (fixed 2026-04-29)
+
+| Module | Before | After |
+|---|---|---|
+| INGEST | `tag "${meta.id}"`, `publishDir ".../ingest/${meta.id}"` | `tag 'ingest'`, `publishDir ".../ingest"` |
+| INGEST_METADATA | `tag "${meta.id}"`, `publishDir ".../ingest/${meta.id}"` | `tag 'ingest-metadata'`, `publishDir ".../ingest"` |
+| EXPORT_COUNTS | `tag "${meta.id}"`, `publishDir ".../counts/${meta.id}"` | `tag 'export-counts'`, `publishDir ".../counts"` |
+
+### Consequence: Flattened Output Layout
+
+Output files are now published directly into the top-level publish directory (e.g., `outputs/ingest/SAMPLE_01.rds`) rather than nested in per-sample subdirectories (e.g., `outputs/ingest/SAMPLE_01/SAMPLE_01.rds`). Smoke test path assertions must match this flattened layout.
 
 ## Error Handling
 

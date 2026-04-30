@@ -49,11 +49,13 @@ Full cross-species scRNA-seq integration: download Seurat objects from LabKey, e
 ### Outputs
 ```
 outputs/
-├── ingest/{sample_id}/       # Downloaded RDS + metadata CSV
-├── counts/{sample_id}/       # 10x-like count matrices
+├── ingest/                   # Flattened: {sample_id}.rds, {sample_id}_metadata.csv
+├── counts/                   # Flattened: {sample_id}_counts/ directories
 ├── harmonized/               # Per-species harmonized AnnData files
 └── scmodal/                  # Model checkpoint, latent embedding, clusters
 ```
+
+> **Note:** As of Nextflow 26.04.0, `publishDir` cannot use `${meta.id}` interpolation, so outputs are published flat (e.g., `outputs/ingest/SAMPLE_01.rds`) rather than nested in per-sample subdirectories.
 
 ---
 
@@ -82,9 +84,11 @@ Download Seurat objects from LabKey and export them as 10x-like count directorie
 ### Outputs
 ```
 outputs/
-├── ingest/{sample_id}/       # Downloaded RDS + metadata CSV
-└── counts/{sample_id}/       # 10x-like count matrices
+├── ingest/                   # Flattened: {sample_id}.rds, {sample_id}_metadata.csv
+└── counts/                   # Flattened: {sample_id}_counts/ directories
 ```
+
+> **Note:** As of Nextflow 26.04.0, `publishDir` cannot use `${meta.id}` interpolation, so outputs are published flat (e.g., `outputs/ingest/SAMPLE_01.rds`) rather than nested in per-sample subdirectories.
 
 ---
 
@@ -125,5 +129,8 @@ Download cell-level metadata from LabKey (without downloading full Seurat object
 ### Outputs
 ```
 outputs/
-├── ingest/{sample_id}/       # Per-sample metadata CSV
+├── ingest/                   # Flattened: {sample_id}_metadata.csv
 └── tabulate/                 # subjectIdTable.csv
+```
+
+> **Note:** As of Nextflow 26.04.0, `publishDir` cannot use `${meta.id}` interpolation, so outputs are published flat (e.g., `outputs/ingest/SAMPLE_01_metadata.csv`) rather than nested in per-sample subdirectories.
