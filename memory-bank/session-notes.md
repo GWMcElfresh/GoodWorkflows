@@ -195,6 +195,36 @@ Three layers of testing:
 
 ---
 
+## 2026-04-29 — Fix Module Smoke Test Failures
+
+**Created by:** Cline
+**Summary:** Fixed multiple syntax and configuration errors causing all 6 module smoke tests to fail with `ScriptCompilationException`.
+
+### Root Cause Analysis
+
+Three issues identified:
+
+1. **Duplicate `nextflow.enable.dsl = 2` in `synthetic_fixtures.nf`** — The helper file `tests/modules/helpers/synthetic_fixtures.nf` declared `nextflow.enable.dsl = 2` on line 1. When included from any module test script (which also declares DSL2), Nextflow's parser v2 treats the duplicate declaration as a syntax error. This cascaded to all subsequent `include` statements, causing "process not found" errors for every imported module.
+
+2. **`nextflowVersion` warning in `base.config`** — The top-level `nextflowVersion = '>=24.04'` in `configs/base.config` is not a recognized Nextflow config option. The parser v2 emits `Unrecognized config option 'nextflowVersion'` as a warning. While non-fatal, it adds noise to CI logs.
+
+3. **`export_counts.nf` include path** — The test script `tests/modules/export_counts.nf` includes `EXPORT_COUNTS` from `../../modules/local/cellmembrane/seurat/main.nf`. This path is correct and the process exists, but the cascading error from `synthetic_fixtures.nf` made it appear broken.
+
+### Changes Made
+
+**`tests/modules/helpers/synthetic_fixtures.nf`:**
+- Removed `nextflow.enable.dsl = 2` from line 1. This file is always included by other scripts that already declare DSL2. Helper/include files should not redeclare the DSL version.
+
+**`configs/base.config`:**
+- Changed `nextflowVersion = '>=24.04'` to `manifest { nextflowVersion = '>=24.04' }`. The `manifest` scope is the correct Nextflow config location for the `nextflowVersion` directive.
+
+### Files Modified
+- `tests/modules/helpers/synthetic_fixtures.nf` — Removed duplicate DSL2 declaration
+- `configs/base.config` — Moved nextflowVersion into manifest scope
+- `memory-bank/session-notes.md` — This entry
+
+---
+
 ## 2026-04-29 — Fix lint_and_validate CI Job Failure
 
 **Created by:** Cline

@@ -1,5 +1,3 @@
-nextflow.enable.dsl = 2
-
 process GENERATE_SYNTHETIC_METADATA {
     tag 'synthetic-metadata'
 
