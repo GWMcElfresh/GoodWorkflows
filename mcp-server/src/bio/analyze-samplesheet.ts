@@ -23,6 +23,8 @@ export function analyzeSamplesheet(filePath: string): SamplesheetAnalysis {
       species_detected: [],
       species_mix: false,
       needs_harmonization: false,
+      has_path_column: false,
+      all_rows_have_path: false,
       warnings: [],
       errors: [`File not found: ${filePath}`],
     };
@@ -40,6 +42,8 @@ export function analyzeSamplesheet(filePath: string): SamplesheetAnalysis {
       species_detected: [],
       species_mix: false,
       needs_harmonization: false,
+      has_path_column: false,
+      all_rows_have_path: false,
       warnings: [],
       errors: ['Samplesheet is empty or has no data rows'],
     };
@@ -116,6 +120,10 @@ export function analyzeSamplesheet(filePath: string): SamplesheetAnalysis {
     warnings.push('Duplicate sample IDs detected');
   }
 
+  // Detect path column
+  const hasPathColumn = header.includes('path');
+  const allRowsHavePath = hasPathColumn && rows.every(r => r.path && r.path.trim().length > 0);
+
   const valid = errors.length === 0;
 
   return {
@@ -126,6 +134,8 @@ export function analyzeSamplesheet(filePath: string): SamplesheetAnalysis {
     species_detected: speciesDetected,
     species_mix: speciesMix,
     needs_harmonization: needsHarmonization,
+    has_path_column: hasPathColumn,
+    all_rows_have_path: allRowsHavePath,
     warnings,
     errors,
   };

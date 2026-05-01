@@ -84,7 +84,7 @@ process INGEST_FILE {
         }
         ad <- anndata::read_h5ad(source_path)
         seurat_obj <- CreateSeuratObject(
-            counts = t(as.matrix(ad$X)),
+            counts = t(as.matrix(ad\$X)),
             project = sample_id,
             min.cells = 0,
             min.features = 0

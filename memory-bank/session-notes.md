@@ -48,3 +48,23 @@ The `INGEST_URL` module was receiving local file paths in the `url` column and t
 - Update `docs/` (usage.md, parameters.md, inputs.md) to document the `path` column
 - Update MCP server `suggest-pipeline.ts` and `compose-workflow.ts` to explicitly know about `ingest_file`
 - Run the smoke tests to verify CI passes with new modules
+
+## 2026-04-30 — CI Bugfix: Nextflow `ad$X` interpolation + TypeScript compilation
+
+### Problem
+The latest commit broke CI with two distinct error categories:
+
+1. **Nextflow `ad$X` interpolation error**: In `modules/local/rdiscvr/ingest_file/main.nf` line 87, the expression `ad$X` in the R heredoc string was being interpreted by Nextflow as a variable interpolation (Nextflow `$X` syntax, where X was undefined). This caused both the `ingest_tabulate` workflow smoke test AND the `ingest_file` module smoke test to fail with `X is not defined`.
+
+2. **TypeScript compilation errors**: The `SamplesheetAnalysis` type in `mcp-server/src/types.ts` had two new properties (`has_path_column`, `all_rows_have_path`) but three of the four return statements in `analyze-samplesheet.ts` and the default object in `index.ts` did not include these properties, causing `tsc` build failure.
+
+### Fixes Applied
+
+1. **`ingest_file/main.nf`**: Escaped the `$` as `\$` in `ad\$X` on line 87 to prevent Nextflow from interpreting it as variable interpolation. The `\$` is preserved in the heredoc and passed to R correctly as `ad$X`.
+
+2. **`analyze-samplesheet.ts`**: Added `has_path_column: false` and `all_rows_have_path: false` to the two early return statements (file-not-found and empty-samplesheet). Added `has_path_column` and `all_rows_have_path` detection logic (checking header for `path` column and whether all rows have non-empty path) to the main return.
+
+3. **`index.ts`**: Added `has_path_column: false` and `all_rows_have_path: false` to the default `SamplesheetAnalysis` object in `handleSuggestParams`.
+
+### Verification
+- TypeScript build (`npm run build` in `mcp-server/`) compiles successfully with no errors.

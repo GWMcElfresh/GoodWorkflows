@@ -319,6 +319,8 @@ function handleSuggestParams(args: { workflow: string; samplesheet_path?: string
     species_detected: [],
     species_mix: false,
     needs_harmonization: false,
+    has_path_column: false,
+    all_rows_have_path: false,
     warnings: [],
     errors: [],
   };
