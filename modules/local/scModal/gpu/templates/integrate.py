@@ -55,17 +55,17 @@ def _is_oom(exc: BaseException) -> bool:
 def _log_oom(exc: BaseException, phase: str) -> None:
     """Print full diagnostic, then exit with sentinel code 42 for Nextflow retry."""
     sep = "=" * 70
-    print(f"\n{sep}", flush=True)
+    print(f"\\n{sep}", flush=True)
     print(
         f"SCMODAL_INTEGRATE OOM — phase='{phase}', "
         f"attempt={ATTEMPT}, batch_size={BATCH_SIZE} (base={BASE_BATCH_SIZE})",
         flush=True,
     )
-    print("\n--- Python traceback ---", flush=True)
+    print("\\n--- Python traceback ---", flush=True)
     traceback.print_exc(file=sys.stdout)
     sys.stdout.flush()
     if torch.cuda.is_available():
-        print("\n--- CUDA memory summary ---", flush=True)
+        print("\\n--- CUDA memory summary ---", flush=True)
         try:
             print(torch.cuda.memory_summary(device=0, abbreviated=False), flush=True)
         except Exception as _mem_exc:
