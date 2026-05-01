@@ -88,7 +88,7 @@ All modules live under `modules/local/`. Each is a single-step DSL2 process with
 ### 6. GENE_HARMONIZE
 **Path:** `modules/local/gene_harmonize/main.nf`  
 **Label:** `process_harmonize`  
-**Container:** `${params.scmodal_container}` (default: `ghcr.io/gwmcelfresh/scmodal:sha-37c41f9`)
+**Container:** `${params.scmodal_container}` (default: `ghcr.io/gwmcelfresh/scmodal:sha-83cc3f1`)
 
 | | Details |
 |---|---|

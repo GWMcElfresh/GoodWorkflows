@@ -13,4 +13,4 @@
 # Current images (as of 2026-04):
 ghcr.io/bimberlabinternal/cellmembrane:latest
 ghcr.io/bimberlabinternal/rdiscvr:latest
-ghcr.io/gwmcelfresh/scmodal:sha-37c41f9
+ghcr.io/gwmcelfresh/scmodal:sha-83cc3f1

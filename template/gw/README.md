@@ -127,7 +127,7 @@ Your samplesheet must have exactly one of `output_file_id` (LabKey), `url` (down
 Ensure the images are public:
 - `ghcr.io/bimberlabinternal/rdiscvr:latest`
 - `ghcr.io/bimberlabinternal/cellmembrane:latest`
-- `ghcr.io/gwmcelfresh/scmodal:sha-37c41f9`
+- `ghcr.io/gwmcelfresh/scmodal:sha-83cc3f1`
 
 ### R packages not found
 ```bash
