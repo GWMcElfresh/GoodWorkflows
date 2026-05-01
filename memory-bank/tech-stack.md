@@ -23,7 +23,7 @@
 |---|---|
 | `ghcr.io/bimberlabinternal/rdiscvr:latest` | INGEST_LABKEY, INGEST_URL, INGEST_FILE, INGEST_METADATA, TABULATE |
 | `ghcr.io/bimberlabinternal/cellmembrane:latest` | EXPORT_COUNTS |
-| `ghcr.io/gwmcelfresh/scmodal:sha-83cc3f1` | GENE_HARMONIZE, SCMODAL_INTEGRATE |
+| `ghcr.io/gwmcelfresh/scmodal:latest` | GENE_HARMONIZE, SCMODAL_INTEGRATE |
 
 ## HPC Infrastructure
 

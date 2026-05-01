@@ -7,7 +7,7 @@ mkdir -p "${CACHE_DIR}"
 IMAGES=(
   "ghcr.io/bimberlabinternal/rdiscvr:latest"
   "ghcr.io/bimberlabinternal/cellmembrane:latest"
-  "ghcr.io/gwmcelfresh/scmodal:sha-83cc3f1"
+  "ghcr.io/gwmcelfresh/scmodal:latest"
 )
 
 for image in "${IMAGES[@]}"; do

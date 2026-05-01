@@ -159,7 +159,7 @@ echo "--- Pulling container images ---"
 IMAGES=(
     "ghcr.io/bimberlabinternal/rdiscvr:latest"
     "ghcr.io/bimberlabinternal/cellmembrane:latest"
-    "ghcr.io/gwmcelfresh/scmodal:sha-83cc3f1"
+    "ghcr.io/gwmcelfresh/scmodal:latest"
 )
 
 for img in "${IMAGES[@]}"; do

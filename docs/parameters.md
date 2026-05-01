@@ -53,7 +53,7 @@ These parameters affect only `--workflow integration`.
 
 | Parameter | Default | Description |
 |---|---|---|
-| `--scmodal_container` | `ghcr.io/gwmcelfresh/scmodal:sha-83cc3f1` | Container image for `GENE_HARMONIZE` and `SCMODAL_INTEGRATE`. Must include `scmodal`, `torch`, `scanpy`, and `anndata`. |
+| `--scmodal_container` | `ghcr.io/gwmcelfresh/scmodal:latest` | Container image for `GENE_HARMONIZE` and `SCMODAL_INTEGRATE`. Must include `scmodal`, `torch`, `scanpy`, and `anndata`. |
 | `--scmodal_latent` | `20` | Number of latent dimensions in the scMODAL VAE embedding. |
 | `--scmodal_training_steps` | `10000` | Number of VAE training steps. Increase for larger datasets. |
 | `--scmodal_batch_size` | `500` | Mini-batch size during scMODAL training. |
