@@ -21,7 +21,7 @@
 
 | Image | Modules |
 |---|---|
-| `ghcr.io/bimberlabinternal/rdiscvr:latest` | INGEST, INGEST_METADATA, TABULATE |
+| `ghcr.io/bimberlabinternal/rdiscvr:latest` | INGEST_LABKEY, INGEST_URL, INGEST_FILE, INGEST_METADATA, TABULATE |
 | `ghcr.io/bimberlabinternal/cellmembrane:latest` | EXPORT_COUNTS |
 | `ghcr.io/gwmcelfresh/scmodal:sha-37c41f9` | GENE_HARMONIZE, SCMODAL_INTEGRATE |
 
@@ -33,7 +33,17 @@
 | **Executor** | `slurm` (Nextflow SLURM executor) |
 | **GPU** | NVIDIA (via `--gres=gpu:1 --qos=gpu`) |
 | **Filesystem** | NFS scratch (`/gscratch/...`) |
-| **Auth** | `.netrc` mounted read-only into containers |
+| **Auth** | `.netrc` mounted read-only into containers (LabKey-mode ingest only) |
+
+## MCP Server (`mcp-server/`)
+
+| Technology | Version/Notes | Purpose |
+|---|---|---|
+| **TypeScript** | Node.js 20 | Model Context Protocol server for LLM/agent tooling |
+| **npm** | `package-lock.json` in `mcp-server/` | Dependency management |
+| **Python** (`requirements.txt`) | pytest, mcp | Python test harness for MCP server integration tests |
+
+The MCP server exposes pipeline tools (samplesheet analysis, workflow suggestion, composition) for use by AI coding agents. Tests run in the `test-mcp.yml` GitHub Actions workflow.
 
 ## Documentation & Site
 

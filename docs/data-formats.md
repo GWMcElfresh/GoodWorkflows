@@ -10,25 +10,37 @@ This page documents every data format consumed and produced by GoodWorkflows, or
 
 The samplesheet is the single entry point for all three workflows. It is a comma-separated file with a header row.
 
-### Required columns
+### Columns
 
 | Column | Type | Description |
 |---|---|---|
-| `sample_id` | string | Unique identifier for the sample. Used as the output directory name and filename prefix throughout the pipeline. |
-| `output_file_id` | string | LabKey output file ID used by Rdiscvr to locate and download the Seurat RDS or metadata from the Prime-seq server. |
+| `sample_id` | string | Unique identifier for the sample. Used as the output filename prefix throughout the pipeline. |
+| `output_file_id` | string | LabKey output file ID used by Rdiscvr to locate and download the Seurat RDS or metadata from the Prime-seq server. Leave empty if using URL or local file mode. |
+| `url` | string | Public HTTP(S) URL to a data file (`.rds`, `.h5ad`, `.csv`, `.tsv`, `.txt`). Leave empty if using LabKey or local file mode. |
+| `path` | string | Absolute path to a data file on the local filesystem. Leave empty if using LabKey or URL mode. |
 | `species` | string | Species label for this sample. Must match one of the values in `--species_order`. |
+
+### Tri-mode dispatch
+
+Each row must have **exactly one** of `output_file_id`, `url`, or `path` non-empty. The pipeline auto-detects the data source and routes each sample to the correct ingest module:
+
+| Non-empty column | Ingest module | Auth required |
+|---|---|---|
+| `output_file_id` | `INGEST_LABKEY` | `.netrc` (LabKey credentials) |
+| `url` | `INGEST_URL` | None |
+| `path` | `INGEST_FILE` | None (local filesystem access) |
 
 ### Example
 
 ```csv
-sample_id,output_file_id,species
-SAMPLE_01,12345,human
-SAMPLE_02,12346,macaque
-SAMPLE_03,12347,mouse
+sample_id,output_file_id,url,path,species
+SAMPLE_01,12345,,,human
+SAMPLE_02,,https://example.org/data.rds,,macaque
+SAMPLE_03,,,/home/user/data/mydata.h5ad,mouse
 ```
 
 !!! tip "Multi-sample runs"
-    Add one row per sample. All samples in the samplesheet are processed in parallel (within executor limits).
+    Add one row per sample. All samples in the samplesheet are processed in parallel (within executor limits). Rows with different data-source modes can be mixed in the same samplesheet.
 
 ---
 
@@ -36,36 +48,39 @@ SAMPLE_03,12347,mouse
 
 ### INGEST — Seurat RDS
 
-**File:** `outputs/ingest/{sample_id}/{sample_id}.rds`  
+**File:** `outputs/ingest/{sample_id}.rds`  
 **Produced by:** [`ingest_export`](workflows/ingest-export.md), [`integration`](workflows/integration-pipeline.md)
 
 A Seurat v5 RDS object containing:
 
 - Raw `RNA` assay counts (and potentially other assays present on LabKey)
-- `meta.data` slot populated with all LabKey metadata columns available for the sample
-- CellBarcode identifiers and quality-control metrics from Prime-seq
+- `meta.data` slot populated with all available metadata columns for the sample
+- CellBarcode identifiers and quality-control metrics
 
-This file is the primary artifact of INGEST and the direct input to EXPORT_COUNTS.
+This file is the primary artifact of ingest and the direct input to EXPORT_COUNTS. It is produced identically regardless of whether the data was sourced from LabKey, URL, or local file.
+
+!!! note "Flattened output layout"
+    As of Nextflow 26.04.0, `publishDir` cannot interpolate input variables. Output files are published flat (e.g., `outputs/ingest/SAMPLE_01.rds`) rather than nested in per-sample subdirectories.
 
 ---
 
 ### INGEST_METADATA — Cell metadata CSV
 
-**File:** `outputs/ingest/{sample_id}/{sample_id}_metadata.csv`  
-**Produced by:** [`ingest_tabulate`](workflows/ingest-tabulate.md)
+**File:** `outputs/ingest/{sample_id}_metadata.csv`  
+**Produced by:** All three ingest modules (INGEST_LABKEY, INGEST_URL, INGEST_FILE) and INGEST_METADATA
 
-A flat CSV of cell-level metadata downloaded without the RNA counts. Each row is one cell (droplet barcode).
+A flat CSV of cell-level metadata. Each row is one cell (droplet barcode). All ingest modules produce this alongside the Seurat RDS. `INGEST_METADATA` (LabKey-only) produces it without downloading the full Seurat object.
 
 | Column | Description |
 |---|---|
 | `barcode` | Cell barcode identifier (normalized from `cellbarcode` alias if needed) |
 | `sample_id` | Sample identifier (injected during ingest) |
 | `species` | Species label from the samplesheet |
-| `output_file_id` | LabKey output file ID (injected during ingest) |
+| `output_file_id` | LabKey output file ID (injected during ingest; empty for URL/file sources) |
 | `RIRA_Immune.cellclass` | Broad lineage annotation (T cell, B cell, Myeloid, …) — when present |
 | `RIRA_TNK_v2.cellclass` | T/NK subtype annotation — when present |
 | `RIRA_Myeloid_v3.cellclass` | Myeloid subtype annotation — when present |
-| _(additional RIRA/custom columns)_ | Any other metadata columns present in the LabKey Seurat object |
+| _(additional RIRA/custom columns)_ | Any other metadata columns present in the source object |
 
 !!! note "Column normalization"
     The following aliases are normalized at ingest time:
@@ -79,7 +94,7 @@ A flat CSV of cell-level metadata downloaded without the RNA counts. Each row is
 
 ### EXPORT_COUNTS — 10x-like matrix directory
 
-**Directory:** `outputs/counts/{sample_id}/{sample_id}_counts/`  
+**Directory:** `outputs/counts/{sample_id}_counts/`  
 **Produced by:** [`ingest_export`](workflows/ingest-export.md), [`integration`](workflows/integration-pipeline.md)
 
 Compatible with `Seurat::Read10X()`, `scanpy.read_10x_mtx()`, and similar readers.
@@ -94,7 +109,7 @@ Compatible with `Seurat::Read10X()`, `scanpy.read_10x_mtx()`, and similar reader
 #### Reading in R
 
 ```r
-counts_dir <- "outputs/counts/SAMPLE_01/SAMPLE_01_counts"
+counts_dir <- "outputs/counts/SAMPLE_01_counts"
 mat <- Seurat::Read10X(counts_dir)
 obs  <- read.csv(file.path(counts_dir, "obs_meta.csv"), row.names = 1)
 ```
@@ -103,7 +118,7 @@ obs  <- read.csv(file.path(counts_dir, "obs_meta.csv"), row.names = 1)
 
 ```python
 import scanpy as sc
-adata = sc.read_10x_mtx("outputs/counts/SAMPLE_01/SAMPLE_01_counts",
+adata = sc.read_10x_mtx("outputs/counts/SAMPLE_01_counts",
                          var_names="gene_symbols")
 ```
 

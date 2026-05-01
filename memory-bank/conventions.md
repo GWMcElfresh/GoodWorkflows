@@ -33,7 +33,8 @@ base.config          ← Always loaded (nextflow.config includes it)
 
 - **CLI:** `--param_name value` (Nextflow convention)
 - **Config:** `params { param_name = value }`
-- **Required params validated in `main.nf`:** `--labkey_base_url`, `--labkey_folder`, `--input`
+- **Required params validated in `main.nf`:** `--input`, `--outdir`
+- **LabKey params (`--labkey_base_url`, `--labkey_folder`):** Required only when samplesheet contains `output_file_id` rows; optional otherwise
 - **Sensitive values:** Never in params — use env vars or `.netrc` mounts
 
 ## Process Label Conventions
@@ -42,7 +43,10 @@ Every process has a label matching its resource profile:
 
 | Label | Used By |
 |---|---|
-| `process_ingest` | INGEST, INGEST_METADATA |
+| `process_ingest_labkey` | INGEST_LABKEY |
+| `process_ingest_url` | INGEST_URL |
+| `process_ingest_file` | INGEST_FILE |
+| `process_ingest` | INGEST_METADATA |
 | `process_export` | EXPORT_COUNTS |
 | `process_harmonize` | GENE_HARMONIZE |
 | `process_tabulate` | TABULATE |
@@ -54,7 +58,7 @@ Every process MUST have a `stub:` block that creates the expected output files (
 
 ## Channel Patterns
 
-- **Per-sample channels:** `tuple val(meta), path(file)` — meta is a map with `id`, `output_file_id`, `species`
+- **Per-sample channels:** `tuple val(meta), path(file)` — meta is a map with `id`, `species`, and exactly one of `output_file_id`, `url`, or `path`
 - **Collected channels:** Use `.collect()` to gather all per-sample outputs into a single list before passing to aggregation processes (GENE_HARMONIZE, TABULATE)
 - **Samplesheet parsing:** Each workflow defines its own `build*SamplesChannel()` function
 
@@ -79,11 +83,41 @@ Nextflow 26.04.0 enforces that **process-scope directives** (`tag`, `publishDir`
 - **`output:` block**: GString interpolation of input variables remains valid here (e.g., `path("${meta.id}.rds")` is fine)
 - **`script:` block**: GString interpolation of input variables remains valid here
 
+### Additional DSL2 26.x Constraints (discovered in practice)
+
+**`switch` blocks forbidden in `workflow { }` blocks** — Nextflow DSL2 does not parse `switch`/`case` inside workflow definitions. Replace with `if/else if/else` chains:
+
+```groovy
+// WRONG — syntax error
+switch (params.workflow) {
+    case 'integration': INTEGRATION_PIPELINE(); break
+}
+// CORRECT
+if (params.workflow == 'integration') {
+    INTEGRATION_PIPELINE()
+} else if (params.workflow == 'ingest_export') {
+    INGEST_EXPORT_PIPELINE()
+}
+```
+
+**`stub:` block must appear AFTER `script:` block** — In a process definition, the `stub:` section must come after the `script:` (or `exec:`) section, not before. Placing `stub:` before `script:` causes a parse/runtime error.
+
+**`$variable` in R heredoc strings must be escaped as `\$variable`** — Any `$identifier` inside a Nextflow triple-quoted heredoc (used for inline R/Python code) is treated as Nextflow variable interpolation. If the identifier is an R variable (e.g., `ad$X`, `seurat_obj$RNA`), escape the `$` with a backslash to pass it through literally:
+
+```groovy
+// Nextflow would try to expand $X — WRONG
+"""Rscript -e 'ad$X'"""
+// Escape the $ so R receives ad$X — CORRECT
+"""Rscript -e 'ad\$X'"""
+```
+
 ### Affected Modules (fixed 2026-04-29)
 
 | Module | Before | After |
 |---|---|---|
-| INGEST | `tag "${meta.id}"`, `publishDir ".../ingest/${meta.id}"` | `tag 'ingest'`, `publishDir ".../ingest"` |
+| INGEST_LABKEY | `tag "${meta.id}"`, `publishDir ".../ingest/${meta.id}"` | `tag 'ingest_labkey'`, `publishDir ".../ingest"` |
+| INGEST_URL | `tag "${meta.id}"`, `publishDir ".../ingest/${meta.id}"` | `tag 'ingest_url'`, `publishDir ".../ingest"` |
+| INGEST_FILE | `tag "${meta.id}"`, `publishDir ".../ingest/${meta.id}"` | `tag 'ingest_file'`, `publishDir ".../ingest"` |
 | INGEST_METADATA | `tag "${meta.id}"`, `publishDir ".../ingest/${meta.id}"` | `tag 'ingest-metadata'`, `publishDir ".../ingest"` |
 | EXPORT_COUNTS | `tag "${meta.id}"`, `publishDir ".../counts/${meta.id}"` | `tag 'export-counts'`, `publishDir ".../counts"` |
 

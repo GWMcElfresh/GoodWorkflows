@@ -1,5 +1,27 @@
 # Session Notes
 
+## 2026-04-30 — Template Samplesheet CSV Alignment Fix
+
+### Bug
+`template/gw/fetch_example_data.sh` generated malformed CSV rows for the example samplesheet. The header declared 5 columns (`sample_id,output_file_id,url,path,species`), but each data row had 6 fields because of one extra comma before the local `.rds` path.
+
+This shifted the row values right so `path` became empty and the file path landed in `species`, which caused workflow validation to fail with:
+
+`Samplesheet row must have one of 'output_file_id' (LabKey), 'url' (download), or 'path' (local file)`
+
+### Fix
+- Removed the extra comma from each generated samplesheet row in `template/gw/fetch_example_data.sh`
+- Resulting rows now align correctly with the header:
+   - `sample_id` = `PBMC_*`
+   - `output_file_id` = empty
+   - `url` = empty
+   - `path` = local `.rds` path
+   - `species` = `human` / `macaque` / `mouse`
+
+### Verification Target
+- Re-run `bash fetch_example_data.sh` and confirm `template/gw/samplesheet.csv` places the local file path in the `path` column
+- Re-run `bash run.sh --workflow integration` and confirm the pipeline advances past samplesheet validation
+
 ## 2026-04-30 — Ingest Tri-Mode Refactor
 
 ### Bug
@@ -68,3 +90,37 @@ The latest commit broke CI with two distinct error categories:
 
 ### Verification
 - TypeScript build (`npm run build` in `mcp-server/`) compiles successfully with no errors.
+
+## 2026-04-30 — Documentation Sync After Ingest Tri-Mode Refactor
+
+### Context
+The tri-mode ingest refactor (LABKEY/URL/FILE) earlier today changed the module structure, samplesheet format, parameter requirements, and output layout. The public-facing docs (`docs/`) and memory bank files had many outdated references to the old single-module `INGEST` design.
+
+### Changes Made
+
+#### `docs/` (public-facing MkDocs site):
+1. **`docs/data-formats.md`** — Updated samplesheet spec from 5-column to 4-column (removed `output_file_id` as standalone; now one of `output_file_id`/`url`/`path`). Added tri-mode description and flattened output layout note.
+2. **`docs/workflows/ingest-export.md`** — Updated module name references (`INGEST` → `INGEST_LABKEY/URL/FILE`), tri-mode ingest dispatch, flattened output paths.
+3. **`docs/workflows/ingest-tabulate.md`** — Same updates + clarified `.netrc` is only for LabKey-mode metadata rows.
+4. **`docs/workflows/integration-pipeline.md`** — Same updates + clarified GPU guard behavior, scmodal container, and flattened output layout.
+5. **`docs/parameters.md`** — Added `--outdir` as a parameter (it's validated). Clarified LabKey params are conditional (only needed with `output_file_id`). Added note that tri-mode ingest uses auto-detection, no CLI param.
+6. **`docs/api/inputs.md`** — Rewrote samplesheet section. Added tri-mode description, 4-column spec, and notes on flat output layout and `.netrc` scoping.
+7. **`docs/usage.md`** — Updated quick-start to mention `url` and `path` columns. Clarified LabKey dependency scoping. Updated CI notes to mention `ingest_file` module test. Added workflow table rows for local file usage.
+8. **`docs/index.md`** — Updated tagline to mention "LabKey, URL, or local file". Added workflow table with tri-mode note.
+
+#### `memory-bank/` (agent context files):
+9. **`memory-bank/workflows.md`** — Complete rewrite: tri-mode ingest for all 3 workflows, updated output paths (flattened), updated compute requirements, clarified LabKey params are conditional.
+10. **`memory-bank/architecture.md`** — Fixed line 3 (`main.nf` param validation): LabKey params are conditional, not always required. Updated `--outdir` mention.
+11. **`memory-bank/configs.md`** — Auth sections: `.netrc` is for LabKey-mode processes only, not all ingest processes.
+12. **`memory-bank/conventions.md`** — Updated required params list. Updated channel pattern meta keys (adds `url`, `path`). Updated affected modules table (split `INGEST` into `INGEST_LABKEY/URL/FILE`).
+13. **`memory-bank/project-brief.md`** — Updated tagline to mention URL and local file modes. Updated pipeline diagram to show tri-mode ingest.
+14. **`memory-bank/tech-stack.md`** — Auth line: `.netrc` is LabKey-mode only.
+
+### Files NOT Changed (already current)
+- `memory-bank/modules.md` — Already reflects tri-mode structure
+- `memory-bank/ci-cd.md` — Already current
+- `docs/vignettes/` — Didn't reference specific ingest module names
+- `docs/api/pipeline-api.json` — Generated file, not manually edited
+
+### Remaining Known Issue
+- `memory-bank/session-notes.md` line 74 (follow-up tasks in the refactor session) lists "Update `docs/`" as pending — this session completes that task.

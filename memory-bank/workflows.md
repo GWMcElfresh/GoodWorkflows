@@ -6,9 +6,11 @@ Three saved workflows, selected via `--workflow <name>`:
 
 | Workflow | CLI name | Modules | Compute |
 |---|---|---|---|
-| Integration Pipeline | `integration` | INGEST → EXPORT_COUNTS → GENE_HARMONIZE → SCMODAL_INTEGRATE | HPC + GPU |
-| Ingest + Export | `ingest_export` | INGEST → EXPORT_COUNTS | CPU (local or HPC) |
-| Ingest + Tabulate | `ingest_tabulate` | INGEST_METADATA → TABULATE | CPU (local or HPC) |
+| Integration Pipeline | `integration` | INGEST_LABKEY/URL/FILE → EXPORT_COUNTS → GENE_HARMONIZE → SCMODAL_INTEGRATE | HPC + GPU |
+| Ingest + Export | `ingest_export` | INGEST_LABKEY/URL/FILE → EXPORT_COUNTS | CPU (local or HPC) |
+| Ingest + Tabulate | `ingest_tabulate` | INGEST_METADATA/URL/FILE → TABULATE | CPU (local or HPC) |
+
+All three workflows support **tri-mode ingest**: each sample row uses exactly one of `output_file_id` (LabKey), `url` (HTTP download), or `path` (local file).
 
 ---
 
@@ -17,17 +19,17 @@ Three saved workflows, selected via `--workflow <name>`:
 **File:** `workflows/integration_pipeline.nf`
 
 ### Purpose
-Full cross-species scRNA-seq integration: download Seurat objects from LabKey, export 10x-like count matrices, harmonize genes across species via ortholog mapping, and train scMODAL to produce a shared latent embedding with Leiden clustering.
+Full cross-species scRNA-seq integration: download or load Seurat objects from LabKey, URL, or local file; export 10x-like count matrices; harmonize genes across species via ortholog mapping; and train scMODAL to produce a shared latent embedding with Leiden clustering.
 
 ### Input
-- Samplesheet CSV with columns: `sample_id`, `output_file_id`, `species`
-- LabKey credentials via `.netrc`
+- Samplesheet CSV with columns: `sample_id`, `species`, plus exactly one of `output_file_id`, `url`, or `path`
+- LabKey credentials via `.netrc` (only for `output_file_id` rows)
 
 ### Stages
 
 | Stage | Process | Input | Output |
 |---|---|---|---|
-| 1 | INGEST | `meta` map per sample | `{id}.rds`, `{id}_metadata.csv` |
+| 1 | INGEST_LABKEY / INGEST_URL / INGEST_FILE | `meta` map per sample | `{id}.rds`, `{id}_metadata.csv` |
 | 2 | EXPORT_COUNTS | `(meta, rds)` tuple | `{id}_counts/` (matrix.mtx, features.tsv, barcodes.tsv, obs_meta.csv) |
 | 3 | GENE_HARMONIZE | Collected list of count dirs | `harmonized_outputs/` (per-species .h5ad, manifest, ortholog mapping) |
 | 4 | SCMODAL_INTEGRATE | `harmonized_outputs/` directory | `model_outputs/` (ckpt.pth, latent_clustered.h5ad, training_history.csv) |
@@ -64,17 +66,17 @@ outputs/
 **File:** `workflows/ingest_export.nf`
 
 ### Purpose
-Download Seurat objects from LabKey and export them as 10x-like count directories. No harmonization or integration. Suitable for local/Mac testing.
+Download or load Seurat objects from LabKey, URL, or local file and export them as 10x-like count directories. No harmonization or integration. Suitable for local/Mac testing.
 
 ### Input
-- Samplesheet CSV with columns: `sample_id`, `output_file_id`, `species`
-- LabKey credentials via `.netrc`
+- Samplesheet CSV with columns: `sample_id`, `species`, plus exactly one of `output_file_id`, `url`, or `path`
+- LabKey credentials via `.netrc` (only for `output_file_id` rows)
 
 ### Stages
 
 | Stage | Process | Input | Output |
 |---|---|---|---|
-| 1 | INGEST | `meta` map per sample | `{id}.rds`, `{id}_metadata.csv` |
+| 1 | INGEST_LABKEY / INGEST_URL / INGEST_FILE | `meta` map per sample | `{id}.rds`, `{id}_metadata.csv` |
 | 2 | EXPORT_COUNTS | `(meta, rds)` tuple | `{id}_counts/` |
 
 ### Compute Requirements
@@ -97,17 +99,17 @@ outputs/
 **File:** `workflows/ingest_tabulate.nf`
 
 ### Purpose
-Download cell-level metadata from LabKey (without downloading full Seurat objects) and aggregate into a wide subject-level summary table (`subjectIdTable.csv`). Suitable for cohort QC.
+Download or load cell-level metadata from LabKey, URL, or local file (without downloading full Seurat objects) and aggregate into a wide subject-level summary table (`subjectIdTable.csv`). Suitable for cohort QC.
 
 ### Input
-- Samplesheet CSV with columns: `sample_id`, `output_file_id`, `species`
-- LabKey credentials via `.netrc`
+- Samplesheet CSV with columns: `sample_id`, `species`, plus exactly one of `output_file_id`, `url`, or `path`
+- LabKey credentials via `.netrc` (only for `output_file_id` rows)
 
 ### Stages
 
 | Stage | Process | Input | Output |
 |---|---|---|---|
-| 1 | INGEST_METADATA | `meta` map per sample | `{id}_metadata.csv` |
+| 1 | INGEST_METADATA / INGEST_URL / INGEST_FILE | `meta` map per sample | `{id}_metadata.csv` |
 | 2 | TABULATE | Collected CSVs + tabulation params | `subjectIdTable.csv` |
 
 ### Key Parameters

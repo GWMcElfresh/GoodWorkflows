@@ -11,7 +11,7 @@ The repository uses GitHub Actions for four layers of validation:
 **Jobs:**
 - **lint_and_validate** — ShellCheck on HPC/CI scripts, Nextflow profile validation (test, local, slurm)
 - **workflow_smoke_tests** — Runs each saved workflow with `-profile test -stub-run` (matrix: ingest_export, ingest_tabulate, integration)
-- **module_smoke_tests** — Runs each module in isolation with `-profile test -stub-run` (matrix: ingest, ingest_metadata, ingest_url, export_counts, gene_harmonize, scmodal_integrate, tabulate)
+- **module_smoke_tests** — Runs each module in isolation with `-profile test -stub-run` (matrix: ingest_labkey, ingest_file, ingest_url, ingest_metadata, export_counts, gene_harmonize, scmodal_integrate, tabulate)
 - **container_smoke** — Optional, manual-only: primes cached module images and smoke-tests rdiscvr, cellmembrane, scmodal containers
 
 **What it validates:**

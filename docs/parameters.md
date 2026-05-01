@@ -16,12 +16,12 @@ Complete reference for all `--param` flags accepted by `main.nf`. Defaults are s
 
 ## LabKey / Prime-seq options
 
-These are **required** for all three workflows.
+These are **only required** when at least one row in the samplesheet uses `output_file_id` (LabKey mode). Rows using `url` or `path` do not need LabKey credentials.
 
 | Parameter | Default | Description |
 |---|---|---|
-| `--labkey_base_url` | _(required)_ | Base URL of the LabKey server (e.g. `https://labkey.example.org`). |
-| `--labkey_folder` | _(required)_ | LabKey folder path (e.g. `/My/Project/Folder`). |
+| `--labkey_base_url` | _(required for LabKey rows)_ | Base URL of the LabKey server (e.g. `https://labkey.example.org`). |
+| `--labkey_folder` | _(required for LabKey rows)_ | LabKey folder path (e.g. `/My/Project/Folder`). |
 
 ---
 

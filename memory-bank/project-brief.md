@@ -10,7 +10,7 @@ GoodWorkflows is a **DSL2 Nextflow** pipeline repository for composing reusable 
 
 ## Core Purpose
 
-Download single-cell Seurat objects from a LabKey/Prime-seq server, export 10x-like count matrices, harmonize genes across species via ortholog mapping, and train scMODAL to produce a cross-species latent embedding with Leiden clustering.
+Download single-cell Seurat objects from LabKey, URL, or local file, export 10x-like count matrices, harmonize genes across species via ortholog mapping, and train scMODAL to produce a cross-species latent embedding with Leiden clustering.
 
 ## Key Stakeholders
 
@@ -21,7 +21,7 @@ Download single-cell Seurat objects from a LabKey/Prime-seq server, export 10x-l
 ## High-Level Pipeline
 
 ```
-INGEST → EXPORT_COUNTS → GENE_HARMONIZE → SCMODAL_INTEGRATE
+INGEST_LABKEY / INGEST_URL / INGEST_FILE → EXPORT_COUNTS → GENE_HARMONIZE → SCMODAL_INTEGRATE
 ```
 
 Three saved workflows are available via `--workflow`:

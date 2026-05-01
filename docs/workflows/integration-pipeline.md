@@ -2,11 +2,11 @@
 
 `--workflow integration`
 
-The integration pipeline downloads Seurat objects from LabKey, exports per-sample count matrices, harmonizes genes across species, and trains a scMODAL variational autoencoder to produce a joint multi-species latent embedding with Leiden clustering.
+The integration pipeline downloads Seurat objects from LabKey, a URL, or a local filepath, exports per-sample count matrices, harmonizes genes across species, and trains a scMODAL variational autoencoder to produce a joint multi-species latent embedding with Leiden clustering.
 
 !!! warning "GPU required"
-    This workflow must run on an HPC cluster via `-profile slurm`. It requires at least one NVIDIA GPU for the `SCMODAL_INTEGRATE` step. It **cannot run** on a local Mac or CPU-only Linux host.
-  The only CPU path is the GitHub Actions smoke-test stub, enabled with `--scmodal_use_cpu true` together with `-stub-run`.
+    The `SCMODAL_INTEGRATE` step requires at least one NVIDIA GPU and must run on an HPC cluster via `-profile slurm`. It **cannot run** on a local Mac or CPU-only Linux host.
+    The only CPU path is the GitHub Actions smoke-test stub, enabled with `--scmodal_use_cpu true` together with `-stub-run`.
 
 ---
 
@@ -15,11 +15,19 @@ The integration pipeline downloads Seurat objects from LabKey, exports per-sampl
 ```mermaid
 flowchart TD
     SS["**samplesheet.csv**
-    sample_id · output_file_id · species"]
+    sample_id · output_file_id · url · path · species"]
 
-    INGEST["**INGEST**
+    DISPATCH{"**Tri-mode dispatch**
+    Which column is non-empty?"}
+    INGEST_LABKEY["**INGEST_LABKEY**
     (Rdiscvr)
-    Downloads full Seurat object from LabKey"]
+    Downloads from LabKey via output_file_id"]
+    INGEST_URL["**INGEST_URL**
+    (Rdiscvr)
+    Downloads from public URL"]
+    INGEST_FILE["**INGEST_FILE**
+    (Rdiscvr)
+    Loads from local filepath"]
 
     EXPORT_COUNTS["**EXPORT_COUNTS**
     (CellMembrane)
@@ -36,24 +44,34 @@ flowchart TD
     (scmodal · GPU)
     scMODAL VAE → latent embedding + Leiden clustering"]
 
-    OUT_RDS["outputs/ingest/{id}/{id}.rds"]
-    OUT_COUNTS["outputs/counts/{id}/{id}_counts/
+    SS --> DISPATCH
+    DISPATCH -->|"output_file_id"| INGEST_LABKEY
+    DISPATCH -->|"url"| INGEST_URL
+    DISPATCH -->|"path"| INGEST_FILE
+    INGEST_LABKEY -->|"tuple(meta, .rds)"| EXPORT_COUNTS
+    INGEST_URL -->|"tuple(meta, .rds)"| EXPORT_COUNTS
+    INGEST_FILE -->|"tuple(meta, .rds)"| EXPORT_COUNTS
+    EXPORT_COUNTS -->|"all samples"| COLLECT
+    COLLECT -->|"[counts_dir/, ...]"| GENE_HARMONIZE
+    GENE_HARMONIZE -->|"harmonized_dir/"| SCMODAL
+
+    OUT_RDS["outputs/ingest/{sample_id}.rds"]
+    INGEST_LABKEY --> OUT_RDS
+    INGEST_URL --> OUT_RDS
+    INGEST_FILE --> OUT_RDS
+
+    OUT_COUNTS["outputs/counts/{sample_id}_counts/
     matrix.mtx · features.tsv · barcodes.tsv · obs_meta.csv"]
+    EXPORT_COUNTS --> OUT_COUNTS
+
     OUT_HARM["outputs/harmonized/harmonized_outputs/
     *_harmonized.h5ad · integration_manifest.csv
     shared_genes.csv · ortholog_mapping.csv"]
+    GENE_HARMONIZE --> OUT_HARM
+
     OUT_MODEL["outputs/scmodal/model_outputs/
     latent_clustered.h5ad · ckpt.pth
     training_history.csv · run_summary.json"]
-
-    SS --> INGEST
-    INGEST -->|"tuple(meta, .rds)"| OUT_RDS
-    INGEST -->|"tuple(meta, .rds)"| EXPORT_COUNTS
-    EXPORT_COUNTS -->|"tuple(meta, counts_dir/)"| OUT_COUNTS
-    EXPORT_COUNTS -->|"all samples"| COLLECT
-    COLLECT -->|"[counts_dir/, ...]"| GENE_HARMONIZE
-    GENE_HARMONIZE --> OUT_HARM
-    GENE_HARMONIZE -->|"harmonized_dir/"| SCMODAL
     SCMODAL --> OUT_MODEL
 ```
 
@@ -65,27 +83,27 @@ flowchart TD
 
 Path: `--input` (default `data/samplesheet.csv`)
 
-See [Data Formats → Samplesheet](../data-formats.md#samplesheet) for the schema. All three columns are required for the full pipeline.
+Each row must have exactly one of `output_file_id`, `url`, or `path` populated. See [Data Formats → Samplesheet](../data-formats.md#samplesheet) for the full column specification.
 
 ### Required parameters
 
 | Parameter | Description |
 |---|---|
-| `--labkey_base_url` | LabKey server base URL |
-| `--labkey_folder` | LabKey folder path |
+| `--labkey_base_url` | LabKey server base URL (required only for `output_file_id` rows) |
+| `--labkey_folder` | LabKey folder path (required only for `output_file_id` rows) |
 | `--species_order` | Comma-separated species list (default `human,macaque,mouse`) |
 
 ---
 
 ## Outputs at each stage
 
-### INGEST → `outputs/ingest/{sample_id}/`
+### INGEST → `outputs/ingest/{sample_id}.rds`
 
 | File | Description |
 |---|---|
-| `{sample_id}.rds` | Full Seurat object (counts + metadata) downloaded from LabKey |
+| `{sample_id}.rds` | Full Seurat object (counts + metadata) produced identically by all three ingest modules |
 
-### EXPORT_COUNTS → `outputs/counts/{sample_id}/{sample_id}_counts/`
+### EXPORT_COUNTS → `outputs/counts/{sample_id}_counts/`
 
 A 10x-like matrix directory (one per sample):
 
@@ -161,7 +179,7 @@ SYNC_REPO_BEFORE_RUN=true bash slurm_nextflow.sh \
 
 | Step | CPUs | Memory | Wall time | GPU |
 |---|---|---|---|---|
-| INGEST | 4 | 32 GB | 4 h | — |
+| INGEST_LABKEY / INGEST_URL / INGEST_FILE | 4 | 32 GB | 4 h | — |
 | EXPORT_COUNTS | 4 | 32 GB | 4 h | — |
 | GENE_HARMONIZE | 4 | 32 GB | 8 h | — |
 | SCMODAL_INTEGRATE | 8 | 64 GB | 24 h | 1× (`--gres=gpu:1 --qos=gpu`) |

@@ -73,7 +73,7 @@ workDir = "${projectDir}/work"
 | `process_gpu` | 4 | 16 GB | — |
 
 ### Auth
-`.netrc` mounted at `/root/.netrc:ro` for ingest processes.
+`.netrc` mounted at `/root/.netrc:ro` for LabKey-mode ingest processes (INGEST_LABKEY, INGEST_METADATA). Not needed for URL or file-mode samples.
 
 ### Design Notes
 - `maxForks=1` globally ensures only one process runs at a time — memory is never split across concurrent jobs.
@@ -106,7 +106,7 @@ workDir = "${projectDir}/work"
 | `process_tabulate` | `8.GB * task.attempt` | Retry on OOM (exit 137), max 2 retries |
 
 ### Auth
-`.netrc` mounted at `/root/.netrc:ro` for ingest processes.
+`.netrc` mounted at `/root/.netrc:ro` for LabKey-mode ingest processes (INGEST_LABKEY, INGEST_METADATA). Not needed for URL or file-mode samples.
 
 ---
 

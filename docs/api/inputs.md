@@ -10,12 +10,12 @@ This page documents all input parameters for the pipeline.
 
 Named workflow to execute.
 
-> Select one of the three saved workflows. 'full' requires GPU/SLURM. 'ingest_export' and 'ingest_tabulate' run locally.
+> Select one of the three saved workflows. 'integration' requires GPU/SLURM. 'ingest_export' and 'ingest_tabulate' run locally, with or without LabKey.
 
-**Default:** `full`
+**Default:** `integration`
 
 **Allowed values:**
-- `full`
+- `integration`
 - `ingest_export`
 - `ingest_tabulate`
 
@@ -24,7 +24,7 @@ Named workflow to execute.
 
 **Type:** `string` | *Optional* | **Format:** `file-path`
 
-Path to the samplesheet CSV file. Must contain columns sample_id, output_file_id, and species.
+Path to the samplesheet CSV file. Must contain columns `sample_id`, `species`, and at least one of `output_file_id`, `url`, or `path`. See [Data Formats → Samplesheet](../data-formats.md#samplesheet).
 
 **Default:** `${projectDir}/data/samplesheet.csv`
 
@@ -45,16 +45,20 @@ Directory where published results are written.
 
 ### `--labkey_base_url` {#labkey-base-url}
 
-**Type:** `string` | **Required**
+**Type:** `string` | *Optional*
 
-Base URL of the LabKey server (e.g. https://labkey.example.org).
+Base URL of the LabKey server (e.g. https://labkey.example.org). Only required when at least one row in the samplesheet uses `output_file_id`.
+
+> Rows using `url` or `path` do not need LabKey credentials. If no rows use `output_file_id`, this parameter can be omitted entirely.
 
 
 ### `--labkey_folder` {#labkey-folder}
 
-**Type:** `string` | **Required**
+**Type:** `string` | *Optional*
 
-LabKey folder path (e.g. /My/Project/Folder).
+LabKey folder path (e.g. /My/Project/Folder). Only required when at least one row in the samplesheet uses `output_file_id`.
+
+> Rows using `url` or `path` do not need LabKey credentials. If no rows use `output_file_id`, this parameter can be omitted entirely.
 
 
 

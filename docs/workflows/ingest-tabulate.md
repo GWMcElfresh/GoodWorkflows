@@ -2,7 +2,7 @@
 
 `--workflow ingest_tabulate`
 
-Downloads cell-level metadata (without full Seurat objects) from LabKey and aggregates it into a subject-level summary table. No GPU, no HPC required — the lightest workflow and the best starting point for cohort QC and metadata exploration.
+Downloads or extracts cell-level metadata from LabKey, a URL, or a local filepath for each sample, and aggregates it into a subject-level summary table. No GPU, no HPC required — the lightest workflow and the best starting point for cohort QC and metadata exploration.
 
 ---
 
@@ -11,11 +11,23 @@ Downloads cell-level metadata (without full Seurat objects) from LabKey and aggr
 ```mermaid
 flowchart TD
     SS["**samplesheet.csv**
-    sample_id · output_file_id · species"]
+    sample_id · output_file_id · url · path · species"]
 
+    DISPATCH{"**Tri-mode dispatch**
+    Which column is non-empty?"}
+    INGEST_LABKEY["**INGEST_LABKEY**
+    (Rdiscvr)
+    Downloads Seurat RDS + extracts metadata from LabKey"]
+    INGEST_URL["**INGEST_URL**
+    (Rdiscvr)
+    Downloads Seurat RDS + extracts metadata from URL"]
+    INGEST_FILE["**INGEST_FILE**
+    (Rdiscvr)
+    Loads Seurat RDS + extracts metadata from file"]
     INGEST_META["**INGEST_METADATA**
     (Rdiscvr)
-    Downloads cell metadata CSV only (no Seurat RDS)"]
+    Downloads cell metadata CSV only (no Seurat RDS)
+    LabKey-only module"]
 
     COLLECT["collect()
     Gathers all metadata CSVs"]
@@ -24,18 +36,31 @@ flowchart TD
     (Rdiscvr)
     Cell-type proportions → subject-level summary table"]
 
-    OUT_META["outputs/ingest/{id}/{id}_metadata.csv
+    OUT_META["outputs/ingest/{sample_id}_metadata.csv
     Cell-level metadata for each sample"]
 
     OUT_TABLE["outputs/tabulate/subjectIdTable.csv
     Subject × cell-type proportion table"]
 
-    SS --> INGEST_META
+    SS --> DISPATCH
+    DISPATCH -->|"output_file_id"| INGEST_LABKEY
+    DISPATCH -->|"output_file_id"| INGEST_META
+    DISPATCH -->|"url"| INGEST_URL
+    DISPATCH -->|"path"| INGEST_FILE
+    INGEST_LABKEY -->|"tuple(meta, metadata.csv)"| OUT_META
+    INGEST_URL -->|"tuple(meta, metadata.csv)"| OUT_META
+    INGEST_FILE -->|"tuple(meta, metadata.csv)"| OUT_META
     INGEST_META -->|"tuple(meta, metadata.csv)"| OUT_META
-    INGEST_META -->|"all metadata CSVs"| COLLECT
+    INGEST_LABKEY -->|"all metadata CSVs"| COLLECT
+    INGEST_URL -->|"all metadata CSVs"| COLLECT
+    INGEST_FILE -->|"all metadata CSVs"| COLLECT
+    INGEST_META -->|"metadata CSV"| COLLECT
     COLLECT -->|"[metadata.csv, ...]"| TABULATE
     TABULATE --> OUT_TABLE
 ```
+
+!!! info "Two parallel ingest paths"
+    When a row uses `output_file_id`, the workflow fires **both** `INGEST_LABKEY` and `INGEST_METADATA` for that sample. `INGEST_METADATA` downloads cell-level metadata only (no full Seurat RDS), while `INGEST_LABKEY` downloads the full RDS and extracts metadata from it — redundant for tabulate alone, but this allows the same workflow to feed a future export or integration step without a separate download. For `url` and `path` rows, only the corresponding ingest module runs, since `INGEST_METADATA` is LabKey-specific.
 
 ---
 
@@ -45,14 +70,23 @@ flowchart TD
 
 Path: `--input` (default `data/samplesheet.csv`)
 
-See [Data Formats → Samplesheet](../data-formats.md#samplesheet).
+Each row must have exactly one of `output_file_id`, `url`, or `path` populated. See [Data Formats → Samplesheet](../data-formats.md#samplesheet) for the full column specification.
 
-### Required parameters
+```csv
+sample_id,output_file_id,url,path,species
+SAMPLE_LABKEY,12345,,,human
+SAMPLE_URL,,https://example.org/data.rds,,macaque
+SAMPLE_FILE,,,/home/user/data/mydata.h5ad,mouse
+```
+
+### Required parameters (LabKey mode)
 
 | Parameter | Description |
 |---|---|
 | `--labkey_base_url` | LabKey server base URL |
 | `--labkey_folder` | LabKey folder path |
+
+These parameters are **only required** for rows that use `output_file_id` (LabKey mode). Rows using `url` or `path` do not need LabKey credentials.
 
 ### Optional parameters
 
@@ -68,14 +102,16 @@ See [Data Formats → Samplesheet](../data-formats.md#samplesheet).
 
 ## Outputs
 
-### INGEST_METADATA → `outputs/ingest/{sample_id}/`
+### INGEST_* → `outputs/ingest/{sample_id}_metadata.csv`
 
 | File | Description |
 |---|---|
-| `{sample_id}_metadata.csv` | Cell-level metadata table for the sample. Each row is one cell (barcode). Columns include `barcode`, `sample_id`, `species`, and all RIRA/custom annotation columns present in the Seurat object on LabKey. |
+| `{sample_id}_metadata.csv` | Cell-level metadata table for the sample. Each row is one cell (barcode). Columns include `barcode`, `sample_id`, `species`, and all RIRA/custom annotation columns present in the source object. |
+
+Produced by all four ingest modules. `INGEST_METADATA` downloads the metadata CSV directly from LabKey without pulling the full Seurat RDS. `INGEST_LABKEY`, `INGEST_URL`, and `INGEST_FILE` extract the same metadata from the full Seurat object.
 
 !!! tip "Column name normalization"
-    The module automatically normalizes column name aliases:
+    All ingest modules automatically normalize column name aliases:
     `cellbarcode` → `barcode`, `RIRA_Immune_v2.cellclass` → `RIRA_Immune.cellclass`.
 
 ### TABULATE → `outputs/tabulate/subjectIdTable.csv`
@@ -109,11 +145,29 @@ See the full [Synthetic Tabulation Walkthrough](../vignettes/synthetic-tabulatio
 
 ## Running locally
 
+### LabKey mode
+
 ```bash
 nextflow run main.nf \
   --workflow ingest_tabulate \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Project/Folder
+```
+
+### URL mode (no LabKey required)
+
+```bash
+nextflow run main.nf \
+  --workflow ingest_tabulate \
+  --input data/samplesheet_url.csv
+```
+
+### Local file mode (no LabKey required)
+
+```bash
+nextflow run main.nf \
+  --workflow ingest_tabulate \
+  --input data/samplesheet_file.csv
 ```
 
 With custom identity and cell-type columns:
@@ -148,6 +202,7 @@ bash slurm_nextflow.sh \
 
 | Step | CPUs | Memory | Wall time |
 |---|---|---|---|
+| INGEST_LABKEY / INGEST_URL / INGEST_FILE | 4 | 32 GB | 4 h |
 | INGEST_METADATA | 4 | 32 GB | 4 h |
 | TABULATE | 4 | 24 GB | 4 h |
 

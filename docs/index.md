@@ -8,30 +8,51 @@ A DSL2 **Nextflow** pipeline for composing reusable single-cell RNA-seq workflow
 
 | Workflow | What it does | Compute requirement |
 |---|---|---|
-| [`integration`](workflows/integration-pipeline.md) | Download → export counts → harmonize → scMODAL integration | **HPC + GPU (SLURM required)** |
-| [`ingest_export`](workflows/ingest-export.md) | Download Seurat RDS and export 10x-like counts | Local / Mac / HPC (CPU) |
-| [`ingest_tabulate`](workflows/ingest-tabulate.md) | Download cell metadata and build `subjectIdTable.csv` | Local / Mac / HPC (CPU) |
+| [`integration`](workflows/integration-pipeline.md) | Download/load → export counts → harmonize → scMODAL integration | **HPC + GPU (SLURM required)** |
+| [`ingest_export`](workflows/ingest-export.md) | Download/load Seurat RDS and export 10x-like counts | Local / Mac / HPC (CPU) |
+| [`ingest_tabulate`](workflows/ingest-tabulate.md) | Download/load cell metadata and build `subjectIdTable.csv` | Local / Mac / HPC (CPU) |
 
 Select the workflow with `--workflow <name>`.
 
 ---
 
+## Ingest flexibility: LabKey, URL, or local file
+
+Every sample row picks **exactly one** ingest mode:
+
+| Column | Source | Requires |
+|---|---|---|
+| `output_file_id` | LabKey / Prime-seq server | `--labkey_base_url`, `--labkey_folder`, `~/.netrc` |
+| `url` | Publicly downloadable RDS / h5ad | Only the URL |
+| `path` | Local file on disk | Only the filepath |
+
+Mixed-sample sheets are supported — each row dispatches to the right module automatically. See [Data Formats → Samplesheet](data-formats.md#samplesheet).
+
+---
+
 ## Quick start
 
-### Local / Mac (CPU workflows)
+### Local / Mac — LabKey mode
 
 ```bash
-# Download metadata and produce a subject-level summary table
 nextflow run main.nf \
   --workflow ingest_tabulate \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Project/Folder
+```
 
-# Download Seurat objects and export 10x-like counts
+### Local / Mac — URL or file mode (no LabKey required)
+
+```bash
+# URL mode
 nextflow run main.nf \
   --workflow ingest_export \
-  --labkey_base_url https://labkey.example.org \
-  --labkey_folder /My/Project/Folder
+  --input data/samplesheet_url.csv
+
+# File mode
+nextflow run main.nf \
+  --workflow ingest_export \
+  --input data/samplesheet_file.csv
 ```
 
 ### HPC (full GPU pipeline)
@@ -47,8 +68,7 @@ bash slurm_nextflow.sh \
 ```
 
 !!! note "LabKey credentials"
-    All workflows communicate with a LabKey / Prime-seq server via `~/.netrc`. Ensure your netrc
-    entry for `labkey_base_url` is configured before running.
+    Only samples using `output_file_id` require LabKey credentials via `~/.netrc`. URL and file-mode samples do not need `.netrc` or LabKey parameters at all.
 
 ---
 

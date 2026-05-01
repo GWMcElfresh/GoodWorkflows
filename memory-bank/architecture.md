@@ -19,9 +19,10 @@
 A thin launcher that:
 1. Includes all three workflow definitions
 2. Validates `--workflow` against `['integration', 'ingest_export', 'ingest_tabulate']`
-3. Validates required params (`--labkey_base_url`, `--labkey_folder`, `--input`)
-4. Dispatches to the selected workflow via a `switch` block
-5. Reports completion/error via `workflow.onComplete` and `workflow.onError`
+3. Validates `--input` and `--outdir` params
+4. LabKey params (`--labkey_base_url`, `--labkey_folder`) are only required when the samplesheet contains `output_file_id` rows
+5. Dispatches to the selected workflow via a `switch` block
+6. Reports completion/error via `workflow.onComplete` and `workflow.onError`
 
 ## Workflow Composition
 

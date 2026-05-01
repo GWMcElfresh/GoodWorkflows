@@ -10,11 +10,11 @@ This guide walks through everything needed to set up and run a GoodWorkflows pip
 |---|---|
 | **Nextflow ≥ 24.04** | [Install guide](https://www.nextflow.io/docs/latest/getstarted.html) |
 | **SLURM + Apptainer** | Required for `-profile slurm_singularity` (HPC). Apptainer (≥ 1.0) must be installed or loadable via `module load apptainer`. |
-| **`~/.netrc`** | LabKey/Prime-seq authentication. See note below. |
+| **`~/.netrc`** | LabKey/Prime-seq authentication (only needed for LabKey-mode samples). See note below. |
 | **Git** | Needed to clone and sync the repository. |
 
 !!! note "LabKey credentials"
-    All workflows authenticate to the LabKey / Prime-seq server via `~/.netrc`. Add an entry like:
+    Samples using `output_file_id` authenticate to the LabKey / Prime-seq server via `~/.netrc`. Add an entry like:
 
     ```
     machine labkey.example.org
@@ -22,7 +22,7 @@ This guide walks through everything needed to set up and run a GoodWorkflows pip
     password your_password
     ```
 
-    Replace `labkey.example.org` with your actual server hostname. The file should be `chmod 600`.
+    Replace `labkey.example.org` with your actual server hostname. The file should be `chmod 600`. Samples using `url` or `path` do **not** require `.netrc` or LabKey credentials.
 
 ---
 
@@ -51,7 +51,24 @@ bash scripts/sync_repo.sh "${PWD}"
 
 ---
 
-## 2 — Choose an HPC entrypoint
+## 2 — Choose an ingest mode for each sample
+
+Every sample row must populate **exactly one** ingest column:
+
+| Column | When to use | Requires |
+|---|---|---|
+| `output_file_id` | Data lives on a LabKey / Prime-seq server | `--labkey_base_url`, `--labkey_folder`, `~/.netrc` |
+| `url` | Publicly downloadable RDS / h5ad URL | Only the URL itself |
+| `path` | Local file already present on disk | Only the filepath |
+
+!!! tip "Mixed-sample sheets are supported"
+    You can mix LabKey, URL, and file samples in the same `samplesheet.csv`. The pipeline dispatches each row to the correct ingest module automatically.
+
+See [Data Formats → Samplesheet](data-formats.md#samplesheet) for the complete column specification.
+
+---
+
+## 3 — Choose an HPC entrypoint
 
 Two SLURM launch patterns are supported:
 
@@ -89,28 +106,29 @@ runs/my_run_name/
 
 ---
 
-## 3 — Edit the samplesheet
+## 4 — Edit the samplesheet
 
-Open `samplesheet.csv` and add one row per sample. All three columns are required:
-
-| Column | Description |
-|---|---|
-| `sample_id` | Unique identifier used as output filename prefix and directory name. |
-| `output_file_id` | LabKey output file ID used by Rdiscvr to fetch the data. |
-| `species` | One of the species in `--species_order` (default: `human`, `macaque`, `mouse`). |
+Open `samplesheet.csv` and add one row per sample. Required columns: `sample_id`, `species`, plus exactly one of `output_file_id`, `url`, or `path`.
 
 ```csv
-sample_id,output_file_id,species
-SAMPLE_01,100001,human
-SAMPLE_02,100002,macaque
-SAMPLE_03,100003,mouse
+sample_id,output_file_id,url,path,species
+SAMPLE_LABKEY,100001,,,human
+SAMPLE_URL,,https://example.org/data.rds,,macaque
+SAMPLE_FILE,,,/home/user/data/mydata.h5ad,mouse
 ```
 
-See [Data Formats → Samplesheet](data-formats.md#samplesheet) for the full schema.
+### Required parameters (LabKey mode only)
+
+| Parameter | Description |
+|---|---|
+| `--labkey_base_url` | LabKey server base URL (e.g. `https://labkey.example.org`) |
+| `--labkey_folder` | LabKey folder path (e.g. `/My/Project/Folder`) |
+
+These parameters are **only required** for rows using `output_file_id`. URL and file mode rows do not need them.
 
 ---
 
-## 4 — Configure `run.sh`
+## 5 — Configure `run.sh`
 
 Open `run.sh` and fill in the `# FILL IN` section near the top:
 
@@ -118,7 +136,7 @@ Open `run.sh` and fill in the `# FILL IN` section near the top:
 # 1. Choose the workflow
 WORKFLOW="ingest_tabulate"   # or: integration, ingest_export
 
-# 2. Set your LabKey coordinates
+# 2. Set your LabKey coordinates (only needed for LabKey-mode samples)
 LABKEY_BASE_URL="https://labkey.example.org"
 LABKEY_FOLDER="/My/Project/Folder"
 
@@ -127,13 +145,16 @@ NEXTFLOW_BIN="/gscratch/mylab/nextflow"
 NXF_HOME="/gscratch/mylab/.nextflow"
 ```
 
+!!! tip "LabKey-free runs"
+    If all your samples use `url` or `path`, set `LABKEY_BASE_URL=""` and `LABKEY_FOLDER=""` in `run.sh`. The pipeline will skip LabKey authentication entirely.
+
 ### Choosing a workflow
 
 | Workflow | What it does | Where to run |
 |---|---|---|
 | `integration` | Ingest → export counts → harmonize → scMODAL | HPC + GPU (`-profile slurm`) |
-| `ingest_export` | Download Seurat RDS + export 10x-like counts | Local Mac or HPC (CPU) |
-| `ingest_tabulate` | Download cell metadata → build `subjectIdTable.csv` | Local Mac or HPC (CPU) |
+| `ingest_export` | Download/load Seurat RDS + export 10x-like counts | Local Mac or HPC (CPU) |
+| `ingest_tabulate` | Download/load cell metadata → build `subjectIdTable.csv` | Local Mac or HPC (CPU) |
 
 ### PIPELINE_ROOT auto-detection
 
@@ -145,7 +166,7 @@ PIPELINE_ROOT=/explicit/path/to/GoodWorkflows sbatch run.sh
 
 ---
 
-## 5 — Submit the job
+## 6 — Submit the job
 
 ```bash
 # From inside runs/my_run_name/:
@@ -178,15 +199,26 @@ Local `bash run.sh` runs do not use SLURM and therefore do not perform the SLURM
 Or run Nextflow directly from the repo root:
 
 ```bash
+# LabKey mode
 nextflow run main.nf \
   --workflow ingest_tabulate \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Project/Folder
+
+# URL mode (no LabKey required)
+nextflow run main.nf \
+  --workflow ingest_tabulate \
+  --input data/samplesheet_url.csv
+
+# File mode (no LabKey required)
+nextflow run main.nf \
+  --workflow ingest_export \
+  --input data/samplesheet_file.csv
 ```
 
 ---
 
-## 6 — Container image pre-pull and SIF cache
+## 7 — Container image pre-pull and SIF cache
 
 When running with `-profile slurm_singularity` (HPC), every workflow task uses an Apptainer SIF container. Without a pre-pull step, Apptainer would attempt to convert each docker image on every compute node simultaneously, hitting registry rate-limits and wasting time. GoodWorkflows solves this with a mandatory pre-pull that converts all required docker images to SIF files once, storing them in a shared directory (`NXF_SINGULARITY_CACHEDIR`) before any task starts.
 
@@ -261,7 +293,7 @@ One image URI per line; blank lines and `#` comments are ignored.
 
 ---
 
-## 7 — Monitor a running job
+## 8 — Monitor a running job
 
 ### Live log
 
@@ -281,7 +313,7 @@ After the pipeline completes, open `logs/report.html` in a browser for a full pe
 
 ---
 
-## 8 — Resume after failure
+## 9 — Resume after failure
 
 `run.sh` (and `slurm_nextflow.sh`) always pass `-resume` to Nextflow. Simply resubmit the job after fixing any issues:
 
@@ -300,7 +332,7 @@ Nextflow will skip all already-completed steps and continue from where it left o
 
 ---
 
-## 9 — Alternative repo-root launcher
+## 10 — Alternative repo-root launcher
 
 `slurm_nextflow.sh` in the repository root is the alternative launcher that targets the checkout itself as the run context (work dir and logs relative to the repo). Use it when you do not want the `runs/` pattern, or when you want the pre-pull submitted as its own SLURM job before orchestration starts:
 
