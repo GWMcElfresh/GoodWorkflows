@@ -362,7 +362,7 @@ pd.DataFrame(
     {"feature_index": range(len(shared_gene_order)), "canonical_gene": shared_gene_order}
 ).to_csv(output_dir / "shared_genes.csv", index=False)
 pd.DataFrame(manifest_rows).to_csv(output_dir / "integration_manifest.csv", index=False)
-(output_dir / "n_shared.txt").write_text(f"{len(shared_gene_order)}\n")
+(output_dir / "n_shared.txt").write_text(f"{len(shared_gene_order)}\\n")
 
 # Validate outputs exist
 required_outputs = [

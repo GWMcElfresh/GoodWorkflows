@@ -120,6 +120,8 @@ def validate_dsl2_workflow(content: str, repo_root: str) -> Tuple[bool, List[str
             base_ch = input_ch.replace("_collected", "")
             collect_found = False
             for j in range(i):
+                if lines[j].strip().startswith("//"):
+                    continue
                 if f"{base_ch}.collect()" in lines[j]:
                     collect_found = True
                     break
