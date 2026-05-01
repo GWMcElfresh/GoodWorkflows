@@ -93,6 +93,26 @@ if [[ ! -f "${INPUT}" ]]; then
     exit 1
 fi
 
+# --- Pre-flight: verify any path-mode rows reference files that exist ---
+if command -v awk &>/dev/null; then
+    _path_col_idx=$(head -1 "${INPUT}" | tr ',' '\n' | grep -n '^path$' | cut -d: -f1)
+    if [[ -n "${_path_col_idx}" ]]; then
+        _missing=0
+        while IFS=, read -r -a _row; do
+            _val="${_row[$(( _path_col_idx - 1 ))]}"
+            _val="${_val//\"/}"  # strip any quotes
+            if [[ -n "${_val}" && ! -f "${_val}" ]]; then
+                echo -e "${RED}ERROR: path-mode sample file not found: ${_val}${NC}"
+                _missing=1
+            fi
+        done < <(tail -n +2 "${INPUT}")
+        if [[ "${_missing}" -eq 1 ]]; then
+            echo "Ensure all files listed in the 'path' column of ${INPUT} exist before launching."
+            exit 1
+        fi
+    fi
+fi
+
 # --- Check Nextflow ---
 if ! command -v nextflow &>/dev/null; then
     if [[ -x "${HOME}/bin/nextflow" ]]; then

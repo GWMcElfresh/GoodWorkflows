@@ -20,7 +20,7 @@ process INGEST_FILE {
     publishDir "${params.outdir}/ingest", mode: 'copy'
 
     input:
-    val(meta)
+    tuple val(meta), path(source_file)
 
     output:
     tuple val(meta), path("${meta.id}.rds"), emit: rds
@@ -38,16 +38,15 @@ process INGEST_FILE {
     sample_id      <- "${meta.id}"
     species        <- "${meta.species}"
     source_path    <- "${meta.path}"
+    staged_file    <- "${source_file}"
 
     message("[INGEST_FILE] Processing sample: ", sample_id)
     message("[INGEST_FILE] species          : ", species)
     message("[INGEST_FILE] source_path      : ", source_path)
+    message("[INGEST_FILE] staged_file      : ", staged_file)
 
-    if (!nzchar(source_path)) {
-        stop("INGEST_FILE requires a non-empty 'path' column in the samplesheet.")
-    }
-    if (!file.exists(source_path)) {
-        stop("[INGEST_FILE] Source file not found: ", source_path)
+    if (!file.exists(staged_file)) {
+        stop("[INGEST_FILE] Staged file not found (Nextflow staging error): ", staged_file)
     }
 
     suffix <- tolower(tools::file_ext(source_path))
@@ -61,11 +60,11 @@ process INGEST_FILE {
     }
 
     if (suffix == "rds") {
-        file.copy(from = source_path, to = out_path, overwrite = TRUE)
+        file.copy(from = staged_file, to = out_path, overwrite = TRUE)
         seurat_obj <- readRDS(out_path)
     } else if (suffix %in% c("csv", "tsv", "txt")) {
         message("[INGEST_FILE] Building Seurat object from a count matrix: ", source_path)
-        counts <- data.table::fread(source_path, data.table = FALSE)
+        counts <- data.table::fread(staged_file, data.table = FALSE)
         row.names(counts) <- counts[[1]]
         counts[[1]] <- NULL
         counts <- as.matrix(counts)
@@ -82,7 +81,7 @@ process INGEST_FILE {
         if (!requireNamespace("anndata", quietly = TRUE)) {
             stop("Package 'anndata' is required for .h5ad file processing.")
         }
-        ad <- anndata::read_h5ad(source_path)
+        ad <- anndata::read_h5ad(staged_file)
         seurat_obj <- CreateSeuratObject(
             counts = t(as.matrix(ad\$X)),
             project = sample_id,
@@ -92,7 +91,7 @@ process INGEST_FILE {
         message("[INGEST_FILE] Converted h5ad to Seurat: ", ncol(seurat_obj),
                 " cells, ", nrow(seurat_obj), " genes.")
     } else {
-        file.copy(from = source_path, to = out_path, overwrite = TRUE)
+        file.copy(from = staged_file, to = out_path, overwrite = TRUE)
         seurat_obj <- readRDS(out_path)
     }
 

@@ -6,8 +6,8 @@ workflow {
     meta = [
         id: 'TEST_SAMPLE',
         species: 'human',
-        path: '/tmp/test.rds'
+        path: "${projectDir}/tests/fixtures/sample.rds"
     ]
 
-    INGEST_FILE(Channel.of(meta))
+    INGEST_FILE(Channel.of([meta, file(meta.path)]))
 }

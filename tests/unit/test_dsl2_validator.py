@@ -19,17 +19,17 @@ class TestDsl2Validator:
         """A well-formed workflow should pass validation."""
         content = """#!/usr/bin/env nextflow
 
-include { INGEST } from '../modules/local/rdiscvr/ingest/main.nf'
+include { INGEST_FILE } from '../modules/local/rdiscvr/ingest_file/main.nf'
 
 workflow TEST {
     take:
     input_ch
 
     main:
-    INGEST(input_ch)
+    INGEST_FILE(input_ch)
 
     emit:
-    rds = INGEST.out.rds
+    rds = INGEST_FILE.out.rds
 }
 """
         is_valid, issues = validate_dsl2_workflow(content, str(Path(__file__).parent.parent.parent))

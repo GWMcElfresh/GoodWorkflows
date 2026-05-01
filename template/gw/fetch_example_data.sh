@@ -9,11 +9,11 @@
 #   1. Downloads the pbmc3k Seurat object from the public SeuratData repository
 #   2. Splits cells into 3 pseudo-species subsets (human, macaque, mouse)
 #   3. Saves each subset as a local RDS file in template/gw/data/
-#   4. Generates samplesheet.csv with sample_id, url, species columns
+#   4. Generates samplesheet.csv with sample_id, path, species columns (path mode)
 #
 # The 3 subsets are created by splitting cells by cluster identity, simulating
 # a cross-species integration scenario. This allows testing the full pipeline:
-#   INGEST (URL) → EXPORT_COUNTS → GENE_HARMONIZE → SCMODAL_INTEGRATE
+#   INGEST_FILE → EXPORT_COUNTS → GENE_HARMONIZE → SCMODAL_INTEGRATE
 #
 # Requires: R with Seurat and SeuratData packages installed.
 # If R is not available, this script will attempt to install it via conda/mamba.
