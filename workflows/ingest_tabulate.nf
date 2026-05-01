@@ -2,13 +2,15 @@ nextflow.enable.dsl = 2
 
 include { INGEST_METADATA } from '../modules/local/rdiscvr/ingest_metadata/main.nf'
 include { INGEST_URL } from '../modules/local/rdiscvr/ingest_url/main.nf'
+include { INGEST_FILE } from '../modules/local/rdiscvr/ingest_file/main.nf'
 include { TABULATE } from '../modules/local/rdiscvr/tabulate/main.nf'
 
 /**
  * Build the samplesheet-derived metadata channel for the metadata-only path.
  *
  * The samplesheet must define one row per sample with the columns
- * `sample_id`, `species`, and either `output_file_id` (LabKey mode) or `url` (public download mode).
+ * `sample_id`, `species`, and one of `output_file_id` (LabKey mode), `url`
+ * (public download mode), or `path` (local-file mode).
  *
  * @param samplesheetPath Path to the input samplesheet CSV file.
  * @return Channel emitting one metadata map per sample.
@@ -26,9 +28,14 @@ def buildIngestTabulateSamplesChannel(samplesheetPath) {
 
             def hasOutputFileId = row.containsKey('output_file_id') && row.output_file_id?.trim()
             def hasUrl = row.containsKey('url') && row.url?.trim()
+            def hasPath = row.containsKey('path') && row.path?.trim()
 
-            if (!hasOutputFileId && !hasUrl) {
-                error "Samplesheet row must have either 'output_file_id' (LabKey mode) or 'url' (public download mode): ${row}"
+            def modeCount = ([hasOutputFileId, hasUrl, hasPath].count { it }) as int
+            if (modeCount == 0) {
+                error "Samplesheet row must have one of 'output_file_id' (LabKey), 'url' (download), or 'path' (local file): ${row}"
+            }
+            if (modeCount > 1) {
+                error "Samplesheet row must have exactly ONE of 'output_file_id', 'url', or 'path' (found ${modeCount}): ${row}"
             }
 
             def meta = [
@@ -42,7 +49,11 @@ def buildIngestTabulateSamplesChannel(samplesheetPath) {
             }
             if (hasUrl) {
                 meta.url = row.url.toString()
-                meta.mode = meta.mode ?: 'url'
+                meta.mode = 'url'
+            }
+            if (hasPath) {
+                meta.path = row.path.toString()
+                meta.mode = 'file'
             }
 
             meta
@@ -54,7 +65,7 @@ def buildIngestTabulateSamplesChannel(samplesheetPath) {
  *
  * Downloads cell-level metadata tables and aggregates them into a
  * subject-level summary table suitable for cohort QC and downstream analysis.
- * Supports both LabKey (output_file_id) and URL-based (public RDS) modes.
+ * Supports LabKey (output_file_id), URL-based (public RDS), and local-path modes.
  */
 workflow INGEST_TABULATE_PIPELINE {
     take:
@@ -63,10 +74,10 @@ workflow INGEST_TABULATE_PIPELINE {
     main:
     ch_samples = buildIngestTabulateSamplesChannel(samplesheet)
 
-    // Branch: LabKey (output_file_id) vs URL (public download)
     ch_labkey = ch_samples.branch { meta ->
         labkey: meta.mode == 'labkey'
         url:    meta.mode == 'url'
+        file:   meta.mode == 'file'
     }
 
     // LabKey mode: INGEST_METADATA uses Rdiscvr to download metadata directly
@@ -75,8 +86,12 @@ workflow INGEST_TABULATE_PIPELINE {
     // URL mode: INGEST_URL downloads the full Seurat object and extracts metadata
     ch_url_metadata = INGEST_URL(ch_labkey.url).metadata
 
+    // Local file mode: INGEST_FILE copies the file and extracts metadata
+    ch_file_metadata = INGEST_FILE(ch_labkey.file).metadata
+
     ch_metadata_csvs = ch_labkey_metadata
         .mix(ch_url_metadata)
+        .mix(ch_file_metadata)
         .map { _meta, metadata_csv -> metadata_csv }
         .collect()
 
@@ -89,6 +104,6 @@ workflow INGEST_TABULATE_PIPELINE {
     )
 
     emit:
-    metadata = ch_labkey_metadata.mix(ch_url_metadata)
+    metadata = ch_labkey_metadata.mix(ch_url_metadata).mix(ch_file_metadata)
     subject_table = TABULATE.out.subject_table
 }

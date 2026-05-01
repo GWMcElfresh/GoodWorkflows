@@ -1,2 +1,2 @@
-sample_id,output_file_id,url,species
-SAMPLE_01,100001,,human
+sample_id,output_file_id,url,path,species
+SAMPLE_01,100001,,,human

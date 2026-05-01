@@ -139,7 +139,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        module: [ingest, ingest_metadata, ingest_url, export_counts, gene_harmonize, scmodal_integrate, tabulate]
+        module: [ingest_labkey, ingest_file, ingest_metadata, ingest_url, export_counts, gene_harmonize, scmodal_integrate, tabulate]
 
     steps:
       - name: Checkout

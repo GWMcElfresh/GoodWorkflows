@@ -153,6 +153,7 @@ export interface SamplesheetRow {
   id: string;
   output_file_id?: string;
   url?: string;
+  path?: string;
   species: string;
   [key: string]: string | undefined;
 }
@@ -165,6 +166,8 @@ export interface SamplesheetAnalysis {
   species_detected: string[];
   species_mix: boolean;
   needs_harmonization: boolean;
+  has_path_column: boolean;
+  all_rows_have_path: boolean;
   warnings: string[];
   errors: string[];
 }

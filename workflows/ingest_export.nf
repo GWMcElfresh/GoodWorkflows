@@ -1,14 +1,16 @@
 nextflow.enable.dsl = 2
 
-include { INGEST } from '../modules/local/rdiscvr/ingest/main.nf'
+include { INGEST_LABKEY } from '../modules/local/rdiscvr/ingest_labkey/main.nf'
 include { INGEST_URL } from '../modules/local/rdiscvr/ingest_url/main.nf'
+include { INGEST_FILE } from '../modules/local/rdiscvr/ingest_file/main.nf'
 include { EXPORT_COUNTS } from '../modules/local/cellmembrane/seurat/main.nf'
 
 /**
  * Build the samplesheet-derived metadata channel for the ingest/export workflow.
  *
  * The samplesheet must define one row per sample with the columns
- * `sample_id`, `species`, and either `output_file_id` (LabKey mode) or `url` (public download mode).
+ * `sample_id`, `species`, and one of `output_file_id` (LabKey mode), `url`
+ * (public download mode), or `path` (local-file mode).
  *
  * @param samplesheetPath Path to the input samplesheet CSV file.
  * @return Channel emitting one metadata map per sample.
@@ -26,9 +28,14 @@ def buildIngestExportSamplesChannel(samplesheetPath) {
 
             def hasOutputFileId = row.containsKey('output_file_id') && row.output_file_id?.trim()
             def hasUrl = row.containsKey('url') && row.url?.trim()
+            def hasPath = row.containsKey('path') && row.path?.trim()
 
-            if (!hasOutputFileId && !hasUrl) {
-                error "Samplesheet row must have either 'output_file_id' (LabKey mode) or 'url' (public download mode): ${row}"
+            def modeCount = ([hasOutputFileId, hasUrl, hasPath].count { it }) as int
+            if (modeCount == 0) {
+                error "Samplesheet row must have one of 'output_file_id' (LabKey), 'url' (download), or 'path' (local file): ${row}"
+            }
+            if (modeCount > 1) {
+                error "Samplesheet row must have exactly ONE of 'output_file_id', 'url', or 'path' (found ${modeCount}): ${row}"
             }
 
             def meta = [
@@ -42,7 +49,11 @@ def buildIngestExportSamplesChannel(samplesheetPath) {
             }
             if (hasUrl) {
                 meta.url = row.url.toString()
-                meta.mode = meta.mode ?: 'url'
+                meta.mode = 'url'
+            }
+            if (hasPath) {
+                meta.path = row.path.toString()
+                meta.mode = 'file'
             }
 
             meta
@@ -62,14 +73,15 @@ workflow INGEST_EXPORT_PIPELINE {
     main:
     ch_samples = buildIngestExportSamplesChannel(samplesheet)
 
-    // Branch: LabKey (output_file_id) vs URL (public download)
     ch_labkey = ch_samples.branch { meta ->
         labkey: meta.mode == 'labkey'
         url:    meta.mode == 'url'
+        file:   meta.mode == 'file'
     }
 
-    ch_ingested_rds = INGEST(ch_labkey.labkey).rds
+    ch_ingested_rds = INGEST_LABKEY(ch_labkey.labkey).rds
         .mix(INGEST_URL(ch_labkey.url).rds)
+        .mix(INGEST_FILE(ch_labkey.file).rds)
 
     EXPORT_COUNTS(ch_ingested_rds)
 

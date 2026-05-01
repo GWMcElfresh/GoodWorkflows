@@ -247,10 +247,10 @@ echo ""
 echo "--- Generating samplesheet.csv ---"
 
 cat > "${SAMPLESHEET}" <<EOF
-sample_id,output_file_id,url,species
-PBMC_HUMAN,,${DATA_DIR}/pbmc3k_human.rds,human
-PBMC_MACAQUE,,${DATA_DIR}/pbmc3k_macaque.rds,macaque
-PBMC_MOUSE,,${DATA_DIR}/pbmc3k_mouse.rds,mouse
+sample_id,output_file_id,url,path,species
+PBMC_HUMAN,,,,${DATA_DIR}/pbmc3k_human.rds,human
+PBMC_MACAQUE,,,,${DATA_DIR}/pbmc3k_macaque.rds,macaque
+PBMC_MOUSE,,,,${DATA_DIR}/pbmc3k_mouse.rds,mouse
 EOF
 
 echo -e "${GREEN}Samplesheet created: ${SAMPLESHEET}${NC}"

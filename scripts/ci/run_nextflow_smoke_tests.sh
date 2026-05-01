@@ -60,8 +60,12 @@ case "${TEST_KIND}" in
     module)
         run_nextflow "${PROJECT_DIR}/tests/modules/${TEST_NAME}.nf"
         case "${TEST_NAME}" in
-            ingest)
+            ingest_labkey)
                 test -f "${TEST_ROOT}/outputs/ingest/TEST_SAMPLE.rds"
+                ;;
+            ingest_file)
+                test -f "${TEST_ROOT}/outputs/ingest/TEST_SAMPLE.rds"
+                test -f "${TEST_ROOT}/outputs/ingest/TEST_SAMPLE_metadata.csv"
                 ;;
             ingest_metadata)
                 test -f "${TEST_ROOT}/outputs/ingest/TEST_SAMPLE_metadata.csv"

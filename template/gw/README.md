@@ -67,24 +67,30 @@ template/gw/
 
 ## Samplesheet Format
 
-Two modes are supported:
+Three modes are supported:
 
-### URL Mode (public data, no LabKey)
+### Local File Mode (data already on disk)
 ```csv
-sample_id,url,species
-PBMC_HUMAN,/path/to/pbmc3k_human.rds,human
-PBMC_MACAQUE,/path/to/pbmc3k_macaque.rds,macaque
-PBMC_MOUSE,/path/to/pbmc3k_mouse.rds,mouse
+sample_id,output_file_id,url,path,species
+PBMC_HUMAN,,,,/path/to/pbmc3k_human.rds,human
+PBMC_MACAQUE,,,,/path/to/pbmc3k_macaque.rds,macaque
+```
+
+### URL Mode (public data download)
+```csv
+sample_id,output_file_id,url,path,species
+PBMC_HUMAN,,https://example.com/pbmc3k_human.rds,,human
+PBMC_MACAQUE,,https://example.com/pbmc3k_macaque.rds,,macaque
 ```
 
 ### LabKey Mode (requires .netrc credentials)
 ```csv
-sample_id,output_file_id,species
-SAMPLE_01,100001,human
-SAMPLE_02,100002,macaque
+sample_id,output_file_id,url,path,species
+SAMPLE_01,100001,,,human
+SAMPLE_02,100002,,,macaque
 ```
 
-The INGEST module auto-detects which mode to use based on whether `url` or `output_file_id` is present.
+The INGEST dispatcher auto-detects which mode to use based on which column (`path`, `url`, or `output_file_id`) is non-empty. Exactly one must be present per row.
 
 ## Custom Runs
 
@@ -114,8 +120,8 @@ ls /etc/cdi/nvidia.yaml
 sudo rpm-ostree install nvidia-container-toolkit
 ```
 
-### "Neither 'url' nor 'output_file_id' found"
-Your samplesheet must have either a `url` column (for public data) or an `output_file_id` column (for LabKey data).
+### "Samplesheet row must have one of 'output_file_id', 'url', or 'path'"
+Your samplesheet must have exactly one of `output_file_id` (LabKey), `url` (download), or `path` (local file) non-empty per row.
 
 ### Container pull fails
 Ensure the images are public:
