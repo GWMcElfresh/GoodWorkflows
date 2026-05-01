@@ -17,6 +17,7 @@ import os
 import pathlib
 import shutil
 import subprocess
+import sys
 
 import anndata as ad
 import numpy as np
@@ -30,8 +31,12 @@ from scmodal.model import Model
 # ---------------------------------------------------------------------------
 # Nextflow-injected parameters
 # ---------------------------------------------------------------------------
-HARMONIZED_DIR = pathlib.Path("${harmonized_dir}")
-BATCH_SIZE = int("${params.scmodal_batch_size}")
+HARMONIZED_DIR   = pathlib.Path("${harmonized_dir}")
+BASE_BATCH_SIZE  = int("${params.scmodal_batch_size}")
+ATTEMPT          = int("${task.attempt}")
+# Reduce batch size by 10 % per retry (attempt 1 = full size).
+# Floor at 250 to avoid training instability.
+BATCH_SIZE       = max(250, int(BASE_BATCH_SIZE * (0.9 ** (ATTEMPT - 1))))
 TRAINING_STEPS = int("${params.scmodal_training_steps}")
 N_LATENT = int("${params.scmodal_latent}")
 N_NEIGHBORS = int("${params.scmodal_neighbors}")
@@ -84,43 +89,59 @@ for row in manifest.itertuples(index=False):
 # ---------------------------------------------------------------------------
 # Model training
 # ---------------------------------------------------------------------------
-model_dir = out_dir / "scmodal_model"
-model = Model(
-    batch_size=BATCH_SIZE,
-    training_steps=TRAINING_STEPS,
-    n_latent=N_LATENT,
-    n_KNN=N_NEIGHBORS,
-    model_path=str(model_dir),
-    result_path=str(out_dir),
-)
+if ATTEMPT > 1:
+    print(
+        f"SCMODAL_INTEGRATE: retry attempt {ATTEMPT} — "
+        f"using batch_size={BATCH_SIZE} (base={BASE_BATCH_SIZE}).",
+        flush=True,
+    )
 
-if len(adatas) == 2:
-    n_shared_path = HARMONIZED_DIR / "n_shared.txt"
-    if not n_shared_path.exists():
-        raise RuntimeError(f"n_shared.txt not found in {HARMONIZED_DIR}")
-    shared_gene_num = int(n_shared_path.read_text().strip())
-    model.preprocess(adatas[0], adatas[1], shared_gene_num)
-    model.train()
-    model.eval()
-elif len(adatas) > 2:
-    if not hasattr(model, "integrate_datasets_feats"):
-        raise RuntimeError(
-            f"scMODAL Model does not expose integrate_datasets_feats — "
-            f"multi-species integration (n={len(adatas)}) is not supported by "
-            "the installed scmodal version."
+model_dir = out_dir / "scmodal_model"
+try:
+    model = Model(
+        batch_size=BATCH_SIZE,
+        training_steps=TRAINING_STEPS,
+        n_latent=N_LATENT,
+        n_KNN=N_NEIGHBORS,
+        model_path=str(model_dir),
+        result_path=str(out_dir),
+    )
+
+    if len(adatas) == 2:
+        n_shared_path = HARMONIZED_DIR / "n_shared.txt"
+        if not n_shared_path.exists():
+            raise RuntimeError(f"n_shared.txt not found in {HARMONIZED_DIR}")
+        shared_gene_num = int(n_shared_path.read_text().strip())
+        model.preprocess(adatas[0], adatas[1], shared_gene_num)
+        model.train()
+        model.eval()
+    elif len(adatas) > 2:
+        if not hasattr(model, "integrate_datasets_feats"):
+            raise RuntimeError(
+                f"scMODAL Model does not expose integrate_datasets_feats — "
+                f"multi-species integration (n={len(adatas)}) is not supported by "
+                "the installed scmodal version."
+            )
+        input_feats = [adata.X for adata in adatas]
+        paired_inputs = [
+            [input_feats[idx], input_feats[idx + 1]]
+            for idx in range(len(input_feats) - 1)
+        ]
+        model.integrate_datasets_feats(
+            input_feats=input_feats, paired_input_MNN=paired_inputs
         )
-    input_feats = [adata.X for adata in adatas]
-    paired_inputs = [
-        [input_feats[idx], input_feats[idx + 1]]
-        for idx in range(len(input_feats) - 1)
-    ]
-    model.integrate_datasets_feats(
-        input_feats=input_feats, paired_input_MNN=paired_inputs
+    else:
+        raise RuntimeError(
+            f"SCMODAL_INTEGRATE requires at least 2 AnnData objects; got {len(adatas)}."
+        )
+except torch.cuda.OutOfMemoryError:
+    print(
+        f"SCMODAL_INTEGRATE: CUDA out-of-memory on attempt {ATTEMPT} "
+        f"with batch_size={BATCH_SIZE}. "
+        "Exiting with code 42 to trigger Nextflow retry with a smaller batch size.",
+        flush=True,
     )
-else:
-    raise RuntimeError(
-        f"SCMODAL_INTEGRATE requires at least 2 AnnData objects; got {len(adatas)}."
-    )
+    sys.exit(42)
 
 # Validate that model produced a latent embedding
 if not hasattr(model, "latent") or model.latent is None:
@@ -187,6 +208,8 @@ training_summary = pd.DataFrame(
             "n_latent": N_LATENT,
             "training_steps": TRAINING_STEPS,
             "batch_size": BATCH_SIZE,
+            "base_batch_size": BASE_BATCH_SIZE,
+            "attempt": ATTEMPT,
             "train_time_seconds": float(getattr(model, "train_time", float("nan"))),
             "eval_time_seconds": float(getattr(model, "eval_time", float("nan"))),
             "device": str(model.device),
