@@ -3,13 +3,36 @@
 #
 # USAGE:
 #   cd template/gw
-#   bash fetch_example_data.sh
+#   bash fetch_example_data.sh [N_GENES]
+#
+#   N_GENES  Number of top highly-variable genes to retain before splitting
+#            (default: 500).  Set to 0 to keep all genes.
+#
+#            WHY THIS EXISTS:
+#            pbmc3k has ~13,714 genes; after babelgene ortholog renaming and
+#            mygene HomoloGene intersection across human/macaque/mouse, the
+#            shared feature matrix ends up at ~8,134 genes.  scMODAL's geometric
+#            loss materialises a (batch, batch, n_genes) float32 tensor *per
+#            species* for the autograd backward pass, so 3 species × 8,134 genes
+#            requires ~7.9 GiB of VRAM just for those intermediates — exceeding
+#            the 7.66 GiB total on an RTX 3070.
+#
+#            For LOCAL TESTING only, we subset to the top N HVGs before
+#            splitting so the shared gene space stays small.  For PRODUCTION
+#            (e.g. A100 80 GB cards), pass N_GENES=0 or a large value.
+#
+#            The HVG subset is applied to the full merged object BEFORE
+#            splitting into pseudo-species, so all three subsets share the
+#            same starting gene universe.  babelgene then maps those human
+#            symbols to macaque/mouse orthologs, and GENE_HARMONIZE intersects
+#            whatever passes — preserving the homolog-alignment contract.
 #
 # This script:
 #   1. Downloads the pbmc3k Seurat object from the public SeuratData repository
-#   2. Splits cells into 3 pseudo-species subsets (human, macaque, mouse)
-#   3. Saves each subset as a local RDS file in template/gw/data/
-#   4. Generates samplesheet.csv with sample_id, path, species columns (path mode)
+#   2. Optionally subsets to top N HVGs (controlled by N_GENES above)
+#   3. Splits cells into 3 pseudo-species subsets (human, macaque, mouse)
+#   4. Saves each subset as a local RDS file in template/gw/data/
+#   5. Generates samplesheet.csv with sample_id, path, species columns (path mode)
 #
 # The 3 subsets are created by splitting cells by cluster identity, simulating
 # a cross-species integration scenario. This allows testing the full pipeline:
@@ -25,6 +48,10 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
 
+# N_GENES: first positional arg, default 500 for local GPU testing.
+# Pass 0 to disable subsetting (production / A100 use).
+N_GENES="${1:-500}"
+
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 DATA_DIR="${SCRIPT_DIR}/data"
 SAMPLESHEET="${SCRIPT_DIR}/samplesheet.csv"
@@ -33,6 +60,11 @@ mkdir -p "${DATA_DIR}"
 
 echo "=========================================="
 echo " Fetch Example Data — pbmc3k → 3 pseudo-species"
+if [ "${N_GENES}" -gt 0 ]; then
+    echo " Gene subsetting: top ${N_GENES} HVGs (local GPU testing)"
+else
+    echo " Gene subsetting: DISABLED (all genes retained)"
+fi
 echo "=========================================="
 
 # --- Check for R ---
@@ -83,9 +115,10 @@ if (length(missing) > 0) {
 echo ""
 echo "--- Downloading pbmc3k dataset ---"
 
-Rscript --no-save - "${DATA_DIR}" <<'REOF'
+Rscript --no-save - "${DATA_DIR}" "${N_GENES}" <<'REOF'
 args <- commandArgs(trailingOnly = TRUE)
 data_dir <- args[1]
+n_genes   <- as.integer(args[2])
 
 suppressPackageStartupMessages({
     library(Seurat)
@@ -104,6 +137,30 @@ pbmc <- Seurat::UpdateSeuratObject(pbmc3k.final)
 
 message("[FETCH] Total cells: ", ncol(pbmc))
 message("[FETCH] Total genes: ", nrow(pbmc))
+
+# ---------------------------------------------------------------------------
+# Optional HVG subsetting (for local GPU testing)
+# ---------------------------------------------------------------------------
+# This is applied to the FULL merged object before splitting so all three
+# pseudo-species subsets start from the same gene universe.  babelgene then
+# maps those human symbols to species-appropriate orthologs, and GENE_HARMONIZE
+# intersects whatever survives — the homolog-alignment contract is preserved.
+#
+# Why HVGs rather than random genes: HVGs drive clustering and are more likely
+# to have well-annotated orthologs in NCBI HomoloGene than lowly-expressed or
+# non-variable genes.
+if (!is.na(n_genes) && n_genes > 0 && n_genes < nrow(pbmc)) {
+    message("[FETCH] Selecting top ", n_genes, " highly variable genes ...")
+    pbmc <- Seurat::FindVariableFeatures(pbmc, selection.method = "vst",
+                                         nfeatures = n_genes, verbose = FALSE)
+    hvgs <- Seurat::VariableFeatures(pbmc)
+    pbmc <- pbmc[hvgs, ]
+    message("[FETCH] Gene count after HVG subsetting: ", nrow(pbmc))
+} else {
+    if (is.na(n_genes) || n_genes == 0) {
+        message("[FETCH] HVG subsetting disabled — retaining all ", nrow(pbmc), " genes.")
+    }
+}
 
 # Split cells into 3 groups by seurat_clusters
 clusters <- as.character(pbmc$seurat_clusters)
@@ -268,6 +325,14 @@ echo "Data files:"
 ls -lh "${DATA_DIR}/"*.rds 2>/dev/null || echo "  (no RDS files found — check R output above)"
 echo ""
 echo "Samplesheet: ${SAMPLESHEET}"
+echo ""
+if [ "${N_GENES}" -gt 0 ]; then
+    echo "Gene subsetting: top ${N_GENES} HVGs"
+    echo "  → safe for local GPU testing (RTX 3070 / 8 GB VRAM)"
+    echo "  → for production A100 runs, re-fetch with: bash fetch_example_data.sh 0"
+else
+    echo "Gene subsetting: disabled (all genes retained)"
+fi
 echo ""
 echo "Next: run a workflow"
 echo "  bash run.sh --workflow ingest_export"

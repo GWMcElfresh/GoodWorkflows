@@ -84,9 +84,14 @@ def _log_oom(exc: BaseException, phase: str) -> None:
 HARMONIZED_DIR   = pathlib.Path("${harmonized_dir}")
 BASE_BATCH_SIZE  = int("${params.scmodal_batch_size}")
 ATTEMPT          = int("${task.attempt}")
+# Minimum batch size. hack for local training: 250 sounds safe but is actually too large for 3+
+# species on a 8 GiB GPU (the geometric-loss backward saves n_species copies
+# of a (B, B, n_genes) tensor).  64 allows the VRAM clamp below to take
+# effect while keeping enough samples for stable MNN / neighbour graphs.
+# in practice, this will start at 500, then drop down until it fits in memory.
+MIN_BATCH_SIZE   = 64
 # Reduce batch size by 10 % per retry (attempt 1 = full size).
-# Floor at 250 to avoid training instability.
-BATCH_SIZE       = max(250, int(BASE_BATCH_SIZE * (0.9 ** (ATTEMPT - 1))))
+BATCH_SIZE       = max(MIN_BATCH_SIZE, int(BASE_BATCH_SIZE * (0.9 ** (ATTEMPT - 1))))
 TRAINING_STEPS = int("${params.scmodal_training_steps}")
 N_LATENT = int("${params.scmodal_latent}")
 N_NEIGHBORS = int("${params.scmodal_neighbors}")
@@ -150,25 +155,42 @@ if torch.cuda.is_available():
     _props        = torch.cuda.get_device_properties(0)
     _total_gib    = _props.total_memory / 2**30
     _free_gib     = (_props.total_memory - torch.cuda.memory_reserved(0)) / 2**30
+    _n_species    = len(adatas)
     _n_genes_max  = max(a.n_vars for a in adatas)
-    # scMODAL's geometric loss materialises (batch, batch, n_genes) float32 tensors
-    # twice per training step (K_A and K_B, computed sequentially); peak is one at a
-    # time, but retain_graph=True in the discriminator loop can prevent the allocator
-    # from reusing blocks, so we budget for both.
-    _kmat_gib     = 2 * BATCH_SIZE**2 * _n_genes_max * 4 / 2**30
-    _safe_batch   = int(math.sqrt(_free_gib * 0.45 * 2**30 / _n_genes_max / 4))
+    # scMODAL's geometric loss saves a (B, B, n_genes) float32 activation tensor
+    # per species for the backward pass through K_dict (data-space kernel matrix).
+    # ALL n_species copies exist simultaneously in the autograd graph during
+    # loss_G.backward(), so peak autograd memory = n_species × B² × n_genes × 4 B.
+    # We budget 60 % of total VRAM for these; the remainder covers model weights,
+    # optimizer states, x_dict tensors, and K_z_dict backward nodes (tiny: n_latent
+    # instead of n_genes).
+    _kmat_gib     = _n_species * BATCH_SIZE**2 * _n_genes_max * 4 / 2**30
+    _safe_batch   = max(MIN_BATCH_SIZE,
+                        int(math.sqrt(_total_gib * 0.60 * 2**30
+                                      / _n_species / _n_genes_max / 4)))
     print(
         f"SCMODAL_INTEGRATE: GPU={_props.name} — "
         f"{_free_gib:.2f}/{_total_gib:.2f} GiB free, "
-        f"n_genes_max={_n_genes_max}, batch_size={BATCH_SIZE}, "
-        f"estimated K-matrix peak={_kmat_gib:.2f} GiB "
-        f"(safe batch_size ≤ {_safe_batch})",
+        f"n_species={_n_species}, n_genes_max={_n_genes_max}, "
+        f"batch_size={BATCH_SIZE}, "
+        f"estimated autograd-K peak={_kmat_gib:.2f} GiB "
+        f"(60 %%-VRAM safe batch_size ≤ {_safe_batch})",
         flush=True,
     )
-    if _kmat_gib > _free_gib * 0.90:
+    if BATCH_SIZE > _safe_batch:
         print(
-            f"  WARNING: K-matrix estimate ({_kmat_gib:.2f} GiB) exceeds 90 % of free "
-            f"VRAM ({_free_gib:.2f} GiB). OOM during training is very likely.",
+            f"  WARNING: batch_size={BATCH_SIZE} exceeds VRAM-safe limit "
+            f"({_safe_batch}) for {_n_species} species × {_n_genes_max} genes. "
+            f"Clamping to {_safe_batch}. "
+            "If OOM still occurs the process will exit 42 (Python-caught) or 137 "
+            "(OS SIGKILL — no Python traceback will appear; Nextflow will retry).",
+            flush=True,
+        )
+        BATCH_SIZE = _safe_batch
+    elif _kmat_gib > _free_gib * 0.90:
+        print(
+            f"  WARNING: estimated autograd-K peak ({_kmat_gib:.2f} GiB) exceeds "
+            f"90 % of free VRAM ({_free_gib:.2f} GiB). OOM is likely.",
             flush=True,
         )
 
