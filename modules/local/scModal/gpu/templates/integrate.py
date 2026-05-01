@@ -49,7 +49,7 @@ try:
     )
     (out_dir / "gpu_info.txt").write_text(result.stdout)
 except (subprocess.CalledProcessError, FileNotFoundError) as exc:
-    msg = f"WARNING: nvidia-smi failed: {exc}\n"
+    msg = f"WARNING: nvidia-smi failed: {exc}\\n"
     (out_dir / "gpu_info.txt").write_text(msg)
 
 # ---------------------------------------------------------------------------
