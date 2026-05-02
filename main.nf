@@ -10,6 +10,7 @@ include { INGEST_EXPORT_PIPELINE } from './workflows/ingest_export.nf'
 include { INGEST_TABULATE_PIPELINE } from './workflows/ingest_tabulate.nf'
 
 workflow {
+    main:
     supportedWorkflows = ['integration', 'ingest_export', 'ingest_tabulate']
 
     if (params.help) {
@@ -84,13 +85,8 @@ workflow {
     } else if (selectedWorkflow == 'ingest_tabulate') {
         INGEST_TABULATE_PIPELINE(params.input)
     }
-}
 
-// ---------------------------------------------------------------------------
-// Lifecycle hooks — must be at script level in DSL2, not inside workflow {}.
-// Variables inside the workflow {} closure are out of scope when these fire.
-// ---------------------------------------------------------------------------
-workflow.onComplete {
+    onComplete:
     log.info """
     Workflow            : ${params.workflow ?: 'integration'}
     Pipeline completed  : ${workflow.complete}
@@ -100,9 +96,8 @@ workflow.onComplete {
     Results directory   : ${params.outdir}
     Exit status         : ${workflow.exitStatus}
     """.stripIndent()
-}
 
-workflow.onError {
+    onError:
     log.error "Pipeline failed: ${workflow.errorMessage}"
     log.error "Check logs/ for details and re-run with -resume to continue."
 }
