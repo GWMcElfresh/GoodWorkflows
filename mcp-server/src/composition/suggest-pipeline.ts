@@ -36,13 +36,19 @@ export function suggestPipeline(
   const needsTabulate = goalLower.includes('tabulate') || goalLower.includes('metadata') || goalLower.includes('report');
   const noGpu = goalLower.includes('without gpu') || goalLower.includes('no gpu') || constraints.no_gpu;
 
-  // Always start with INGEST if data import is needed
+  // Always start with tri-mode ingest if data import is needed.
+  // INGEST_LABKEY, INGEST_URL, and INGEST_FILE are all included; the workflow
+  // branches at runtime via a channel.branch() based on meta.mode for each sample.
   if (needsIngest || needsExport || needsHarmonize || needsIntegrate) {
-    const ingest = availableModules.find(m => m.name === 'INGEST');
-    if (ingest) {
-      workflowPlan.push('INGEST');
+    const ingestLabkey = availableModules.find(m => m.name === 'INGEST_LABKEY');
+    const ingestUrl = availableModules.find(m => m.name === 'INGEST_URL');
+    const ingestFile = availableModules.find(m => m.name === 'INGEST_FILE');
+    if (ingestLabkey || ingestUrl || ingestFile) {
+      if (ingestLabkey) workflowPlan.push('INGEST_LABKEY');
+      if (ingestUrl) workflowPlan.push('INGEST_URL');
+      if (ingestFile) workflowPlan.push('INGEST_FILE');
     } else {
-      warnings.push('INGEST module not available');
+      warnings.push('No ingest modules (INGEST_LABKEY, INGEST_URL, INGEST_FILE) available');
     }
   }
 

@@ -124,3 +124,41 @@ The tri-mode ingest refactor (LABKEY/URL/FILE) earlier today changed the module 
 
 ### Remaining Known Issue
 - `memory-bank/session-notes.md` line 74 (follow-up tasks in the refactor session) lists "Update `docs/`" as pending — this session completes that task.
+
+## 2026-05-01 — Exhaustive Repo Audit & TODOs Creation
+
+### Context
+User requested an exhaustive check of recent repo changes to update agent memories. Reviewed all git history from 2026-04-29 to HEAD (commit `ceec6df`), all source files, all config profiles, and all memory bank files.
+
+### What Was Verified (all correct)
+- All 8 modules have `stub:` blocks
+- All `tag`/`publishDir` directives use static strings (DSL2 26.04 compliant)
+- Workflows use `if/else` chains (no `switch` in workflow blocks)
+- `$` escaped as `\$` in R heredocs throughout
+- Base → profile config layering correct, no parameter duplication
+- Tri-mode ingest (LABKEY/URL/FILE) fully deployed across all 3 workflows
+- `local-gpu.config`: GPU retry on exit 42/137 with batch_size reduction
+- `slurm.config`: `process_gpu` retry on exit 42/137
+- `slurm_singularity.config`: Apptainer before/after scripts present
+- `test.config`: All container engines disabled for stub runs
+- All CI module tests present for current modules
+- `nextflow.config` has all 7 profiles (`standard`, `auto`, `slurm`, `slurm_singularity`, `local`, `local_gpu`, `test`)
+
+### Discrepancies Found (→ memory-bank/todos.md)
+
+1. **🔴 BUG: INGEST_METADATA has no label-specific config** — Uses `process_ingest` label but no profile defines `withLabel: 'process_ingest'`. Result: no `.netrc` mount, yet it needs LabKey auth via `DownloadMetadataForSeuratObject()`.
+
+2. **🔴 Memory bank `configs.md` has wrong label table** — Lists unified `process_ingest` but actual configs use 3 separate labels (`process_ingest_labkey`, `process_ingest_url`, `process_ingest_file`).
+
+3. **🟡 `local-gpu.config` missing from config inheritance diagrams** in both `conventions.md` and `configs.md`.
+
+4. **🟡 MCP server doesn't know about `ingest_file`** — Session notes from 2026-04-30 listed this as pending; verified 0 references in `mcp-server/src/`.
+
+5. **🟢 Old dead code already cleaned** — `modules/local/rdiscvr/ingest/` and `tests/modules/ingest.nf` are gone (resolved).
+
+6. **🟢 `nextflow_synatx.md` filename typo** — missing 'n' in 'syntax'.
+
+7. **🟢 `process_harmonize` missing retry in local profiles** — no `errorStrategy` for GENE_HARMONIZE in `local.config`/`local-gpu.config`.
+
+### Files Created
+- `memory-bank/todos.md` — Full audit findings with severity/impact/fix guidance.

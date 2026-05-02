@@ -9,7 +9,7 @@
 
 process INGEST_METADATA {
     tag 'ingest-metadata'
-    label 'process_ingest'
+    label 'process_ingest_labkey'
 
     container 'ghcr.io/bimberlabinternal/rdiscvr:latest'
 
