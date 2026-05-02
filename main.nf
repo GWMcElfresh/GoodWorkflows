@@ -61,14 +61,14 @@ workflow {
     }
 
     // LabKey params are only required when the samplesheet uses output_file_id.
-    // URL-based samplesheets (meta.url) do not need LabKey credentials.
+    // URL-based and path-based samplesheets do not need LabKey credentials.
     // We defer the actual validation to the INGEST process, which checks at runtime.
     if (selectedWorkflow in ['integration', 'ingest_export', 'ingest_tabulate']) {
         if (!params.labkey_base_url || !params.labkey_folder) {
             log.warn """
             WARNING: --labkey_base_url and --labkey_folder are not set.
             If your samplesheet uses 'output_file_id' (LabKey mode), the pipeline will fail.
-            If your samplesheet uses 'url' (public URL mode), this warning can be ignored.
+            If your samplesheet uses 'url' or 'path' mode, this warning can be ignored.
             """.stripIndent()
         }
     }
@@ -84,21 +84,25 @@ workflow {
     } else if (selectedWorkflow == 'ingest_tabulate') {
         INGEST_TABULATE_PIPELINE(params.input)
     }
+}
 
-    workflow.onComplete {
-        log.info """
-        Workflow            : ${selectedWorkflow}
-        Pipeline completed  : ${workflow.complete}
-        Duration            : ${workflow.duration}
-        Success             : ${workflow.success}
-        Work directory      : ${workflow.workDir}
-        Results directory   : ${params.outdir}
-        Exit status         : ${workflow.exitStatus}
-        """.stripIndent()
-    }
+// ---------------------------------------------------------------------------
+// Lifecycle hooks — must be at script level in DSL2, not inside workflow {}.
+// Variables inside the workflow {} closure are out of scope when these fire.
+// ---------------------------------------------------------------------------
+workflow.onComplete {
+    log.info """
+    Workflow            : ${params.workflow ?: 'integration'}
+    Pipeline completed  : ${workflow.complete}
+    Duration            : ${workflow.duration}
+    Success             : ${workflow.success}
+    Work directory      : ${workflow.workDir}
+    Results directory   : ${params.outdir}
+    Exit status         : ${workflow.exitStatus}
+    """.stripIndent()
+}
 
-    workflow.onError {
-        log.error "Pipeline failed: ${workflow.errorMessage}"
-        log.error "Check logs/ for details and re-run with -resume to continue."
-    }
+workflow.onError {
+    log.error "Pipeline failed: ${workflow.errorMessage}"
+    log.error "Check logs/ for details and re-run with -resume to continue."
 }
