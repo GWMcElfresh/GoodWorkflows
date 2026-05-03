@@ -93,24 +93,27 @@ if [[ ! -f "${INPUT}" ]]; then
     exit 1
 fi
 
-# --- Pre-flight: verify any path-mode rows reference files that exist ---
+# --- Pre-flight: verify any path-mode or metadata_path-mode rows reference files that exist ---
 if command -v awk &>/dev/null; then
-    _path_col_idx=$(head -1 "${INPUT}" | tr ',' '\n' | grep -n '^path$' | cut -d: -f1)
-    if [[ -n "${_path_col_idx}" ]]; then
-        _missing=0
-        while IFS=, read -r -a _row; do
-            _val="${_row[$(( _path_col_idx - 1 ))]}"
-            _val="${_val//\"/}"  # strip any quotes
-            if [[ -n "${_val}" && ! -f "${_val}" ]]; then
-                echo -e "${RED}ERROR: path-mode sample file not found: ${_val}${NC}"
-                _missing=1
+    _path_col_idx=$(head -1 "${INPUT}" | tr ',' '\n' | grep -n '^path$' | cut -d: -f1 || true)
+    _metadata_col_idx=$(head -1 "${INPUT}" | tr ',' '\n' | grep -n '^metadata_path$' | cut -d: -f1 || true)
+    for _col_idx in "${_path_col_idx}" "${_metadata_col_idx}"; do
+        if [[ -n "${_col_idx}" ]]; then
+            _missing=0
+            while IFS=, read -r -a _row; do
+                _val="${_row[$(( _col_idx - 1 ))]}"
+                _val="${_val//\"/}"  # strip any quotes
+                if [[ -n "${_val}" && ! -f "${_val}" ]]; then
+                    echo -e "${RED}ERROR: sample file not found: ${_val}${NC}"
+                    _missing=1
+                fi
+            done < <(tail -n +2 "${INPUT}")
+            if [[ "${_missing}" -eq 1 ]]; then
+                echo "Ensure all files listed in the samplesheet of ${INPUT} exist before launching."
+                exit 1
             fi
-        done < <(tail -n +2 "${INPUT}")
-        if [[ "${_missing}" -eq 1 ]]; then
-            echo "Ensure all files listed in the 'path' column of ${INPUT} exist before launching."
-            exit 1
         fi
-    fi
+    done
 fi
 
 # --- Check Nextflow ---

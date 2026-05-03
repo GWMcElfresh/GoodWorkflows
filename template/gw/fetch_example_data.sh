@@ -283,6 +283,63 @@ subset_b <- rename_genes_to_species(subset_b, "macaque", "macaque")
 # Mouse subset: rename human genes → mouse orthologs
 subset_c <- rename_genes_to_species(subset_c, "mouse", "mouse")
 
+# ---------------------------------------------------------------------------
+# Inject RIRA-annotated metadata columns into all three subsets.
+# Real pbmc3k has no RIRA columns — these simulate production metadata so
+# the ingest_tabulate workflow can be end-to-end tested locally.
+# ---------------------------------------------------------------------------
+
+set.seed(42)
+
+immune_levels <- c("Immune", "NonImmune")
+immune_weights <- c(0.65, 0.35)
+
+tnk_levels <- c("CD4_T", "CD8_T", "NK")
+tnk_weights <- c(0.45, 0.35, 0.20)
+
+myeloid_levels <- c("Monocyte", "Neutrophil", "DC", "MacroPhage")
+myeloid_weights <- c(0.30, 0.35, 0.15, 0.20)
+
+# Subject/Vaccine/Timepoint/Tissue: simulate a small cohort (8 subjects)
+subject_pool <- sprintf("SUBJ%03d", 1:8)
+vaccine_pool <- c("Placebo", "BNT162b2", "mRNA-1273")
+timepoint_pool <- c("Baseline", "Week2", "Week4", "Week12")
+tissue_pool <- c("PBMC")
+
+assign_rira <- function(obj) {
+    n <- ncol(obj)
+    meta <- obj@meta.data
+    meta$SubjectId <- sample(subject_pool, n, replace = TRUE)
+    meta$Vaccine <- sample(vaccine_pool, n, replace = TRUE)
+    meta$Timepoint <- sample(timepoint_pool, n, replace = TRUE)
+    meta$Tissue <- sample(tissue_pool, n, replace = TRUE)
+    meta$cDNA_ID <- paste0("cDNA_", seq_len(n))
+    meta$RIRA_Immune.cellclass <- sample(immune_levels, n, replace = TRUE, prob = immune_weights)
+    meta$RIRA_TNK_v2.cellclass <- sample(tnk_levels, n, replace = TRUE, prob = tnk_weights)
+    meta$RIRA_Myeloid_v3.cellclass <- sample(myeloid_levels, n, replace = TRUE, prob = myeloid_weights)
+    meta$RIRA_Immune.cellclass <- ifelse(
+        meta$RIRA_Immune.cellclass == "NonImmune",
+        NA_character_,
+        meta$RIRA_Immune.cellclass
+    )
+    meta$RIRA_TNK_v2.cellclass <- ifelse(
+        meta$RIRA_Immune.cellclass != "TNK",
+        NA_character_,
+        meta$RIRA_TNK_v2.cellclass
+    )
+    meta$RIRA_Myeloid_v3.cellclass <- ifelse(
+        meta$RIRA_Immune.cellclass != "Myeloid",
+        NA_character_,
+        meta$RIRA_Myeloid_v3.cellclass
+    )
+    obj@meta.data <- meta
+    obj
+}
+
+subset_a <- assign_rira(subset_a)
+subset_b <- assign_rira(subset_b)
+subset_c <- assign_rira(subset_c)
+
 # Save RDS files
 path_a <- file.path(data_dir, "pbmc3k_human.rds")
 path_b <- file.path(data_dir, "pbmc3k_macaque.rds")
@@ -295,6 +352,29 @@ saveRDS(subset_c, file = path_c)
 message("[FETCH] Saved: ", path_a, " (", ncol(subset_a), " cells, ", nrow(subset_a), " genes)")
 message("[FETCH] Saved: ", path_b, " (", ncol(subset_b), " cells, ", nrow(subset_b), " genes)")
 message("[FETCH] Saved: ", path_c, " (", ncol(subset_c), " cells, ", nrow(subset_c), " genes)")
+
+# Generate RIRA-annotated metadata CSVs for testing ingest_tabulate
+gen_metadata_csv <- function(obj, data_dir, species_label) {
+    meta <- obj@meta.data
+    required_cols <- c("barcode", "cDNA_ID", "SubjectId", "Vaccine", "Timepoint", "Tissue",
+                       "sample_id", "species", "RIRA_Immune.cellclass", "RIRA_TNK_v2.cellclass",
+                       "RIRA_Myeloid_v3.cellclass")
+    meta$barcode <- colnames(obj)
+    meta$species <- species_label
+    sample_id <- paste0("PBMC_", toupper(species_label))
+    meta$sample_id <- sample_id
+    meta <- meta[, colnames(meta) %in% required_cols | grepl("^RIRA", colnames(meta)) |
+                     colnames(meta) %in% c("barcode", "cDNA_ID", "SubjectId", "Vaccine",
+                                           "Timepoint", "Tissue", "sample_id", "species")]
+    out_path <- file.path(data_dir, paste0(sample_id, "_metadata.csv"))
+    write.csv(meta, file = out_path, row.names = FALSE)
+    message("[FETCH] Saved metadata CSV: ", out_path, " (", nrow(meta), " rows, ", ncol(meta), " cols)")
+    return(out_path)
+}
+
+meta_a <- gen_metadata_csv(subset_a, data_dir, "human")
+meta_b <- gen_metadata_csv(subset_b, data_dir, "macaque")
+meta_c <- gen_metadata_csv(subset_c, data_dir, "mouse")
 
 message("[FETCH] Done!")
 REOF
@@ -314,6 +394,22 @@ echo -e "${GREEN}Samplesheet created: ${SAMPLESHEET}${NC}"
 echo ""
 echo "Contents:"
 cat "${SAMPLESHEET}"
+
+# --- Generate tabulate_samplesheet.csv for testing ingest_tabulate workflow ---
+TABULATE_SAMPLESHEET="${SCRIPT_DIR}/tabulate_samplesheet.csv"
+
+cat > "${TABULATE_SAMPLESHEET}" <<EOF
+sample_id,metadata_path,species
+PBMC_HUMAN,${DATA_DIR}/PBMC_HUMAN_metadata.csv,human
+PBMC_MACAQUE,${DATA_DIR}/PBMC_MACAQUE_metadata.csv,macaque
+PBMC_MOUSE,${DATA_DIR}/PBMC_MOUSE_metadata.csv,mouse
+EOF
+
+echo ""
+echo -e "${GREEN}Tabulate samplesheet created: ${TABULATE_SAMPLESHEET}${NC}"
+echo ""
+echo "Contents:"
+cat "${TABULATE_SAMPLESHEET}"
 
 # --- Summary ---
 echo ""
@@ -337,4 +433,5 @@ echo ""
 echo "Next: run a workflow"
 echo "  bash run.sh --workflow ingest_export"
 echo "  bash run.sh --workflow integration"
+echo "  bash run.sh --workflow ingest_tabulate --input ${TABULATE_SAMPLESHEET}"
 echo "=========================================="

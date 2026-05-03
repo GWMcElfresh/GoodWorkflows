@@ -81,7 +81,7 @@ workflow INGEST_EXPORT_PIPELINE {
 
     ch_ingested_rds = INGEST_LABKEY(ch_labkey.labkey).rds
         .mix(INGEST_URL(ch_labkey.url).rds)
-        .mix(INGEST_FILE(ch_labkey.file).rds)
+        .mix(INGEST_FILE(ch_labkey.file.map { meta -> [meta, file(meta.path)] }).rds)
 
     EXPORT_COUNTS(ch_ingested_rds)
 
