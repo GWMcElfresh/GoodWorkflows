@@ -43,10 +43,9 @@ Every process has a label matching its resource profile:
 
 | Label | Used By |
 |---|---|
-| `process_ingest_labkey` | INGEST_LABKEY |
+| `process_ingest_labkey` | INGEST_LABKEY, INGEST_METADATA |
 | `process_ingest_url` | INGEST_URL |
 | `process_ingest_file` | INGEST_FILE |
-| `process_ingest` | INGEST_METADATA |
 | `process_export` | EXPORT_COUNTS |
 | `process_harmonize` | GENE_HARMONIZE |
 | `process_tabulate` | TABULATE |

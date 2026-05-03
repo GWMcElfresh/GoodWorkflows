@@ -6,6 +6,7 @@
 nextflow.config
   └── configs/base.config        ← Always loaded
        ├── configs/local.config   ← -profile local
+       ├── configs/local-gpu.config ← -profile local_gpu
        ├── configs/slurm.config   ← -profile slurm
        ├── configs/slurm_singularity.config ← -profile slurm_singularity
        └── configs/test.config    ← -profile test
@@ -66,7 +67,9 @@ workDir = "${projectDir}/work"
 
 | Label | CPUs | Memory | Retry |
 |---|---|---|---|
-| `process_ingest` | 2 | `4.GB * task.attempt` | Retry on OOM (exit 137), max 2 retries |
+| `process_ingest_labkey` | 2 | `4.GB * task.attempt` | Retry on OOM (exit 137), max 2 retries; `.netrc` mount |
+| `process_ingest_url` | 2 | `4.GB * task.attempt` | Retry on OOM (exit 137), max 2 retries |
+| `process_ingest_file` | 2 | `4.GB * task.attempt` | Retry on OOM (exit 137), max 2 retries |
 | `process_export` | 2 | 4 GB | — |
 | `process_harmonize` | 2 | 8 GB | — |
 | `process_tabulate` | 2 | `4.GB * task.attempt` | Retry on OOM (exit 137), max 2 retries |
@@ -100,7 +103,9 @@ workDir = "${projectDir}/work"
 
 | Label | Memory | Retry |
 |---|---|---|
-| `process_ingest` | `8.GB * task.attempt` | Retry on OOM (exit 137), max 2 retries |
+| `process_ingest_labkey` | `8.GB * task.attempt` | Retry on OOM (exit 137), max 2 retries; `.netrc` mount |
+| `process_ingest_url` | `8.GB * task.attempt` | Retry on OOM (exit 137), max 2 retries |
+| `process_ingest_file` | `8.GB * task.attempt` | Retry on OOM (exit 137), max 2 retries |
 | `process_export` | 6 GB | — |
 | `process_harmonize` | 6 GB | — |
 | `process_tabulate` | `8.GB * task.attempt` | Retry on OOM (exit 137), max 2 retries |
@@ -141,7 +146,9 @@ workDir = "${projectDir}/work"
 
 | Label | CPUs | Memory | Time | Max Forks | Queue | Extra |
 |---|---|---|---|---|---|---|
-| `process_ingest` | 2 | 64 GB | 8 h | 10 | batch | `--gres=disk:1028`, netrc mount |
+| `process_ingest_labkey` | 2 | 64 GB | 8 h | 10 | batch | `--gres=disk:1028`, netrc mount |
+| `process_ingest_url` | 2 | 64 GB | 8 h | 10 | batch | `--gres=disk:1028` |
+| `process_ingest_file` | 2 | 64 GB | 8 h | 10 | batch | `--gres=disk:1028` |
 | `process_export` | 2 | 64 GB | 4 h | 10 | batch | `--gres=disk:1028` |
 | `process_harmonize` | 2 | 64 GB | 8 h | 5 | batch | `--gres=disk:1028` |
 | `process_tabulate` | 2 | 64 GB | 8 h | 10 | batch | `--gres=disk:1028` |
