@@ -8,10 +8,11 @@ nextflow.enable.dsl = 2
 include { INTEGRATION_PIPELINE } from './workflows/integration_pipeline.nf'
 include { INGEST_EXPORT_PIPELINE } from './workflows/ingest_export.nf'
 include { INGEST_TABULATE_PIPELINE } from './workflows/ingest_tabulate.nf'
+include { NMF_VAE_PIPELINE } from './workflows/nmf_vae.nf'
 
 workflow {
     main:
-    supportedWorkflows = ['integration', 'ingest_export', 'ingest_tabulate']
+    supportedWorkflows = ['integration', 'ingest_export', 'ingest_tabulate', 'nmf_vae']
 
     if (params.help) {
         log.info """
@@ -22,9 +23,10 @@ workflow {
           nextflow run main.nf -profile slurm [options]
 
         Saved workflows:
-          --workflow integration     Full pipeline: ingest -> export -> harmonize -> scMODAL
-          --workflow ingest_export  Fetch Seurat RDS and export 10x-like counts only
-                --workflow ingest_tabulate  Fetch metadata only and build subjectIdTable
+        --workflow integration     Full pipeline: ingest -> export -> harmonize -> scMODAL
+        --workflow ingest_export  Fetch Seurat RDS and export 10x-like counts only
+        --workflow ingest_tabulate  Fetch metadata only and build subjectIdTable
+        --workflow nmf_vae        Fetch Seurat RDS, export counts, merge, and train NMF-VAE
 
         Defaults:
           --input FILE              Samplesheet CSV   [default: ${params.input}]
@@ -84,6 +86,8 @@ workflow {
         INGEST_EXPORT_PIPELINE(params.input)
     } else if (selectedWorkflow == 'ingest_tabulate') {
         INGEST_TABULATE_PIPELINE(params.input)
+    } else if (selectedWorkflow == 'nmf_vae') {
+        NMF_VAE_PIPELINE(params.input)
     }
 
     onComplete:
