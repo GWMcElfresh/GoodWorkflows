@@ -130,7 +130,7 @@ jobs:
       - name: Run workflow smoke test
         run: |
           if [[ "${{ matrix.workflow }}" == "integration" ]]; then
-            bash scripts/ci/run_nextflow_smoke_tests.sh workflow ${{ matrix.workflow }} --scmodal_use_cpu true
+            bash scripts/ci/run_nextflow_smoke_tests.sh workflow integration --scmodal_use_cpu true
           else
             bash scripts/ci/run_nextflow_smoke_tests.sh workflow ${{ matrix.workflow }}
           fi
