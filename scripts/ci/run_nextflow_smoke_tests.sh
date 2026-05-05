@@ -14,6 +14,8 @@ PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 TEST_ROOT="${PROJECT_DIR}/test-results/${TEST_KIND}/${TEST_NAME}"
 LABKEY_BASE_URL="${CI_LABKEY_BASE_URL:-https://labkey.example.org}"
 LABKEY_FOLDER="${CI_LABKEY_FOLDER:-/Example/Folder}"
+# Default samplesheet; workflow case overrides this before calling run_nextflow.
+SAMPLESHEET="${PROJECT_DIR}/data/samplesheet.csv"
 
 rm -rf "${TEST_ROOT}"
 mkdir -p "${TEST_ROOT}"
@@ -28,7 +30,7 @@ run_nextflow() {
         -work-dir "${TEST_ROOT}/work" \
         -with-report "${TEST_ROOT}/report.html" \
         -with-trace "${TEST_ROOT}/trace.txt" \
-        --input "${PROJECT_DIR}/data/samplesheet.csv" \
+        --input "${SAMPLESHEET}" \
         --outdir "${TEST_ROOT}/outputs" \
         --labkey_base_url "${LABKEY_BASE_URL}" \
         --labkey_folder "${LABKEY_FOLDER}" \
@@ -37,6 +39,17 @@ run_nextflow() {
 
 case "${TEST_KIND}" in
     workflow)
+        # Each workflow may need a different samplesheet format.
+        case "${TEST_NAME}" in
+            nmf_vae)
+                # NMF-VAE needs a local-file samplesheet (sample_id,species,path,lambda_graph)
+                # with >= 2 same-species samples. Use the generated test data samplesheet.
+                SAMPLESHEET="${PROJECT_DIR}/template/gw/nmf_vae_samplesheet.csv"
+                ;;
+            *)
+                SAMPLESHEET="${PROJECT_DIR}/data/samplesheet.csv"
+                ;;
+        esac
         run_nextflow "${PROJECT_DIR}/main.nf" --workflow "${TEST_NAME}" "${EXTRA_PIPELINE_ARGS[@]}"
         case "${TEST_NAME}" in
             ingest_export)
@@ -52,6 +65,7 @@ case "${TEST_KIND}" in
                 test -f "${TEST_ROOT}/outputs/scmodal/model_outputs/latent_clustered.h5ad"
                 ;;
             nmf_vae)
+                test -f "${SAMPLESHEET}"
                 test -f "${TEST_ROOT}/outputs/nmf_vae/merged_counts.h5ad"
                 test -f "${TEST_ROOT}/outputs/nmf_vae/genes.txt"
                 test -f "${TEST_ROOT}/outputs/nmf_vae/latent_Z.csv"
