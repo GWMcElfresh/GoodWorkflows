@@ -80,10 +80,17 @@ jobs:
           sudo mv nextflow /usr/local/bin/nextflow
           nextflow -version
 
-      - name: Validate Nextflow profiles
+      - name: Validate Nextflow profiles & workflow syntax
         run: |
           nextflow config -profile test > /dev/null
           nextflow config -profile local > /dev/null
+          # Stub-run validates all .nf files are syntactically correct (DSL2 scopes,
+          # process blocks, etc.) without executing any containers. Catches errors
+          # like invalid workflow scopes (e.g. onError:) before they hit smoke tests.
+          echo "sample_id,species,url" > /tmp/test_samplesheet.csv
+          echo "test,human,https://example.com/test.rds" >> /tmp/test_samplesheet.csv
+          nextflow run main.nf -stub-run -profile test --workflow integration \
+            --input /tmp/test_samplesheet.csv
 
   workflow_smoke_tests:
     name: Workflow smoke tests

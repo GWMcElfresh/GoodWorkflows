@@ -91,17 +91,18 @@ workflow {
     }
 
     onComplete:
-    log.info """
-    Workflow            : ${params.workflow ?: 'integration'}
-    Pipeline completed  : ${workflow.complete}
-    Duration            : ${workflow.duration}
-    Success             : ${workflow.success}
-    Work directory      : ${workflow.workDir}
-    Results directory   : ${params.outdir}
-    Exit status         : ${workflow.exitStatus}
-    """.stripIndent()
-
-    onError:
-    log.error "Pipeline failed: ${workflow.errorMessage}"
-    log.error "Check logs/ for details and re-run with -resume to continue."
+    if (workflow.success) {
+        log.info """
+        Workflow            : ${params.workflow ?: 'integration'}
+        Pipeline completed  : ${workflow.complete}
+        Duration            : ${workflow.duration}
+        Success             : ${workflow.success}
+        Work directory      : ${workflow.workDir}
+        Results directory   : ${params.outdir}
+        Exit status         : ${workflow.exitStatus}
+        """.stripIndent()
+    } else {
+        log.error "Pipeline failed: ${workflow.errorMessage}"
+        log.error "Check logs/ for details and re-run with -resume to continue."
+    }
 }
