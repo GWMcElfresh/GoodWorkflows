@@ -90,21 +90,21 @@ workflow {
             NMF_VAE_PIPELINE(params.input)
         }
     }
+}
 
-    workflow.onComplete = {
-        if (success) {
-            log.info """
-            Workflow            : ${selectedWorkflow}
-            Pipeline completed  : ${workflow.complete}
-            Duration            : ${workflow.duration}
-            Success             : ${workflow.success}
-            Work directory      : ${workflow.workDir}
-            Results directory   : ${params.outdir}
-            Exit status         : ${workflow.exitStatus}
-            """.stripIndent()
-        } else {
-            log.error "Pipeline failed: ${workflow.errorMessage}"
-            log.error "Check logs/ for details and re-run with -resume to continue."
-        }
+workflow.onComplete = {
+    if (success) {
+        log.info """
+        Workflow            : ${selectedWorkflow}
+        Pipeline completed  : ${workflow.complete}
+        Duration            : ${workflow.duration}
+        Success             : ${workflow.success}
+        Work directory      : ${workflow.workDir}
+        Results directory   : ${params.outdir}
+        Exit status         : ${workflow.exitStatus}
+        """.stripIndent()
+    } else {
+        log.error "Pipeline failed: ${workflow.errorMessage}"
+        log.error "Check logs/ for details and re-run with -resume to continue."
     }
 }
