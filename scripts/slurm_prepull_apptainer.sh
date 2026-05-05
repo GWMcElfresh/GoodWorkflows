@@ -242,7 +242,7 @@ def parse_params_block(text):
             val = val.strip().rstrip(',')
             if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
                 continue
-            if val.startswith(('"','"')) and val.endswith(('"','"')) and len(val) >= 2:
+            if val.startswith(('"', "'")) and val.endswith(('"', "'")) and len(val) >= 2:
                 out[key] = val[1:-1]
             else:
                 out[key] = val
