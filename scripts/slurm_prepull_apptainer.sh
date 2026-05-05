@@ -219,8 +219,20 @@ params = {}
 
 def parse_params_block(text):
     out = {}
-    for block in re.finditer(r"params\s*\{(.*?)\}", text, re.DOTALL):
-        body = block.group(1)
+    for m in re.finditer(r"params\s*\{", text):
+        # Use brace-counting instead of non-greedy regex, so that a
+        # `params {}` block that follows a `manifest {}` block (whose
+        # closing `}` would be the first `}` after "params {") is parsed
+        # correctly and all variables — including nmfvae_container and
+        # scmodal_container defined in configs/base.config — are found.
+        start = m.end()   # position right after the opening '{'
+        depth = 1
+        i = start
+        while i < len(text) and depth > 0:
+            if   text[i] == '{': depth += 1
+            elif text[i] == '}': depth -= 1
+            i += 1
+        body = text[start:i-1]   # exclude the final closing '}'
         for raw in body.splitlines():
             line = raw.split('//', 1)[0].strip()
             if not line or '=' not in line:
@@ -230,7 +242,7 @@ def parse_params_block(text):
             val = val.strip().rstrip(',')
             if not re.fullmatch(r"[A-Za-z_][A-Za-z0-9_]*", key):
                 continue
-            if val.startswith(('"', "'")) and val.endswith(('"', "'")) and len(val) >= 2:
+            if val.startswith(('"','"')) and val.endswith(('"','"')) and len(val) >= 2:
                 out[key] = val[1:-1]
             else:
                 out[key] = val

@@ -10,7 +10,11 @@ include { INGEST_EXPORT_PIPELINE } from './workflows/ingest_export.nf'
 include { INGEST_TABULATE_PIPELINE } from './workflows/ingest_tabulate.nf'
 include { NMF_VAE_PIPELINE } from './workflows/nmf_vae.nf'
 
-workflow {
+// Sub-workflow contains all pipeline logic (list literals + if-else dispatch).
+// Keeping it separate from the top-level workflow{} avoids a Nextflow 26.04.0 DSL2
+// parser bug where list literals inside a main: body cause "Unexpected input: ':'"
+// when onComplete: appears as a sibling named closure in the same workflow{} block.
+workflow run_pipeline {
     main:
         supportedWorkflows = ['integration', 'ingest_export', 'ingest_tabulate', 'nmf_vae']
 
@@ -89,22 +93,28 @@ workflow {
         } else if (selectedWorkflow == 'nmf_vae') {
             NMF_VAE_PIPELINE(params.input)
         }
-    }
 }
 
-workflow.onComplete = {
-    if (success) {
-        log.info """
-        Workflow            : ${selectedWorkflow}
-        Pipeline completed  : ${workflow.complete}
-        Duration            : ${workflow.duration}
-        Success             : ${workflow.success}
-        Work directory      : ${workflow.workDir}
-        Results directory   : ${params.outdir}
-        Exit status         : ${workflow.exitStatus}
-        """.stripIndent()
-    } else {
-        log.error "Pipeline failed: ${workflow.errorMessage}"
-        log.error "Check logs/ for details and re-run with -resume to continue."
+// Top-level workflow{}: calls run_pipeline and sets completion handler.
+// Using workflow.onComplete = { } assignment (valid inside workflow{}) rather than
+// the onComplete: named closure form to avoid the DSL2 parser state-machine issue.
+workflow {
+    run_pipeline()
+
+    workflow.onComplete = {
+        if (workflow.success) {
+            log.info """
+            Workflow            : ${params.workflow ?: 'integration'}
+            Pipeline completed  : ${workflow.complete}
+            Duration            : ${workflow.duration}
+            Success             : ${workflow.success}
+            Work directory      : ${workflow.workDir}
+            Results directory   : ${params.outdir}
+            Exit status         : ${workflow.exitStatus}
+            """.stripIndent()
+        } else {
+            log.error "Pipeline failed: ${workflow.errorMessage}"
+            log.error "Check logs/ for details and re-run with -resume to continue."
+        }
     }
 }
