@@ -76,6 +76,7 @@ fi
 
 # Sync this list with main.nf supportedWorkflows whenever a new workflow is added.
 VALID_WORKFLOWS=("integration" "ingest_export" "ingest_tabulate" "nmf_vae")
+# shellcheck disable=SC2076
 if [[ ! " ${VALID_WORKFLOWS[*]} " =~ " ${WORKFLOW} " ]]; then
     echo -e "${RED}ERROR: Invalid workflow '${WORKFLOW}'.${NC}"
     echo "Valid options: ${VALID_WORKFLOWS[*]}"
