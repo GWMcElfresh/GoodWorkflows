@@ -42,13 +42,16 @@ jobs:
       - name: ShellCheck HPC and CI helpers
         run: |
           set -e
-          for f in slurm_nextflow.sh slurm_sync_repo.sh template/run.sh scripts/*.sh scripts/ci/*.sh; do
+          for f in slurm_nextflow.sh slurm_sync_repo.sh template/gw/run.sh template/gw/setup.sh template/gw/fetch_example_data.sh template/cluster/run.sh scripts/*.sh scripts/ci/*.sh; do
             test -f "$f" || { echo "::error::Missing file: $f"; exit 1; }
           done
           shellcheck -S warning \
             slurm_nextflow.sh \
             slurm_sync_repo.sh \
-            template/run.sh \
+            template/gw/run.sh \
+            template/gw/setup.sh \
+            template/gw/fetch_example_data.sh \
+            template/cluster/run.sh \
             scripts/*.sh \
             scripts/ci/*.sh || {
               echo "::error::ShellCheck found issues in one or more scripts"
@@ -89,7 +92,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        workflow: [ingest_export, ingest_tabulate, integration]
+        workflow: [ingest_export, ingest_tabulate, integration, nmf_vae]
 
     steps:
       - name: Checkout

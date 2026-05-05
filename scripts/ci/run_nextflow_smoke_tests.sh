@@ -51,6 +51,15 @@ case "${TEST_KIND}" in
                 test -f "${TEST_ROOT}/outputs/harmonized/harmonized_outputs/integration_manifest.csv"
                 test -f "${TEST_ROOT}/outputs/scmodal/model_outputs/latent_clustered.h5ad"
                 ;;
+            nmf_vae)
+                test -f "${TEST_ROOT}/outputs/nmf_vae/merged_counts.h5ad"
+                test -f "${TEST_ROOT}/outputs/nmf_vae/genes.txt"
+                test -f "${TEST_ROOT}/outputs/nmf_vae/latent_Z.csv"
+                test -f "${TEST_ROOT}/outputs/nmf_vae/decoder_W.csv"
+                test -f "${TEST_ROOT}/outputs/nmf_vae/loss_history.csv"
+                test -f "${TEST_ROOT}/outputs/nmf_vae/loss.png"
+                test -f "${TEST_ROOT}/outputs/nmf_vae/model_checkpoint.pt"
+                ;;
             *)
                 echo "Unknown workflow smoke test: ${TEST_NAME}"
                 exit 1
