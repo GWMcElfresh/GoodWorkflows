@@ -14,4 +14,4 @@
 ghcr.io/bimberlabinternal/cellmembrane:latest
 ghcr.io/bimberlabinternal/rdiscvr:latest
 ghcr.io/gwmcelfresh/scmodal:latest
-ghcr.io/gwmcelfresh/nmfvae:latest
+ghcr.io/gwmcelfresh/nmf-vae:latest

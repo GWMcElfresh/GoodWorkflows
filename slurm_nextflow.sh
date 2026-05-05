@@ -81,6 +81,10 @@ mkdir -p "${NXF_APPTAINER_PULL_LOCK_DIR}"
 LOG_DIR="${PWD}/logs"
 mkdir -p "${LOG_DIR}"
 
+# Ensure Arches4 cache directory exists (for NMF-VAE workflow).
+# Must be on a shared filesystem visible to all compute nodes.
+mkdir -p "${PIPELINE_ROOT}/.archs4"
+
 NXF_WORK_DISPLAY="${NXF_WORK_ROOT}"
 SYNC_SCRIPT_PATH="${SYNC_SCRIPT:-${PIPELINE_ROOT}/scripts/sync_repo.sh}"
 # Profile to use: defaults to slurm_singularity (Apptainer). Override by

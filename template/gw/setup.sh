@@ -156,10 +156,13 @@ fi
 echo ""
 echo "--- Pulling container images ---"
 
+# Sync this list with scripts/image-manifest.txt and scripts/ci/cache_container_images.sh
+# whenever a new workflow/container is added.
 IMAGES=(
     "ghcr.io/bimberlabinternal/rdiscvr:latest"
     "ghcr.io/bimberlabinternal/cellmembrane:latest"
     "ghcr.io/gwmcelfresh/scmodal:latest"
+    "ghcr.io/gwmcelfresh/nmf-vae:latest"
 )
 
 for img in "${IMAGES[@]}"; do
@@ -179,6 +182,13 @@ RUNS_DIR="${SCRIPT_DIR}/runs"
 mkdir -p "${RUNS_DIR}"
 echo -e "${GREEN}Created: ${RUNS_DIR}${NC}"
 
+# --- 7. Create Arches4 cache directory (for NMF-VAE) ---
+echo ""
+echo "--- Creating Arches4 cache directory ---"
+ARCHS4_DIR="${PIPELINE_ROOT}/.archs4"
+mkdir -p "${ARCHS4_DIR}"
+echo -e "${GREEN}Created: ${ARCHS4_DIR}${NC}"
+
 # --- Summary ---
 echo ""
 echo "=========================================="
@@ -192,6 +202,7 @@ echo ""
 echo "  2. Run a workflow:"
 echo "     bash run.sh --workflow ingest_export"
 echo "     bash run.sh --workflow integration"
+echo "     bash run.sh --workflow nmf_vae"
 echo ""
 echo "  Outputs land in: template/gw/runs/<timestamp>/outputs/"
 echo "=========================================="

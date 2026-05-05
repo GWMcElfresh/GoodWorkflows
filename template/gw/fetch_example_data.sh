@@ -411,6 +411,76 @@ echo ""
 echo "Contents:"
 cat "${TABULATE_SAMPLESHEET}"
 
+# --- Generate NMF-VAE test data: split human pbmc3k into two SubjectIds ---
+# NMF-VAE requires shared genes across samples. Cross-species splits (human/macaque/mouse)
+# have disjoint gene sets after ortholog renaming. For local testing, we split the human
+# subset into two halves — both human, so genes are 100% shared.
+echo ""
+echo "--- Generating NMF-VAE test data (human split into 2 SubjectIds) ---"
+
+Rscript --no-save - "${DATA_DIR}" <<'REOF'
+args <- commandArgs(trailingOnly = TRUE)
+data_dir <- args[1]
+
+suppressPackageStartupMessages({
+    library(Seurat)
+})
+
+# Load the human subset we just saved
+human_rds <- file.path(data_dir, "pbmc3k_human.rds")
+if (!file.exists(human_rds)) {
+    stop("pbmc3k_human.rds not found — run fetch_example_data.sh without interrupting.")
+}
+obj <- readRDS(human_rds)
+message("[NMF] Loaded human subset: ", ncol(obj), " cells, ", nrow(obj), " genes")
+
+# Split cells into two groups by SubjectId (hash-based, reproducible)
+meta <- obj@meta.data
+subject_ids <- unique(meta$SubjectId)
+set.seed(99)
+subject_ids <- sample(subject_ids)
+half <- ceiling(length(subject_ids) / 2)
+group_a_subjects <- subject_ids[1:half]
+group_b_subjects <- subject_ids[(half + 1):length(subject_ids)]
+
+meta$group <- ifelse(meta$SubjectId %in% group_a_subjects, "A", "B")
+
+cells_a <- colnames(obj)[meta$group == "A"]
+cells_b <- colnames(obj)[meta$group == "B"]
+
+message("[NMF] Group A: ", length(cells_a), " cells (", length(group_a_subjects), " subjects)")
+message("[NMF] Group B: ", length(cells_b), " cells (", length(group_b_subjects), " subjects)")
+
+# Subset and assign cDNA_ID
+nmf_a <- subset(obj, cells = cells_a)
+nmf_a@meta.data$sample_id <- "PBMC_SUBJ_A"
+nmf_b <- subset(obj, cells = cells_b)
+nmf_b@meta.data$sample_id <- "PBMC_SUBJ_B"
+
+# Save
+path_a <- file.path(data_dir, "pbmc3k_nmf_subjA.rds")
+path_b <- file.path(data_dir, "pbmc3k_nmf_subjB.rds")
+saveRDS(nmf_a, file = path_a)
+saveRDS(nmf_b, file = path_b)
+message("[NMF] Saved: ", path_a, " (", ncol(nmf_a), " cells)")
+message("[NMF] Saved: ", path_b, " (", ncol(nmf_b), " cells)")
+REOF
+
+# --- Generate nmf_vae_samplesheet.csv ---
+NMF_SAMPLESHEET="${SCRIPT_DIR}/nmf_vae_samplesheet.csv"
+
+cat > "${NMF_SAMPLESHEET}" <<EOF
+sample_id,species,path,lambda_graph
+PBMC_SUBJ_A,human,${DATA_DIR}/pbmc3k_nmf_subjA.rds,moderate
+PBMC_SUBJ_B,human,${DATA_DIR}/pbmc3k_nmf_subjB.rds,moderate
+EOF
+
+echo ""
+echo -e "${GREEN}NMF-VAE samplesheet created: ${NMF_SAMPLESHEET}${NC}"
+echo ""
+echo "Contents:"
+cat "${NMF_SAMPLESHEET}"
+
 # --- Summary ---
 echo ""
 echo "=========================================="
@@ -434,4 +504,5 @@ echo "Next: run a workflow"
 echo "  bash run.sh --workflow ingest_export"
 echo "  bash run.sh --workflow integration"
 echo "  bash run.sh --workflow ingest_tabulate --input ${TABULATE_SAMPLESHEET}"
+echo "  bash run.sh --workflow nmf_vae --input ${NMF_SAMPLESHEET}"
 echo "=========================================="

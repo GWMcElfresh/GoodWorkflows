@@ -31,10 +31,10 @@ def read_count_dir(count_dir):
             )
 
     genes = pd.read_csv(
-        count_dir / "features.tsv", sep="\t", header=None
+        count_dir / "features.tsv", sep=chr(9), header=None
     )[0].astype(str).tolist()
     barcodes = pd.read_csv(
-        count_dir / "barcodes.tsv", sep="\t", header=None
+        count_dir / "barcodes.tsv", sep=chr(9), header=None
     )[0].astype(str).tolist()
     obs = pd.read_csv(count_dir / "obs_meta.csv", index_col=0)
     obs.index = obs.index.astype(str)
@@ -143,7 +143,7 @@ merged.write_h5ad("merged_counts.h5ad")
 print("Wrote merged_counts.h5ad", flush=True)
 
 # Write genes.txt
-pathlib.Path("genes.txt").write_text("\n".join(shared_genes) + "\n")
+pathlib.Path("genes.txt").write_text(chr(10).join(shared_genes) + chr(10))
 print(f"Wrote genes.txt ({len(shared_genes)} genes)", flush=True)
 
 # Validate

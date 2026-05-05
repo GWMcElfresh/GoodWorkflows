@@ -4,10 +4,13 @@ set -euo pipefail
 CACHE_DIR="${CACHE_DIR:-.ci/docker-cache}"
 mkdir -p "${CACHE_DIR}"
 
+# Sync this list with scripts/image-manifest.txt and template/gw/setup.sh
+# whenever a new workflow/container is added.
 IMAGES=(
   "ghcr.io/bimberlabinternal/rdiscvr:latest"
   "ghcr.io/bimberlabinternal/cellmembrane:latest"
   "ghcr.io/gwmcelfresh/scmodal:latest"
+  "ghcr.io/gwmcelfresh/nmf-vae:latest"
 )
 
 for image in "${IMAGES[@]}"; do

@@ -15,31 +15,29 @@
 
 set -euo pipefail
 
-# Copy inputs to well-known names in the work directory
-cp "${merged_h5ad}" merged_counts.h5ad
-cp "${genes_file}" genes.txt
-
+# Inputs are already staged in the work directory by Nextflow.
+# ${merged_h5ad} and ${genes_file} are Nextflow template variables (input paths).
 nmfvae-train \
-    --input merged_counts.h5ad \
+    --input "${merged_h5ad}" \
     --output . \
-    --genes-file genes.txt \
+    --genes-file "${genes_file}" \
     --latent-dim "${params.nmf_vae_latent_dim}" \
     --epochs "${params.nmf_vae_epochs}" \
     --batch-size "${params.nmf_vae_batch_size}" \
     --lr "${params.nmf_vae_lr}" \
     --lambda-graph "${lambda_graph}" \
     --fetch-archs4 \
-    --archs4-cache-path "${params.nmf_vae_archs4_cache}" \
+    --archs4-cache-path "${params.nmf_vae_archs4_pkl}" \
     --save-checkpoint \
-    --save-laplacian . \
+    --save-laplacian graph \
     --species-id "${params.nmf_vae_species_id}"
 
-# Validate expected outputs exist
-for f in latent_Z.csv decoder_W.csv loss_history.csv loss.png model_checkpoint.pt; do
-    if [ ! -f "$f" ]; then
-        echo "ERROR: Expected output '$f' was not created by nmfvae-train." >&2
-        exit 1
-    fi
-done
+  # Validate expected outputs exist
+  for out_file in latent_Z.csv decoder_W.csv loss_history.csv loss.png model_checkpoint.pt; do
+      if [ ! -f "\$out_file" ]; then
+          echo "ERROR: Expected output '\$out_file' was not created by nmfvae-train." >&2
+          exit 1
+      fi
+  done
 
 echo "NMF_VAE_FACTORIZE complete."

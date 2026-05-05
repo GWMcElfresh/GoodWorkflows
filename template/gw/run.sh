@@ -75,7 +75,8 @@ if [[ -z "${WORKFLOW}" ]]; then
     exit 1
 fi
 
-VALID_WORKFLOWS=("integration" "ingest_export" "ingest_tabulate")
+# Sync this list with main.nf supportedWorkflows whenever a new workflow is added.
+VALID_WORKFLOWS=("integration" "ingest_export" "ingest_tabulate" "nmf_vae")
 if [[ ! " ${VALID_WORKFLOWS[*]} " =~ " ${WORKFLOW} " ]]; then
     echo -e "${RED}ERROR: Invalid workflow '${WORKFLOW}'.${NC}"
     echo "Valid options: ${VALID_WORKFLOWS[*]}"
@@ -124,6 +125,13 @@ if ! command -v nextflow &>/dev/null; then
         echo -e "${RED}ERROR: Nextflow not found. Run setup.sh first.${NC}"
         exit 1
     fi
+fi
+
+# --- Ensure Arches4 cache directory exists (for NMF-VAE workflow) ---
+if [[ "${WORKFLOW}" == "nmf_vae" ]]; then
+    ARCHS4_DIR="${PIPELINE_ROOT}/.archs4"
+    mkdir -p "${ARCHS4_DIR}"
+    echo -e "${GREEN}Arches4 cache dir ready: ${ARCHS4_DIR}${NC}"
 fi
 
 # --- Create timestamped run directory ---
