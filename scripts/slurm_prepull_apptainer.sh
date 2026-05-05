@@ -336,9 +336,24 @@ for image in sorted(images):
 PY
 )
 
-if [[ ${#DISCOVERED_IMAGES[@]} -eq 0 ]]; then
-    echo "Dynamic discovery returned no images; falling back to manifest: ${MANIFEST_PATH}"
-    load_manifest_images || true
+# Always supplement dynamic discovery with the manifest (source of truth).
+# Dynamic .nf parsing misses images whose container directives use
+# ${params.*} substitution (e.g. nmfvae_container, scmodal_container),
+# so those images are only guaranteed via the manifest.
+if [[ -f "${MANIFEST_PATH}" ]]; then
+    mapfile -t MANIFEST_IMAGES < <(grep -Ev '^[[:space:]]*(#|$)' "${MANIFEST_PATH}" | sort -u)
+    if [[ ${#MANIFEST_IMAGES[@]} -gt 0 ]]; then
+        echo "Merging ${#MANIFEST_IMAGES[@]} manifest images into discovery set."
+        for img in "${MANIFEST_IMAGES[@]}"; do
+            DISCOVERED_IMAGES+=("$img")
+        done
+    fi
+else
+    echo "WARNING: manifest not found at ${MANIFEST_PATH}; relying on dynamic discovery only."
+    if [[ ${#DISCOVERED_IMAGES[@]} -eq 0 ]]; then
+        echo "ERROR: no container images discovered and no manifest available — cannot pre-pull."
+        exit 1
+    fi
 fi
 
 if [[ ${#DISCOVERED_IMAGES[@]} -eq 0 ]]; then
