@@ -89,11 +89,12 @@ workflow {
         } else if (selectedWorkflow == 'nmf_vae') {
             NMF_VAE_PIPELINE(params.input)
         }
+    }
 
-    onComplete:
+    workflow.onComplete = {
         if (success) {
             log.info """
-            Workflow            : ${params.workflow ?: 'integration'}
+            Workflow            : ${selectedWorkflow}
             Pipeline completed  : ${workflow.complete}
             Duration            : ${workflow.duration}
             Success             : ${workflow.success}
@@ -105,4 +106,5 @@ workflow {
             log.error "Pipeline failed: ${workflow.errorMessage}"
             log.error "Check logs/ for details and re-run with -resume to continue."
         }
+    }
 }
