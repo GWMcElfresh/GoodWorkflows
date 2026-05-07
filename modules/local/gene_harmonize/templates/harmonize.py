@@ -7,6 +7,11 @@ Nextflow substitutions (resolved before Python runs):
   ${params.species_order}  – comma-separated canonical species ordering
 """
 
+import os
+# Disable Numba JIT compilation to avoid "cannot cache function" RuntimeErrors
+# in Apptainer containers where site-packages is a read-only zip archive.
+os.environ['NUMBA_DISABLE_JIT'] = '1'
+
 import pathlib
 import re
 import time
