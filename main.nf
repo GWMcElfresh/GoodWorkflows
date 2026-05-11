@@ -9,6 +9,8 @@ include { INTEGRATION_PIPELINE } from './workflows/integration_pipeline.nf'
 include { INGEST_EXPORT_PIPELINE } from './workflows/ingest_export.nf'
 include { INGEST_TABULATE_PIPELINE } from './workflows/ingest_tabulate.nf'
 include { NMF_VAE_PIPELINE } from './workflows/nmf_vae.nf'
+include { GEX_MIL_PIPELINE } from './workflows/gex_mil_pipeline.nf'
+include { TCR_MIL_PIPELINE } from './workflows/tcr_mil_pipeline.nf'
 
 // Sub-workflow contains all pipeline logic (list literals + if-else dispatch).
 // Keeping it separate from the top-level workflow{} avoids a Nextflow 26.04.0 DSL2
@@ -16,7 +18,10 @@ include { NMF_VAE_PIPELINE } from './workflows/nmf_vae.nf'
 // when onComplete: appears as a sibling named closure in the same workflow{} block.
 workflow run_pipeline {
     main:
-        supportedWorkflows = ['integration', 'ingest_export', 'ingest_tabulate', 'nmf_vae']
+        supportedWorkflows = [
+            'integration', 'ingest_export', 'ingest_tabulate', 'nmf_vae',
+            'gex_mil', 'tcr_mil'
+        ]
 
         if (params.help) {
             log.info """
@@ -31,6 +36,8 @@ workflow run_pipeline {
             --workflow ingest_export  Fetch Seurat RDS and export 10x-like counts only
             --workflow ingest_tabulate  Fetch metadata only and build subjectIdTable
             --workflow nmf_vae        Fetch Seurat RDS, export counts, merge, and train NMF-VAE
+            --workflow gex_mil         Fetch Seurat RDS, export counts, merge, train scVI + attention-MIL
+            --workflow tcr_mil         Fetch Seurat RDS, quantify TCRs via tcrClustR, train BertTCR MIL
 
             Defaults:
               --input FILE              Samplesheet CSV   [default: ${params.input}]
@@ -92,6 +99,10 @@ workflow run_pipeline {
             INGEST_TABULATE_PIPELINE(params.input)
         } else if (selectedWorkflow == 'nmf_vae') {
             NMF_VAE_PIPELINE(params.input)
+        } else if (selectedWorkflow == 'gex_mil') {
+            GEX_MIL_PIPELINE(params.input)
+        } else if (selectedWorkflow == 'tcr_mil') {
+            TCR_MIL_PIPELINE(params.input)
         }
 }
 

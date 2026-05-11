@@ -21,10 +21,11 @@ rm -rf "${TEST_ROOT}"
 mkdir -p "${TEST_ROOT}"
 
 run_nextflow() {
+    local profile="${PROFILE:-test}"
     nextflow \
         -log "${TEST_ROOT}/nextflow.log" \
         run "$1" \
-        -profile test \
+        -profile "${profile}" \
         -stub-run \
         -ansi-log false \
         -work-dir "${TEST_ROOT}/work" \
@@ -53,9 +54,23 @@ sample_id,species,path,lambda_graph
 SMOKE_A,human,/tmp/smoke_a.rds,moderate
 SMOKE_B,human,/tmp/smoke_b.rds,moderate
 SAMPLESHEET_EOF
+                PROFILE=test_tcr_mil
+                ;;
+            tcr_mil)
+                # TCR MIL pipeline: QUANTIFY_TCR → TRAIN_TCR_MIL → MERGE_TCR_METADATA
+                # Requires test-data/tcr/samplesheet.csv (sample,subject_id,rds)
+                SAMPLESHEET="${PROJECT_DIR}/test-data/tcr/samplesheet.csv"
+                PROFILE=test_tcr_mil
+                ;;
+            gex_mil)
+                # GEX MIL pipeline: GEX_MERGE_COUNTS → TRAIN_GEX_MIL
+                # Requires test-data/gex/samplesheet.csv (sample_id,output_file_id,url,path,species,SubjectId)
+                SAMPLESHEET="${PROJECT_DIR}/test-data/gex/samplesheet.csv"
+                PROFILE=test_tcr_mil
                 ;;
             *)
                 SAMPLESHEET="${PROJECT_DIR}/data/samplesheet.csv"
+                PROFILE=test
                 ;;
         esac
         run_nextflow "${PROJECT_DIR}/main.nf" --workflow "${TEST_NAME}" "${EXTRA_PIPELINE_ARGS[@]}"
@@ -80,6 +95,20 @@ SAMPLESHEET_EOF
                 test -f "${TEST_ROOT}/outputs/nmf_vae/loss_history.csv"
                 test -f "${TEST_ROOT}/outputs/nmf_vae/loss.png"
                 test -f "${TEST_ROOT}/outputs/nmf_vae/model_checkpoint.pt"
+                ;;
+            tcr_mil)
+                # TCR MIL outputs: QUANTIFY_TCR → TRAIN_TCR_MIL → MERGE_TCR_METADATA
+                test -f "${TEST_ROOT}/outputs/tcr_quant/SMOKE_01_tcr_metadata.csv"
+                test -f "${TEST_ROOT}/outputs/tcr_mil/tcr_predictions.csv"
+                test -f "${TEST_ROOT}/outputs/tcr_mil/tcr_model.pt"
+                test -f "${TEST_ROOT}/outputs/tcr_quant/merged_tcr_metadata.csv"
+                ;;
+            gex_mil)
+                # GEX MIL outputs: GEX_MERGE_COUNTS → TRAIN_GEX_MIL
+                test -f "${TEST_ROOT}/outputs/gex/merged_gex.h5ad"
+                test -f "${TEST_ROOT}/outputs/gex_mil/predictions.csv"
+                test -f "${TEST_ROOT}/outputs/gex_mil/model.pt"
+                test -f "${TEST_ROOT}/outputs/gex_mil/scvi_model/model.pt"
                 ;;
             *)
                 echo "Unknown workflow smoke test: ${TEST_NAME}"
