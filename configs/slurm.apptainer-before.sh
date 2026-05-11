@@ -15,8 +15,9 @@ echo "[APPTAINER_DIAG] NXF_SINGULARITY_CACHEDIR : ${NXF_SINGULARITY_CACHEDIR:-un
 # Unset the old-prefix vars so Apptainer doesn't inherit stale env.
 # Re-export under the correct APPTAINERENV_ prefix so they take effect inside the container.
 for _var in TMPDIR NXF_TASK_WORKDIR NXF_DEBUG; do
-    if [ -n "${SINGULARITYENV_${_var}:-}" ]; then
-        export "APPTAINERENV_${_var}=${SINGULARITYENV_${_var}}"
+    _old_val="$(eval echo \${SINGULARITYENV_${_var}:-})"
+    if [ -n "${_old_val}" ]; then
+        export "APPTAINERENV_${_var}=${_old_val}"
     fi
     unset "SINGULARITYENV_${_var}" 2>/dev/null || true
 done
