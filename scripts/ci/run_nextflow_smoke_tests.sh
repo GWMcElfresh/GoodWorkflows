@@ -54,23 +54,23 @@ sample_id,species,path,lambda_graph
 SMOKE_A,human,/tmp/smoke_a.rds,moderate
 SMOKE_B,human,/tmp/smoke_b.rds,moderate
 SAMPLESHEET_EOF
-                PROFILE=test_tcr_mil
+                PROFILE="test_tcr_mil"
                 ;;
             tcr_mil)
                 # TCR MIL pipeline: QUANTIFY_TCR → TRAIN_TCR_MIL → MERGE_TCR_METADATA
                 # Requires test-data/tcr/samplesheet.csv (sample,subject_id,rds)
                 SAMPLESHEET="${PROJECT_DIR}/test-data/tcr/samplesheet.csv"
-                PROFILE=test_tcr_mil
+                PROFILE="test_tcr_mil"
                 ;;
             gex_mil)
                 # GEX MIL pipeline: GEX_MERGE_COUNTS → TRAIN_GEX_MIL
                 # Requires test-data/gex/samplesheet.csv (sample_id,output_file_id,url,path,species,SubjectId)
                 SAMPLESHEET="${PROJECT_DIR}/test-data/gex/samplesheet.csv"
-                PROFILE=test_tcr_mil
+                PROFILE="test_tcr_mil"
                 ;;
             *)
                 SAMPLESHEET="${PROJECT_DIR}/data/samplesheet.csv"
-                PROFILE=test
+                PROFILE="test"
                 ;;
         esac
         run_nextflow "${PROJECT_DIR}/main.nf" --workflow "${TEST_NAME}" "${EXTRA_PIPELINE_ARGS[@]}"
