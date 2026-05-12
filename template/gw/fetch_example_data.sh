@@ -481,6 +481,131 @@ echo ""
 echo "Contents:"
 cat "${NMF_SAMPLESHEET}"
 
+# --- tcr_epitope: toy TCR metadata + epitope FASTA + samplesheet ---
+# Generates toy TRA/TRB clone data from the PBMC human subset (or standalone).
+# Also generates epitopes.fasta from TDC (if available) or synthetic HLA panel.
+# Optionally pre-trains the XGBoost binding model if FETCH_TRAIN_MODEL=true.
+
+TCR_EPITOPE_DATA="${DATA_DIR}/tcr_epitope"
+TCR_SAMPLESHEET="${SCRIPT_DIR}/tcr_epitope_samplesheet.csv"
+mkdir -p "${TCR_EPITOPE_DATA}"
+
+echo "[FETCH] Creating toy TCR metadata..."
+
+python3 - <<'PYEOF'
+import os, sys, random
+from pathlib import Path
+
+data_dir = Path(os.environ.get("DATA_DIR", "template/gw/data"))
+out_dir = data_dir / "tcr_epitope"
+out_dir.mkdir(parents=True, exist_ok=True)
+rng = random.Random(42)
+
+def make_cdr3(rng, length=None):
+    length = length or rng.randint(10, 16)
+    aa = "ACDEFGHIKLMNPQRSTVWY"
+    return "".join(rng.choice(aa) for _ in range(length))
+
+# --- Generate toy merged TCR metadata ---
+# In production this comes from QUANTIFY_TCR → tcrClustR output.
+# For local testing we generate plausible synthetic clones.
+records = []
+subject_pool = [f"SUBJ{i:03d}" for i in range(1, 9)]
+TRA_V_pool = ["TRAV12-2*01","TRAV19*01","TRAV27*01","TRAV6*01","TRAV14*01"]
+TRA_J_pool = ["TRAJ33*01","TRAJ37*01","TRAJ20*01","TRAJ28*01"]
+TRB_V_pool = ["TRBV6-1*01","TRBV12-3*01","TRBV27*01","TRBV4-1*01","TRBV3-1*01"]
+TRB_J_pool = ["TRBJ2-1*01","TRBJ1-1*01","TRBJ2-7*01","TRBJ2-3*01"]
+
+for clone_idx in range(100):
+    tra = make_cdr3(rng)
+    trb = make_cdr3(rng)
+    n_cells = rng.randint(3, 20)
+    for cell_idx in range(n_cells):
+        records.append({
+            "barcode": f"BC_{clone_idx:04d}_{cell_idx:04d}",
+            "SubjectId": rng.choice(subject_pool),
+            "TRA": tra, "TRB": trb,
+            "TRA_V": rng.choice(TRA_V_pool), "TRA_J": rng.choice(TRA_J_pool),
+            "TRB_V": rng.choice(TRB_V_pool), "TRB_J": rng.choice(TRB_J_pool),
+            "TRA_CloneIdx": clone_idx, "TRA_CloneSize": n_cells,
+            "TRB_CloneIdx": clone_idx, "TRB_CloneSize": n_cells,
+        })
+
+import pandas as pd
+df = pd.DataFrame(records)
+out_csv = out_dir / "toy_tcr_metadata.csv"
+df.to_csv(out_csv, index=False)
+print(f"[FETCH] Toy TCR metadata: {out_csv} ({len(df)} cells, {df['TRA_CloneIdx'].nunique()} clones)")
+
+# --- Generate epitopes.fa ---
+has_tdc = False
+try:
+    import tdc; has_tdc = True
+except Exception:
+    pass
+
+if has_tdc:
+    print("[FETCH] TDC available — fetching Weber epitope set...")
+    try:
+        from tdc.multi_pred import TCREpitopeBinding
+        cache = Path("/tmp/tdc_cache_tcr"); cache.mkdir(parents=True, exist_ok=True)
+        data = TCREpitopeBinding(name="weber", path=str(cache))
+        split = data.get_split(method="random", seed=816, frac=[0.7, 0.1, 0.2])
+        uniq = {}
+        for df_key in ["train","val","test"]:
+            for _, row in split[df_key].iterrows():
+                epi = str(row["epitope_aa"])
+                if epi not in uniq:
+                    uniq[epi] = len(uniq)
+        fasta = out_dir / "epitopes.fa"
+        with open(fasta, "w") as fh:
+            for seq, idx in uniq.items():
+                fh.write(f">epitope_{idx:04d}\n{seq}\n")
+        print(f"[FETCH] epitopes.fa (TDC Weber): {fasta} ({len(uniq)} unique epitopes)")
+    except Exception as e:
+        print(f"[FETCH] TDC fetch error: {e} — falling back to synthetic panel")
+        has_tdc = False
+
+if not has_tdc:
+    epitopes = [
+        ("epitope_0001","GLCTLVAML"),  ("epitope_0002","NLVPMVATV"),
+        ("epitope_0003","GILGFVFTL"),  ("epitope_0004","FLYIGGCLI"),
+        ("epitope_0005","AMGIHTSVL"),  ("epitope_0006","IMQDGIVGV"),
+        ("epitope_0007","CTDVGDSTL"),  ("epitope_0008","KLGEFVNIV"),
+        ("epitope_0009","NLVPMIAATV"), ("epitope_0010","FMYDGLNQI"),
+        ("epitope_0011","TPRVTGDG"),   ("epitope_0012","FMYDGNGI"),
+    ]
+    fasta = out_dir / "epitopes.fa"
+    with open(fasta, "w") as fh:
+        for eid, seq in epitopes:
+            fh.write(f">{eid}\n{seq}\n")
+    print(f"[FETCH] epitopes.fa (synthetic): {fasta} ({len(epitopes)} epitopes)")
+
+# --- Optionally pre-train binding model ---
+if os.environ.get("FETCH_TRAIN_MODEL") == "true":
+    print("[FETCH] FETCH_TRAIN_MODEL=true — training binding model...")
+    import subprocess, shutil
+    script = Path(os.environ.get("SCRIPT_DIR",".")).parent / "scripts" / "train_tcr_epitope_binding.py"
+    out_models = Path(data_dir.parent) / "tcr_epitope_models"
+    if script.exists():
+        r = subprocess.run([
+            "python3", str(script), "--output-dir", str(out_models),
+            "--local-gpu", "--esm2-model", "esm2_t6_8M_UR50D"
+        ], capture_output=True, text=True, timeout=3600)
+        if r.returncode == 0:
+            print(f"[FETCH] Binding model trained: {out_models}")
+        else:
+            print(f"[FETCH] Training failed (non-fatal):\n{r.stderr[-400:]}")
+    else:
+        print(f"[FETCH] Training script not found: {script} — skipping")
+PYEOF
+
+cat > "${TCR_SAMPLESHEET}" <<EOF
+sample_id,epitope_file,path
+toy_tcr,${TCR_EPITOPE_DATA}/epitopes.fa,${TCR_EPITOPE_DATA}/toy_tcr_metadata.csv
+EOF
+echo -e "${GREEN}[FETCH] tcr_epitope samplesheet: ${TCR_SAMPLESHEET}${NC}"
+
 # --- Summary ---
 echo ""
 echo "=========================================="
@@ -505,4 +630,5 @@ echo "  bash run.sh --workflow ingest_export"
 echo "  bash run.sh --workflow integration"
 echo "  bash run.sh --workflow ingest_tabulate --input ${TABULATE_SAMPLESHEET}"
 echo "  bash run.sh --workflow nmf_vae --input ${NMF_SAMPLESHEET}"
+echo "  bash run.sh --workflow tcr_epitope --input ${TCR_SAMPLESHEET} --binding_model_path tcr_epitope_models"
 echo "=========================================="

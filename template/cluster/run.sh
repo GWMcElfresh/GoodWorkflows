@@ -45,6 +45,7 @@ set -euo pipefail
 #   ingest_export  Download Seurat objects and export 10x-like counts        (CPU, local or HPC)
 #   ingest_tabulate  Download metadata and build subjectIdTable.csv          (CPU, local or HPC)
 #   nmf_vae        NMF-VAE factorization (factorize only, no latent training) (GPU/HPC required)
+#   tcr_epitope    TCR clone embedding via ESM-2 + epitope binding prediction  (GPU/HPC required)
 WORKFLOW="ingest_tabulate"
 
 # LabKey / Prime-seq server credentials (also requires ~/.netrc for authentication)
