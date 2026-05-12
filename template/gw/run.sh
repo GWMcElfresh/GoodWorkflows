@@ -68,14 +68,14 @@ done
 # --- Validate workflow ---
 if [[ -z "${WORKFLOW}" ]]; then
     echo -e "${RED}ERROR: --workflow is required.${NC}"
-    echo "Valid options: integration, ingest_export, ingest_tabulate"
+    echo "Valid options: integration, ingest_export, ingest_tabulate, nmf_vae, gex_mil, tcr_mil, tcr_epitope"
     echo ""
     echo "Usage: bash run.sh --workflow <name> [--input samplesheet.csv] [extra params...]"
     exit 1
 fi
 
 # Sync this list with main.nf supportedWorkflows whenever a new workflow is added.
-VALID_WORKFLOWS=("integration" "ingest_export" "ingest_tabulate" "nmf_vae" "tcr_epitope")
+VALID_WORKFLOWS=("integration" "ingest_export" "ingest_tabulate" "nmf_vae" "gex_mil" "tcr_mil" "tcr_epitope")
 # shellcheck disable=SC2076
 if [[ ! " ${VALID_WORKFLOWS[*]} " =~ " ${WORKFLOW} " ]]; then
     echo -e "${RED}ERROR: Invalid workflow '${WORKFLOW}'.${NC}"

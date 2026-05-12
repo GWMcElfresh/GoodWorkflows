@@ -163,6 +163,7 @@ IMAGES=(
     "ghcr.io/bimberlabinternal/cellmembrane:latest"
     "ghcr.io/gwmcelfresh/scmodal:latest"
     "ghcr.io/gwmcelfresh/nmf-vae:latest"
+    "ghcr.io/gwmcelfresh/mil-ton:latest"
 )
 
 for img in "${IMAGES[@]}"; do
@@ -203,6 +204,9 @@ echo "  2. Run a workflow:"
 echo "     bash run.sh --workflow ingest_export"
 echo "     bash run.sh --workflow integration"
 echo "     bash run.sh --workflow nmf_vae"
+echo "     bash run.sh --workflow gex_mil"
+echo "     bash run.sh --workflow tcr_mil"
+echo "     bash run.sh --workflow tcr_epitope"
 echo ""
 echo "  Outputs land in: template/gw/runs/<timestamp>/outputs/"
 echo "=========================================="
