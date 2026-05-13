@@ -20,6 +20,9 @@ __pycache__/
 *.pyc
 *.pyo
 
+# Large test data files (binary/RDS too big for git)
+test-data/**/*.rds
+
 # MCP server build artifacts
 mcp-server/build/
 mcp-server/node_modules/
