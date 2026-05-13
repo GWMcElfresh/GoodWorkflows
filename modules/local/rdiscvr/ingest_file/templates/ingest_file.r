@@ -39,8 +39,7 @@ if (!suffix %in% c("rds", "rdata", "rda", "h5ad", "csv", "tsv", "txt")) {
 }
 
 if (suffix == "rds") {
-    file.copy(from = staged_file, to = out_path, overwrite = TRUE)
-    seurat_obj <- readRDS(out_path)
+    seurat_obj <- readRDS(staged_file)
 } else if (suffix %in% c("csv", "tsv", "txt")) {
     message("[INGEST_FILE] Building Seurat object from a count matrix: ", source_path)
     counts <- data.table::fread(staged_file, data.table = FALSE)
