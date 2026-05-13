@@ -71,7 +71,7 @@ if ("${params.tcrRunDirichlet}" == "true") {
     # Store result in misc
     seurat_obj@misc\$TCR_Dirichlet <- dp
     message("[QUANTIFY_TCR] Dirichlet clustering complete: ",
-            length(dp$cluster_summary$cluster), " clusters detected.")
+            length(dp\$cluster_summary\$cluster), " clusters detected.")
 }
 
 # ── Save enriched Seurat object ─────────────────────────────────────────

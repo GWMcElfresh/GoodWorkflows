@@ -18,7 +18,7 @@ message("[GEX_MERGE_COUNTS] Starting merge.")
 
 # Count directories are staged by Nextflow as subdirectories of the work dir
 count_dirs <- list.dirs(".", recursive = FALSE, full.names = TRUE)
-count_dirs <- count_dirs[grepl("_counts$", count_dirs)]
+count_dirs <- count_dirs[grepl("_counts\$", count_dirs)]
 message("[GEX_MERGE_COUNTS] Found ", length(count_dirs), " count directories.")
 
 read_one_count_dir <- function(dir) {
@@ -33,9 +33,9 @@ read_one_count_dir <- function(dir) {
 
     # Annotate with sample_id if not already present
     if (!"sample_id" %in% names(meta)) {
-        meta$sample_id <- sample_id
+        meta\$sample_id <- sample_id
     }
-    meta$barcode <- barc
+    meta\$barcode <- barc
 
     list(mtx = mtx, meta = meta, sample_id = sample_id)
 }
