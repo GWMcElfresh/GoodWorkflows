@@ -12,6 +12,7 @@ IMAGES=(
   "ghcr.io/gwmcelfresh/scmodal:latest"
   "ghcr.io/gwmcelfresh/nmf-vae:latest"
   "ghcr.io/gwmcelfresh/mil-ton:latest"
+  "ghcr.io/bimberlabinternal/tcrclustr:latest"
 )
 
 for image in "${IMAGES[@]}"; do
