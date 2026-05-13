@@ -44,7 +44,6 @@ calculatePairs    <- grepl("TRA", "${params.tcrChains}") && grepl("TRB", "${para
 
 seurat_obj <- tcrClustR::CalculateTcrDistances(
     inputData            = seurat_obj@meta.data,
-    inputSeurat          = seurat_obj,
     organism             = organism,
     chains               = tcr_cols,
     minimumCloneSize     = minimumCloneSize,
