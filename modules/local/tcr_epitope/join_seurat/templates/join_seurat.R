@@ -51,7 +51,7 @@ if (file.exists(epitope_file) && file.size(epitope_file) > 0) {
     lines <- readLines(epitope_file, warn = FALSE)
     in_header <- FALSE
     for (line in lines) {
-        line <- gsub("\\r$", "", line)
+        line <- gsub("\r\$", "", line)
         if (grepl("^>", line)) {
             # Extract peptide name (first word after ">")
             name <- sub("^>", "", line)

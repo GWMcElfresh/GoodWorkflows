@@ -1,4 +1,4 @@
-sample_id,output_file_id,url,path,species
-PBMC_HUMAN,,,/home/gmcelfresh/GoodWorkflows/template/gw/data/pbmc3k_human.rds,human
-PBMC_MACAQUE,,,/home/gmcelfresh/GoodWorkflows/template/gw/data/pbmc3k_macaque.rds,macaque
-PBMC_MOUSE,,,/home/gmcelfresh/GoodWorkflows/template/gw/data/pbmc3k_mouse.rds,mouse
+sample_id,output_file_id,url,path,species,SubjectId
+PBMC_HUMAN,,,/home/gmcelfresh/GoodWorkflows/template/gw/data/pbmc3k_human.rds,human,SUBJ001
+PBMC_MACAQUE,,,/home/gmcelfresh/GoodWorkflows/template/gw/data/pbmc3k_macaque.rds,macaque,SUBJ002
+PBMC_MOUSE,,,/home/gmcelfresh/GoodWorkflows/template/gw/data/pbmc3k_mouse.rds,mouse,SUBJ003

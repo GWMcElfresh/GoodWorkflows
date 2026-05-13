@@ -80,7 +80,7 @@ saveRDS(seurat_obj, out_rds)
 # ── Export cell metadata with clone indices ─────────────────────────────
 meta_out <- seurat_obj[[]]
 # Select relevant clone columns
-clone_cols <- grep("(CloneIdx|CloneSize|ValidForClustering)$", names(meta_out), value = TRUE)
+clone_cols <- grep("(CloneIdx|CloneSize|ValidForClustering)\$", names(meta_out), value = TRUE)
 keep_cols <- c("barcode", "SubjectId", clone_cols)
 keep_cols <- keep_cols[keep_cols %in% names(meta_out)]
 data.table::fwrite(meta_out[, ..keep_cols], out_meta)

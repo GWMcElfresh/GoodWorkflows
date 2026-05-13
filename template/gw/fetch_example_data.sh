@@ -384,10 +384,10 @@ echo ""
 echo "--- Generating samplesheet.csv ---"
 
 cat > "${SAMPLESHEET}" <<EOF
-sample_id,output_file_id,url,path,species
-PBMC_HUMAN,,,${DATA_DIR}/pbmc3k_human.rds,human
-PBMC_MACAQUE,,,${DATA_DIR}/pbmc3k_macaque.rds,macaque
-PBMC_MOUSE,,,${DATA_DIR}/pbmc3k_mouse.rds,mouse
+sample_id,output_file_id,url,path,species,SubjectId
+PBMC_HUMAN,,,${DATA_DIR}/pbmc3k_human.rds,human,SUBJ001
+PBMC_MACAQUE,,,${DATA_DIR}/pbmc3k_macaque.rds,macaque,SUBJ002
+PBMC_MOUSE,,,${DATA_DIR}/pbmc3k_mouse.rds,mouse,SUBJ003
 EOF
 
 echo -e "${GREEN}Samplesheet created: ${SAMPLESHEET}${NC}"
@@ -630,5 +630,7 @@ echo "  bash run.sh --workflow ingest_export"
 echo "  bash run.sh --workflow integration"
 echo "  bash run.sh --workflow ingest_tabulate --input ${TABULATE_SAMPLESHEET}"
 echo "  bash run.sh --workflow nmf_vae --input ${NMF_SAMPLESHEET}"
+echo "  bash run.sh --workflow gex_mil"
+echo "  bash run.sh --workflow tcr_mil"
 echo "  bash run.sh --workflow tcr_epitope --input ${TCR_SAMPLESHEET} --binding_model_path tcr_epitope_models"
 echo "=========================================="

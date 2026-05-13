@@ -143,6 +143,11 @@ LOG_DIR="${RUN_DIR}/logs"
 
 mkdir -p "${OUTDIR}" "${WORK_DIR}" "${LOG_DIR}"
 
+# Create/update 'latest' symlink for easy debug access
+LATEST_LINK="${SCRIPT_DIR}/runs/latest"
+rm -f "${LATEST_LINK}"
+ln -s "${RUN_DIR}" "${LATEST_LINK}"
+
 # --- Build Nextflow command ---
 echo "=========================================="
 echo " GoodWorkflows Run"

@@ -19,7 +19,7 @@ message("[GEX_MERGE_COUNTS] Starting merge of ", length(count_dirs), " count dir
 count_dirs <- strsplit("${count_dirs}", " ")[[1]]
 
 read_one_count_dir <- function(dir) {
-    sample_id <- sub("_counts$", "", basename(dir))
+    sample_id <- sub("_counts\$", "", basename(dir))
     mtx  <- Matrix::readMM(file.path(dir, "matrix.mtx"))
     feat <- data.table::fread(file.path(dir, "features.tsv"), header = FALSE)$V1
     barc <- data.table::fread(file.path(dir, "barcodes.tsv"), header = FALSE)$V1
