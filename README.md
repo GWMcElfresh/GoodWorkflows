@@ -26,11 +26,15 @@ Parameters: [`nextflow_schema.json`](nextflow_schema.json) | Docs source: [`docs
 
 ## Saved workflows
 
-| Workflow | Purpose |
-|---|---|
-| `full` | `INGEST -> EXPORT_COUNTS -> GENE_HARMONIZE -> SCMODAL_INTEGRATE` |
-| `ingest_export` | Download Seurat objects and export 10x-like counts only |
-| `ingest_tabulate` | Download metadata only and build `subjectIdTable.csv` |
+| Workflow | Purpose | Compute |
+|---|---|---|
+| `integration` | `INGEST -> EXPORT_COUNTS -> GENE_HARMONIZE -> SCMODAL_INTEGRATE` | GPU |
+| `ingest_export` | Download Seurat objects and export 10x-like counts only | CPU |
+| `ingest_tabulate` | Download metadata only and build `subjectIdTable.csv` | CPU |
+| `nmf_vae` | Ingest, export counts, merge, train NMF-VAE | GPU |
+| `gex_mil` | Ingest, export counts, merge, train scVI + attention-MIL | GPU |
+| `tcr_mil` | Ingest, quantify TCRs via tcrClustR, train BertTCR MIL | GPU |
+| `tcr_epitope` | Ingest, quantify TCRs, embed clones with ESM-2, predict epitope binding | GPU |
 
 Select one with `--workflow`.
 

@@ -64,10 +64,26 @@ template/gw/
 | `ingest_export` | No | Download Seurat RDS + export 10x-like counts |
 | `ingest_tabulate` | No | Download metadata + build subjectIdTable |
 | `integration` | **Yes** | Full pipeline: ingest → export → harmonize → scMODAL |
+| `nmf_vae` | **Yes** | Ingest → export → merge → NMF-VAE factorize |
+| `gex_mil` | **Yes** | Ingest → export → merge → scVI + attention-MIL |
+| `tcr_mil` | **Yes** | Ingest → quantify TCRs → BertTCR MIL |
+| `tcr_epitope` | **Yes** | Ingest → quantify TCRs → ESM-2 embed → epitope binding → JOIN_SEURAT |
 
 ## Samplesheet Format
 
-Three modes are supported:
+Three ingest modes are supported for all workflows. Some workflows require extra columns:
+
+### Common Columns
+
+| Column | Required For | Description |
+|---|---|---|
+| `sample_id` | All | Unique sample identifier |
+| `species` | All | Species label (human, macaque, mouse, etc.) |
+| `output_file_id` | LabKey mode | LabKey output file ID — leave empty for URL/file mode |
+| `url` | URL mode | Public HTTP(S) URL to data file (.rds, .h5ad) |
+| `path` | File mode | Absolute path to local data file |
+| `SubjectId` | `gex_mil` | Subject/donor identifier for MIL training split |
+| `metadata_path` | `ingest_tabulate` (file mode) | Path to standalone metadata CSV |
 
 ### Local File Mode (data already on disk)
 ```csv
@@ -90,7 +106,14 @@ SAMPLE_01,100001,,,human
 SAMPLE_02,100002,,,macaque
 ```
 
-The INGEST dispatcher auto-detects which mode to use based on which column (`path`, `url`, or `output_file_id`) is non-empty. Exactly one must be present per row.
+### GEX-MIL Mode (requires SubjectId column)
+```csv
+sample_id,output_file_id,url,path,species,SubjectId
+PBMC_HUMAN,,,,/path/to/pbmc3k_human.rds,human,SUBJ001
+PBMC_MACAQUE,,,,/path/to/pbmc3k_macaque.rds,macaque,SUBJ002
+```
+
+The INGEST dispatcher auto-detects which ingest mode to use based on which column (`path`, `url`, or `output_file_id`) is non-empty — exactly one must be present per row. `SubjectId` and `metadata_path` are workflow-specific extras appended beyond the ingest columns.
 
 ## Custom Runs
 
@@ -104,6 +127,12 @@ bash run.sh --workflow integration --species_order human,macaque,mouse --scmodal
 # Run CPU-only workflows
 bash run.sh --workflow ingest_export
 bash run.sh --workflow ingest_tabulate --tabulate_id_cols cDNA_ID,SubjectId
+
+# Run GPU workflows (requires NVIDIA GPU + Podman GPU passthrough)
+bash run.sh --workflow nmf_vae --input nmf_vae_samplesheet.csv
+bash run.sh --workflow gex_mil
+bash run.sh --workflow tcr_mil
+bash run.sh --workflow tcr_epitope --binding_model_path /path/to/binding_models
 ```
 
 ## Troubleshooting
@@ -128,6 +157,9 @@ Ensure the images are public:
 - `ghcr.io/bimberlabinternal/rdiscvr:latest`
 - `ghcr.io/bimberlabinternal/cellmembrane:latest`
 - `ghcr.io/gwmcelfresh/scmodal:latest`
+- `ghcr.io/gwmcelfresh/nmfvae:latest`
+- `ghcr.io/gwmcelfresh/mil-ton:latest`
+- `ghcr.io/bimberlabinternal/tcrclustr:latest`
 
 ### R packages not found
 ```bash
