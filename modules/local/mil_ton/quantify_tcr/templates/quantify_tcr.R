@@ -82,7 +82,7 @@ meta_out <- seurat_obj[[]]
 clone_cols <- grep("(CloneIdx|CloneSize|ValidForClustering)\$", names(meta_out), value = TRUE)
 keep_cols <- c("barcode", "SubjectId", clone_cols)
 keep_cols <- keep_cols[keep_cols %in% names(meta_out)]
-data.table::fwrite(meta_out[, ..keep_cols], out_meta)
+data.table::fwrite(meta_out[, keep_cols, drop = FALSE], out_meta)
 
 message("[QUANTIFY_TCR] Saved: ", out_rds)
 message("[QUANTIFY_TCR] Saved: ", out_meta)
