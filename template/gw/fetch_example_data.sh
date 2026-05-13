@@ -395,6 +395,41 @@ echo ""
 echo "Contents:"
 cat "${SAMPLESHEET}"
 
+# --- Inject synthetic TRA/TRB TCR columns into pbmc3k RDS files ---
+# Real TCR-MIL data comes from 10x V(D)J sequencing. For local testing with
+# pbmc3k (gene expression only), we inject synthetic CDR3 sequences so
+# QUANTIFY_TCR can run end-to-end and produce clone-indexed metadata.
+echo ""
+echo "--- Injecting synthetic TCR columns into pbmc3k RDS files ---"
+Rscript --no-save - "${DATA_DIR}" <<'REOF'
+args <- commandArgs(trailingOnly = TRUE)
+data_dir <- args[1]
+suppressPackageStartupMessages(library(Seurat))
+set.seed(42)
+make_cdr3 <- function() {
+  aa <- c("A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y")
+  paste(sample(aa, sample(10:16, 1), replace = TRUE), collapse = "")
+}
+v_genes <- c("TRAV12-2*01","TRAV19*01","TRAV27*01","TRAV6*01","TRAV14*01")
+j_genes <- c("TRAJ33*01","TRAJ37*01","TRAJ20*01","TRAJ28*01")
+trb_v   <- c("TRBV6-1*01","TRBV12-3*01","TRBV27*01","TRBV4-1*01","TRBV3-1*01")
+trb_j   <- c("TRBJ2-1*01","TRBJ1-1*01","TRBJ2-7*01","TRBJ2-3*01")
+for (ext in c("human", "macaque", "mouse")) {
+  rds_file <- file.path(data_dir, sprintf("pbmc3k_%s.rds", ext))
+  if (!file.exists(rds_file)) { message("Skip: ", rds_file); next }
+  obj <- readRDS(rds_file); n <- ncol(obj)
+  obj$TRA <- replicate(n, make_cdr3())
+  obj$TRB <- replicate(n, make_cdr3())
+  obj$TRA_V <- sample(v_genes, n, replace = TRUE)
+  obj$TRA_J <- sample(j_genes, n, replace = TRUE)
+  obj$TRB_V <- sample(trb_v, n, replace = TRUE)
+  obj$TRB_J <- sample(trb_j, n, replace = TRUE)
+  saveRDS(obj, rds_file)
+  message(sprintf("TCR columns injected: %s (%d cells)", rds_file, ncol(obj)))
+}
+message("Done")
+REOF
+
 # --- Generate tabulate_samplesheet.csv for testing ingest_tabulate workflow ---
 TABULATE_SAMPLESHEET="${SCRIPT_DIR}/tabulate_samplesheet.csv"
 
