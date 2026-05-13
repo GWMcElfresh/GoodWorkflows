@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NUMBA_DISABLE_JIT=1
 """
 Nextflow template: train_tcr_mil.py
 TRAIN_TCR_MIL — BertTCR CNN-MIL donor-level classification via mil-ton.

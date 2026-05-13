@@ -1,0 +1,4 @@
+sample_id,metadata_path,species
+PBMC_HUMAN,/home/gmcelfresh/GoodWorkflows/template/gw/data/PBMC_HUMAN_metadata.csv,human
+PBMC_MACAQUE,/home/gmcelfresh/GoodWorkflows/template/gw/data/PBMC_MACAQUE_metadata.csv,macaque
+PBMC_MOUSE,/home/gmcelfresh/GoodWorkflows/template/gw/data/PBMC_MOUSE_metadata.csv,mouse

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# NUMBA_DISABLE_JIT=1
 """
 Nextflow template: train_gex_mil.py
 TRAIN_GEX_MIL — scVI + attention-MIL donor-level classification via mil-ton.

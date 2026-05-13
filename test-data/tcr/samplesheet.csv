@@ -1,0 +1,3 @@
+sample_id,output_file_id,url,path,SubjectId,disease_status
+SMOKE_01,,,/home/gmcelfresh/GoodWorkflows/test-data/tcr/SMOKE.rds,donor_001,control
+SMOKE_02,,,/home/gmcelfresh/GoodWorkflows/test-data/tcr/SMOKE.rds,donor_002,treatment

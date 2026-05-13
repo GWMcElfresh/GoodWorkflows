@@ -55,7 +55,9 @@ workflow TCR_EPITOPE_PIPELINE {
 
     main:
     // ── 1. Parse samplesheet ────────────────────────────────────────────────
-    ch_samples = parseTcrEpitopeSamplesheet(samplesheet)
+    // Parsed once. meta propagates through INGEST_* → QUANTIFY_TCR with all
+    // keys (including epitope_file), so no .join() is needed downstream.
+    def ch_samples = parseTcrEpitopeSamplesheet(samplesheet)
 
     // ── 2. Branch by ingest mode ───────────────────────────────────────────
     def ch_branched = ch_samples.branch { meta ->
@@ -68,20 +70,12 @@ workflow TCR_EPITOPE_PIPELINE {
     // INGEST_* emit (meta_with_rds_key, rds_path)
     def ch_ingested = INGEST_LABKEY(ch_branched.labkey).rds
         .mix(INGEST_URL(ch_branched.url).rds)
-        .mix(INGEST_FILE(ch_branched.file.map { m -> [m, file(m.path)] }).rds)
+        .mix(INGEST_FILE(ch_branched.file.map { m -> tuple(m, file(m.path)) }).rds)
 
-    // ── 4. Re-associate epitope_file with ingested RDS via sample id ───────
-    // ch_ingested meta keys: {id, mode, path, [rds_key]}
-    // ch_samples meta keys:  {id, epitope_file, mode, [labkey/url/file fields]}
-    // Join by 'id' so each sample gets its epitope_file attached to the ingested RDS
+    // ── 4. Propagate ingested RDS to QUANTIFY_TCR ───────────────────────
+    // Meta already has epitope_file from the INGEST_* processes.
+    // ch_ingested = (meta_with_epitope_file, rds_path) — no .join() needed.
     def ch_with_epi = ch_ingested
-        .map { meta, rds -> [meta.id, meta, rds] }
-        .join(ch_samples.map { m -> [m.id, m] }, failOnDuplicate: true, failOnMismatch: true)
-        .map { sid, ingested_meta, rds, sample_meta ->
-            def merged = sample_meta + [rds: rds]
-            [merged, rds]
-        }
-    // ch_with_epi = (meta with {id, epitope_file, mode, rds}, rds_path)
 
     // ── 5. QUANTIFY_TCR — tcrClustR clone quantification per sample ─────────
     // Input to QUANTIFY_TCR: (meta + rds, rds_path)
@@ -106,35 +100,23 @@ workflow TCR_EPITOPE_PIPELINE {
     EMBED_CLONES(MERGE_TCR_METADATA.out.merged_csv, file(stub_epi))
 
     // ── 9. TCR_UMAP — unsupervised Leiden + UMAP on global clone space ─────
-    // No epitope needed; cluster structure is purely in embedding space.
+    // Uses clone_embeddings_umap emit (separate from _pred to avoid channel conflict).
     def leiden_res = params.tcr_umap_resolution ?: 0.5
-    TCR_UMAP(EMBED_CLONES.out.clone_embeddings, leiden_res)
-    // TCR_UMAP.out.clone_metadata = (meta_with_id, parquet) — single global file
+    TCR_UMAP(EMBED_CLONES.out.clone_embeddings_umap, leiden_res)
 
     // ── 10. PREDICT_BINDING — per-sample clone × peptide score matrix ─────────
-    // binding_model_path must contain xgboost_model.pkl + scaler.pkl
+    // Uses clone_embeddings_pred emit (separate from _umap to avoid channel conflict).
     def model_path = file(params.binding_model_path ?: "${projectDir}/stub_binding_model")
-
-    // Build per-sample input: (meta, clone_embeddings_path, epitope_file_path, model_dir)
-    // clone_embeddings is a SINGLE global file — broadcast it to every sample.
-    // epitope_file comes from each sample's row in ch_samples.
-    def ch_pred_input = ch_meta_rds
-        .map { meta, tcr_csv, seurat_rds -> [meta.id, meta, seurat_rds] }
-        .join(ch_samples.map { m -> [m.id, m] }, failOnDuplicate: true)
-        .map { sid, meta_tcr, seurat_rds, meta_epi ->
-            def meta_final = meta_tcr + [epitope_file: meta_epi.epitope_file]
-            [meta_final, seurat_rds]
-        }
-        .map { meta, seurat_rds ->
-            tuple(
-                meta,
-                EMBED_CLONES.out.clone_embeddings,
-                file(meta.epitope_file),
-                model_path
-            )
-        }
-
-    PREDICT_BINDING(ch_pred_input)
+    PREDICT_BINDING(
+        ch_meta_rds
+            .map { meta, tcr_csv, seurat_rds -> tuple(meta, seurat_rds) }
+            // .combine() flattens tuples: (meta, seurat_rds) + (clone_emb) → 3-element tuple.
+            // Destructure directly in the closure.
+            .combine(EMBED_CLONES.out.clone_embeddings_pred)
+            .map { meta, seurat_rds, clone_emb_file ->
+                tuple(meta, clone_emb_file, file(meta.epitope_file), model_path)
+            }
+    )
     // PREDICT_BINDING.out.binding_scores      = (meta, parquet)  — clone × peptide matrix
     // PREDICT_BINDING.out.cell_binding_scores = (meta, parquet)  — one row per cell
 
@@ -143,25 +125,22 @@ workflow TCR_EPITOPE_PIPELINE {
     // Global (broadcast to all samples): clone_metadata.csv, binding_scores.parquet
     //
     // TCR_UMAP.out.clone_metadata emits (meta, file) where meta.id = workflow id (not sample)
-// TCR_UMAP emits one global clone_metadata parquet — get the file path
-    def clone_meta_file = TCR_UMAP.out.clone_metadata
-
-    // PREDICT_BINDING emits per sample; we need the single global binding scores.
-    // Since we ran PREDICT_BINDING per sample with different epitope pools,
-    // the binding_scores output is per-sample — each sample's scores reflect its own pool.
-    // For JOIN_SEURAT: use the per-sample binding_scores (each sample's pool scores its clones).
+    // Capture outputs before closures to avoid DataflowVariable capture issues.
+    // Use .set{} to bind process outputs to resolvable named channels.
+    TCR_UMAP.out.clone_metadata.set { tcr_umap_meta_ch }
+    PREDICT_BINDING.out.binding_scores.set { pb_binding_ch }
+    // Build per-sample tuples for JOIN_SEURAT:
+    // (meta_with_seurat_rds, seurat_rds, clone_metadata, binding_scores)
     //
-    // Join strategy: per sample — (meta + seurat_rds, seurat_rds, clone_meta_file, binding_file)
-    // clone_meta_file is broadcast (same global file for all samples)
-    // binding_file is per-sample (each sample scored against its own epitope pool)
+    // ch_meta_rds is per-sample. pb_binding_ch and tcr_umap_meta_ch are workflow-level
+    // (one file total). .combine() pairs every sample with the same file — which is
+    // exactly what we want (broadcast the global file to all samples).
+    // No DataflowVariable is captured in any closure.
     def ch_join_seurat = ch_meta_rds
-        .map { meta, tcr_csv, seurat_rds -> [meta.id, meta, seurat_rds] }
-        .join(
-            PREDICT_BINDING.out.binding_scores
-                .map { m, f -> [m.id, f] },
-            failOnDuplicate: true
-        )
-        .map { sid, meta, seurat_rds, binding_file ->
+        .map { meta, tcr_csv, seurat_rds -> tuple(meta, seurat_rds) }
+        .combine(pb_binding_ch.map { m, f -> f })
+        .combine(TCR_UMAP.out.clone_metadata)
+        .map { meta, seurat_rds, binding_file, clone_meta_file ->
             tuple(
                 meta + [seurat_rds: seurat_rds],
                 seurat_rds,
@@ -178,7 +157,7 @@ workflow TCR_EPITOPE_PIPELINE {
     tcr_rds             = QUANTIFY_TCR.out.tcr_rds
     tcr_metadata        = QUANTIFY_TCR.out.tcr_metadata
     merged_tcr_meta     = MERGE_TCR_METADATA.out.merged_csv
-    clone_embeddings    = EMBED_CLONES.out.clone_embeddings
+    clone_embeddings    = EMBED_CLONES.out.clone_embeddings_umap
     binding_scores      = PREDICT_BINDING.out.binding_scores
     cell_binding_scores = PREDICT_BINDING.out.cell_binding_scores
     clone_metadata      = TCR_UMAP.out.clone_metadata
