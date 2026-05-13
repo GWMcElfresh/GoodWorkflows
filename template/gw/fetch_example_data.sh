@@ -410,20 +410,16 @@ make_cdr3 <- function() {
   aa <- c("A","C","D","E","F","G","H","I","K","L","M","N","P","Q","R","S","T","V","W","Y")
   paste(sample(aa, sample(10:16, 1), replace = TRUE), collapse = "")
 }
-v_genes <- c("TRAV12-2*01","TRAV19*01","TRAV27*01","TRAV6*01","TRAV14*01")
-j_genes <- c("TRAJ33*01","TRAJ37*01","TRAJ20*01","TRAJ28*01")
-trb_v   <- c("TRBV6-1*01","TRBV12-3*01","TRBV27*01","TRBV4-1*01","TRBV3-1*01")
-trb_j   <- c("TRBJ2-1*01","TRBJ1-1*01","TRBJ2-7*01","TRBJ2-3*01")
 for (ext in c("human", "macaque", "mouse")) {
   rds_file <- file.path(data_dir, sprintf("pbmc3k_%s.rds", ext))
   if (!file.exists(rds_file)) { message("Skip: ", rds_file); next }
   obj <- readRDS(rds_file); n <- ncol(obj)
   obj$TRA <- replicate(n, make_cdr3())
   obj$TRB <- replicate(n, make_cdr3())
-  obj$TRA_V <- sample(v_genes, n, replace = TRUE)
-  obj$TRA_J <- sample(j_genes, n, replace = TRUE)
-  obj$TRB_V <- sample(trb_v, n, replace = TRUE)
-  obj$TRB_J <- sample(trb_j, n, replace = TRUE)
+  obj$TRA_V <- NA_character_
+  obj$TRA_J <- NA_character_
+  obj$TRB_V <- NA_character_
+  obj$TRB_J <- NA_character_
   saveRDS(obj, rds_file)
   message(sprintf("TCR columns injected: %s (%d cells)", rds_file, ncol(obj)))
 }
@@ -546,10 +542,6 @@ def make_cdr3(rng, length=None):
 # For local testing we generate plausible synthetic clones.
 records = []
 subject_pool = [f"SUBJ{i:03d}" for i in range(1, 9)]
-TRA_V_pool = ["TRAV12-2*01","TRAV19*01","TRAV27*01","TRAV6*01","TRAV14*01"]
-TRA_J_pool = ["TRAJ33*01","TRAJ37*01","TRAJ20*01","TRAJ28*01"]
-TRB_V_pool = ["TRBV6-1*01","TRBV12-3*01","TRBV27*01","TRBV4-1*01","TRBV3-1*01"]
-TRB_J_pool = ["TRBJ2-1*01","TRBJ1-1*01","TRBJ2-7*01","TRBJ2-3*01"]
 
 for clone_idx in range(100):
     tra = make_cdr3(rng)
@@ -560,8 +552,8 @@ for clone_idx in range(100):
             "barcode": f"BC_{clone_idx:04d}_{cell_idx:04d}",
             "SubjectId": rng.choice(subject_pool),
             "TRA": tra, "TRB": trb,
-            "TRA_V": rng.choice(TRA_V_pool), "TRA_J": rng.choice(TRA_J_pool),
-            "TRB_V": rng.choice(TRB_V_pool), "TRB_J": rng.choice(TRB_J_pool),
+            "TRA_V": "", "TRA_J": "",
+            "TRB_V": "", "TRB_J": "",
             "TRA_CloneIdx": clone_idx, "TRA_CloneSize": n_cells,
             "TRB_CloneIdx": clone_idx, "TRB_CloneSize": n_cells,
         })
@@ -651,6 +643,10 @@ suppressPackageStartupMessages(library(Seurat))
 library(Matrix)
 csv_path <- file.path(data_dir, "toy_tcr_metadata.csv")
 meta <- read.csv(csv_path, stringsAsFactors = FALSE)
+# Set V/J to NA (tcrClustR validates against internal DB; our synthetic names won't match)
+for (col in c("TRA_V", "TRA_J", "TRB_V", "TRB_J")) {
+  if (col %in% names(meta)) meta[[col]] <- NA_character_
+}
 counts <- Matrix(0, nrow = 1, ncol = nrow(meta))
 rownames(counts) <- "FAKEGENE"
 colnames(counts) <- meta$barcode
