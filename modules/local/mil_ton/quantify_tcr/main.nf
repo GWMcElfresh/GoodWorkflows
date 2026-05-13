@@ -20,7 +20,7 @@ process QUANTIFY_TCR {
     tag 'quantify-tcr'
     label 'process_tcr'
 
-    container "${params.tcrClustR_container}"
+    container { params.tcrClustR_container }
 
     publishDir "${params.outdir}/tcr_quant", mode: 'copy'
 

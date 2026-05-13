@@ -25,7 +25,7 @@ process TCR_UMAP {
     tag 'tcr-umap'
     label 'process_lowcpu'
 
-    container "${params.milton_tcr_container}"
+    container { params.milton_tcr_container }
 
     publishDir "${params.outdir}/tcr_epitope", mode: 'copy'
 

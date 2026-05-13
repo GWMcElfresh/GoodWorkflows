@@ -14,7 +14,7 @@ process TRAIN_GEX_MIL {
     tag 'train-gex-mil'
     label 'process_gpu'
 
-    container "${params.milton_container}"
+    container { params.milton_container }
 
     publishDir "${params.outdir}/gex_mil", mode: 'copy'
 

@@ -18,7 +18,7 @@ process EMBED_CLONES {
     tag 'embed-clones'
     label 'process_gpu'
 
-    container "${params.milton_tcr_container}"
+    container { params.milton_tcr_container }
 
     publishDir "${params.outdir}/tcr_epitope", mode: 'copy'
 

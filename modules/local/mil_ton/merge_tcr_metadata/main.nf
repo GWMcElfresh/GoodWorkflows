@@ -9,7 +9,7 @@ process MERGE_TCR_METADATA {
     tag 'merge-tcr-metadata'
     label 'process_small'
 
-    container "${params.milton_container}"
+    container { params.milton_container }
 
     publishDir "${params.outdir}/tcr_quant", mode: 'copy'
 

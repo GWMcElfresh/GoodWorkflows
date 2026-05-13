@@ -14,7 +14,7 @@ process TRAIN_TCR_MIL {
     tag 'train-tcr-mil'
     label 'process_gpu'
 
-    container "${params.milton_container}"
+    container { params.milton_container }
 
     publishDir "${params.outdir}/tcr_mil", mode: 'copy'
 

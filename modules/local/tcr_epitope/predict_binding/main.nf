@@ -24,7 +24,7 @@ process PREDICT_BINDING {
     tag 'predict-binding'
     label 'process_lowcpu'
 
-    container "${params.milton_tcr_container}"
+    container { params.milton_tcr_container }
 
     publishDir "${params.outdir}/tcr_epitope", mode: 'copy'
 

@@ -20,7 +20,7 @@ process TRAIN_TCR_EPITOPE {
     tag 'train-tcr-epitope'
     label 'process_gpu'
 
-    container "${params.milton_tcr_container}"
+    container { params.milton_tcr_container }
 
     publishDir "${params.outdir}/tcr_epitope_models", mode: 'copy'
 

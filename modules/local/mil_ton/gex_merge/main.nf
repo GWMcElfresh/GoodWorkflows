@@ -12,7 +12,7 @@ process GEX_MERGE_COUNTS {
     tag 'gex-merge-counts'
     label 'medium_job'
 
-    container "${params.milton_container}"
+    container { params.milton_container }
 
     publishDir "${params.outdir}/gex", mode: 'copy'
 
