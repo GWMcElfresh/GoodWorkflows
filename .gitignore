@@ -23,6 +23,15 @@ __pycache__/
 # Large test data files (binary/RDS too big for git)
 test-data/**/*.rds
 
+# Generated/test data in template/gw/ (scripts tracked separately)
+template/gw/data/
+template/gw/*_samplesheet.csv
+template/gw/tabulate_samplesheet.csv
+template/gw/samplesheet.csv
+
+# ARCHS4 GEO metadata cache
+.archs4/
+
 # MCP server build artifacts
 mcp-server/build/
 mcp-server/node_modules/
