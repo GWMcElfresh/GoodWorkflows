@@ -55,12 +55,12 @@ seurat_obj <- tcrClustR::CalculateTcrDistances(
 # Restore into Seurat object
 # CalculateTcrDistances returns the Seurat object with updated misc and metadata
 if (!inherits(seurat_obj, "Seurat")) {
-    seurat_obj <- seurat_obj$seurat
+    seurat_obj <- seurat_obj\$seurat
 }
 
 # ── Optional: Dirichlet clustering for exploratory analysis ─────────────
 if ("${params.tcrRunDirichlet}" == "true") {
-    message("[QUANTIFY_TCR] Running Dirichlet clustering …")
+    message("[QUANTIFY_TCR] Running Dirichlet clustering ...")
     dp <- tcrClustR::DirichletClusterAnalysis(
         seuratObj   = seurat_obj,
         assayName   = paste0(tcr_cols[1], "_cdr3"),
@@ -69,7 +69,7 @@ if ("${params.tcrRunDirichlet}" == "true") {
         nIterations = as.integer("${params.tcrDirichletIterations}")
     )
     # Store result in misc
-    seurat_obj@misc$TCR_Dirichlet <- dp
+    seurat_obj@misc\$TCR_Dirichlet <- dp
     message("[QUANTIFY_TCR] Dirichlet clustering complete: ",
             length(dp$cluster_summary$cluster), " clusters detected.")
 }

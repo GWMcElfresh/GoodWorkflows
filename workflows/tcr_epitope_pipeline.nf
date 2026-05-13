@@ -42,6 +42,9 @@ def parseTcrEpitopeSamplesheet(samplesheetPath) {
             if (modeCount > 1)  error "Row needs exactly ONE of 'output_file_id', 'url', or 'path': ${row}"
 
             def meta = [ id: row.sample_id.toString(), epitope_file: row.epitope_file.toString() ]
+            if (row.containsKey('species') && row.species?.trim()) {
+                meta.species = row.species.toString()
+            }
             if (hasOutId) { meta.output_file_id = row.output_file_id.toString(); meta.mode = 'labkey' }
             if (hasUrl)   { meta.url            = row.url.toString();            meta.mode = 'url'    }
             if (hasPath)  { meta.path           = row.path.toString();           meta.mode = 'file'   }

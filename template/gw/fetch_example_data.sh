@@ -601,10 +601,30 @@ if os.environ.get("FETCH_TRAIN_MODEL") == "true":
 PYEOF
 
 cat > "${TCR_SAMPLESHEET}" <<EOF
-sample_id,epitope_file,path
-toy_tcr,${TCR_EPITOPE_DATA}/epitopes.fa,${TCR_EPITOPE_DATA}/toy_tcr_metadata.csv
+sample_id,epitope_file,species,path
+toy_tcr,${TCR_EPITOPE_DATA}/epitopes.fa,human,${TCR_EPITOPE_DATA}/toy_tcr.rds
 EOF
 echo -e "${GREEN}[FETCH] tcr_epitope samplesheet: ${TCR_SAMPLESHEET}${NC}"
+
+# Generate toy_tcr.rds: INGEST_FILE needs a valid Seurat RDS (not a raw CSV)
+echo ""
+echo "--- Generating toy_tcr.rds (minimal Seurat object from toy_tcr_metadata.csv) ---"
+Rscript --no-save - "${TCR_EPITOPE_DATA}" <<'REOF'
+args <- commandArgs(trailingOnly = TRUE)
+data_dir <- args[1]
+suppressPackageStartupMessages(library(Seurat))
+library(Matrix)
+csv_path <- file.path(data_dir, "toy_tcr_metadata.csv")
+meta <- read.csv(csv_path, stringsAsFactors = FALSE)
+counts <- Matrix(0, nrow = 1, ncol = nrow(meta))
+rownames(counts) <- "FAKEGENE"
+colnames(counts) <- meta$barcode
+obj <- CreateSeuratObject(counts = counts, meta.data = meta)
+rownames(obj@meta.data) <- meta$barcode
+rds_path <- file.path(data_dir, "toy_tcr.rds")
+saveRDS(obj, rds_path)
+message(sprintf("Saved: %s (%d cells, %d genes)", rds_path, ncol(obj), nrow(obj)))
+REOF
 
 # --- Summary ---
 echo ""
