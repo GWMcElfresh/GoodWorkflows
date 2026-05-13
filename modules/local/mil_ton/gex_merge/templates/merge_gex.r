@@ -14,15 +14,18 @@ suppressPackageStartupMessages({
     library(data.table)
 })
 
-message("[GEX_MERGE_COUNTS] Starting merge of ", length(count_dirs), " count directories.")
+message("[GEX_MERGE_COUNTS] Starting merge.")
 
-count_dirs <- strsplit("${count_dirs}", " ")[[1]]
+# Count directories are staged by Nextflow as subdirectories of the work dir
+count_dirs <- list.dirs(".", recursive = FALSE, full.names = TRUE)
+count_dirs <- count_dirs[grepl("_counts$", count_dirs)]
+message("[GEX_MERGE_COUNTS] Found ", length(count_dirs), " count directories.")
 
 read_one_count_dir <- function(dir) {
     sample_id <- sub("_counts\$", "", basename(dir))
     mtx  <- Matrix::readMM(file.path(dir, "matrix.mtx"))
-    feat <- data.table::fread(file.path(dir, "features.tsv"), header = FALSE)$V1
-    barc <- data.table::fread(file.path(dir, "barcodes.tsv"), header = FALSE)$V1
+    feat <- data.table::fread(file.path(dir, "features.tsv"), header = FALSE)$\V1
+    barc <- data.table::fread(file.path(dir, "barcodes.tsv"), header = FALSE)$\V1
     meta <- data.table::fread(file.path(dir, "obs_meta.csv"), header = TRUE)
 
     rownames(mtx) <- feat

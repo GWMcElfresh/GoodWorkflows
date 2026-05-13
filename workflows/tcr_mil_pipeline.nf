@@ -42,6 +42,11 @@ def buildTcrMilSamplesChannel(samplesheetPath) {
 
             def meta = [ id: row.sample_id.toString() ]
 
+            // Include species if present in the samplesheet (needed by INGEST_FILE)
+            if (row.containsKey('species') && row.species?.trim()) {
+                meta.species = row.species.toString()
+            }
+
             if (hasOutputFileId) {
                 meta.output_file_id = row.output_file_id.toString()
                 meta.mode = 'labkey'
