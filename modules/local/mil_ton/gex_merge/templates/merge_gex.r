@@ -9,10 +9,17 @@ options(warn = 2)
 
 suppressPackageStartupMessages({
     library(Seurat)
-    library(anndata)
     library(Matrix)
     library(data.table)
 })
+
+# Install anndata R package if not present (rdiscvr may not include it)
+if (!requireNamespace("anndata", quietly = TRUE)) {
+    install.packages("anndata", repos = "https://cloud.r-project.org")
+    library(anndata)
+} else {
+    library(anndata)
+}
 
 message("[GEX_MERGE_COUNTS] Starting merge.")
 
