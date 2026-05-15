@@ -21,7 +21,6 @@ import anndata as ad
 import mygene
 import numpy as np
 import pandas as pd
-import scanpy as sc
 from scipy import io, sparse
 
 # ---------------------------------------------------------------------------
@@ -329,21 +328,14 @@ for order_index, species in enumerate(ordered_species):
     species_adata.obs["species"] = species
     species_adata.obs["species_order_index"] = order_index
 
-    sc.pp.normalize_total(species_adata, target_sum=1e4)
-    sc.pp.log1p(species_adata)
-
-    dense_x = (
-        species_adata.X.toarray()
-        if sparse.issparse(species_adata.X)
-        else np.asarray(species_adata.X)
-    )
-    dense_x = dense_x.astype(np.float32, copy=False)
-    gene_mean = dense_x.mean(axis=0)
-    gene_std = dense_x.std(axis=0)
-    gene_std[gene_std == 0] = 1.0
-    species_adata.X = ((dense_x - gene_mean) / gene_std).astype(np.float32, copy=False)
-    species_adata.var["mean"] = gene_mean
-    species_adata.var["std"] = gene_std
+    # Keep X sparse — no normalization or densification here.
+    # GENE_HARMONIZE only maps genes to orthologs. SCMODAL_INTEGRATE
+    # (scMODAL model.preprocess / integrate_datasets_feats) handles its own
+    # normalization internally from the raw-ish counts.
+    if sparse.issparse(species_adata.X):
+        species_adata.X = species_adata.X.astype(np.float32)
+    else:
+        species_adata.X = np.asarray(species_adata.X, dtype=np.float32)
     species_adata.var["feature_name"] = species_adata.var_names.astype(str)
 
     # Convert all obs columns to str to satisfy h5py's strict string-type requirement.
