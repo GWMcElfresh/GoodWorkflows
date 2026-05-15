@@ -131,7 +131,7 @@ adata = sc.read_10x_mtx("outputs/counts/SAMPLE_01_counts",
 
 | File | Description |
 |---|---|
-| `{idx}_{species}_harmonized.h5ad` | AnnData for one species (e.g. `00_human_harmonized.h5ad`). Cells × shared ortholog genes, log-normalised. Index = `{sample_id}_{barcode}`. |
+| `{idx}_{species}_harmonized.h5ad` | AnnData for one species (e.g. `00_human_harmonized.h5ad`). Cells × shared ortholog genes, raw sparse counts (CSR float32). scMODAL's internal preprocessing handles normalisation. Index = `{sample_id}_{barcode}`. |
 | `integration_manifest.csv` | Maps each species file to its `order_index` (integer sort key for scMODAL). Columns: `species`, `h5ad_file`, `order_index`. |
 | `shared_genes.csv` | List of shared ortholog gene symbols used across all species. |
 | `ortholog_mapping.csv` | Full HomoloGene-derived mapping table (gene symbol, taxon ID, homolog group ID). |

@@ -152,7 +152,7 @@ workDir = "${projectDir}/work"
 | `process_export` | 2 | 64 GB | 4 h | 10 | batch | `--gres=disk:1028` |
 | `process_harmonize` | 2 | 64 GB | 8 h | 5 | batch | `--gres=disk:1028` |
 | `process_tabulate` | 2 | 64 GB | 8 h | 10 | batch | `--gres=disk:1028` |
-| `process_gpu` | 4 | 128 GB | 24 h | 2 | batch | `--gres=disk:1028 --gres=gpu:1 --qos=gpu` |
+| `process_gpu` | 4 | 128 GB | 24 h | 2 | gpu | `--gres=disk:1028 --gres=gpu:1` |
 
 ### Before/After Scripts
 - `beforeScript`: `source configs/slurm.before.sh`

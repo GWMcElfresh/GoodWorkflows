@@ -92,16 +92,16 @@ All modules live under `modules/local/`. Each is a single-step DSL2 process with
 
 | | Details |
 |---|---|
-| **Purpose** | Cross-species gene harmonization: ortholog mapping via mygene HomoloGene, duplicate collapse, normalization, per-species AnnData output |
+| **Purpose** | Cross-species gene harmonization: ortholog mapping via mygene HomoloGene, duplicate collapse, per-species sparse AnnData output (raw counts — scMODAL handles normalisation internally) |
 | **Input** | `path count_dirs` — collected list of all `{id}_counts/` directories |
 | **Output** | `path('harmonized_outputs')` — directory containing: |
-| | • `{NN}_{species}_harmonized.h5ad` — per-species normalized AnnData |
+| | • `{NN}_{species}_harmonized.h5ad` — per-species sparse AnnData (CSR float32) |
 | | • `integration_manifest.csv` — species order, cell/gene counts |
 | | • `ortholog_mapping.csv` — full gene-to-ortholog mapping |
 | | • `shared_genes.csv` — shared gene list across species |
 | | • `n_shared.txt` — count of shared genes |
 | **Species config** | human (9606), macaque (9544), mouse (10090) |
-| **Processing** | normalize_total → log1p → z-score (per species) |
+| **Processing** | ortholog mapping → collapse duplicates → align features (keeps X sparse — no densification or normalisation) |
 | **Stub** | Creates directory + touches all expected output files |
 
 ### 7. TABULATE
