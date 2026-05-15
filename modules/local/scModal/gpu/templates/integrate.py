@@ -301,10 +301,11 @@ combined.uns["scmodal"] = {
     "device": str(model.device),
 }
 
-# Convert all obs columns to str to satisfy h5py's strict string-type requirement
+# Convert all obs columns to str to satisfy h5py's strict string-type requirement.
+# Object-dtype columns with mixed string/float types (e.g. NaN from CSV import)
+# must also be converted — h5py rejects non-string elements in string arrays.
 for col in combined.obs.columns:
-    if combined.obs[col].dtype != object:
-        combined.obs[col] = combined.obs[col].astype(str)
+    combined.obs[col] = combined.obs[col].astype(str)
 
 combined.write_h5ad(out_dir / "latent_clustered.h5ad")
 

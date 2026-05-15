@@ -138,10 +138,11 @@ if "species" not in merged.obs.columns:
 
 print(f"Merged matrix shape: {merged.X.shape[0]} cells x {merged.X.shape[1]} genes", flush=True)
 
-# Convert all obs columns to str to satisfy h5py's strict string-type requirement
+# Convert all obs columns to str to satisfy h5py's strict string-type requirement.
+# Object-dtype columns with mixed string/float types (e.g. NaN from CSV import)
+# must also be converted — h5py rejects non-string elements in string arrays.
 for col in merged.obs.columns:
-    if merged.obs[col].dtype != object:
-        merged.obs[col] = merged.obs[col].astype(str)
+    merged.obs[col] = merged.obs[col].astype(str)
 
 # Write merged .h5ad
 merged.write_h5ad("merged_counts.h5ad")

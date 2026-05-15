@@ -346,10 +346,11 @@ for order_index, species in enumerate(ordered_species):
     species_adata.var["std"] = gene_std
     species_adata.var["feature_name"] = species_adata.var_names.astype(str)
 
-    # Convert all obs columns to str to satisfy h5py's strict string-type requirement
+    # Convert all obs columns to str to satisfy h5py's strict string-type requirement.
+    # Object-dtype columns with mixed string/float types (e.g. NaN from CSV import)
+    # must also be converted — h5py rejects non-string elements in string arrays.
     for col in species_adata.obs.columns:
-        if species_adata.obs[col].dtype != object:
-            species_adata.obs[col] = species_adata.obs[col].astype(str)
+        species_adata.obs[col] = species_adata.obs[col].astype(str)
 
     output_name = f"{order_index:02d}_{species}_harmonized.h5ad"
     species_adata.write_h5ad(output_dir / output_name)
