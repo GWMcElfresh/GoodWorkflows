@@ -8,7 +8,7 @@ This page documents every data format consumed and produced by GoodWorkflows, or
 
 **Path:** `--input` (default `data/samplesheet.csv`)
 
-The samplesheet is the single entry point for all three workflows. It is a comma-separated file with a header row.
+The samplesheet is the single entry point for all seven workflows. It is a comma-separated file with a header row.
 
 ### Columns
 
@@ -49,7 +49,7 @@ SAMPLE_03,,,/home/user/data/mydata.h5ad,mouse
 ### INGEST — Seurat RDS
 
 **File:** `outputs/ingest/{sample_id}.rds`  
-**Produced by:** [`ingest_export`](workflows/ingest-export.md), [`integration`](workflows/integration-pipeline.md)
+**Produced by:** All workflows with ingest stage (`integration`, `ingest_export`, `ingest_tabulate`, `nmf_vae`, `gex_mil`, `tcr_mil`, `tcr_epitope`)
 
 A Seurat v5 RDS object containing:
 
@@ -95,7 +95,7 @@ A flat CSV of cell-level metadata. Each row is one cell (droplet barcode). All i
 ### EXPORT_COUNTS — 10x-like matrix directory
 
 **Directory:** `outputs/counts/{sample_id}_counts/`  
-**Produced by:** [`ingest_export`](workflows/ingest-export.md), [`integration`](workflows/integration-pipeline.md)
+**Produced by:** [`ingest_export`](workflows/ingest-export.md), [`integration`](workflows/integration-pipeline.md), [`nmf_vae`](workflows/nmf-vae.md), [`gex_mil`](workflows/gex-mil.md) (workflows with EXPORT_COUNTS stage)
 
 Compatible with `Seurat::Read10X()`, `scanpy.read_10x_mtx()`, and similar readers.
 

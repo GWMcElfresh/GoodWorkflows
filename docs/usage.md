@@ -134,7 +134,7 @@ Open `run.sh` and fill in the `# FILL IN` section near the top:
 
 ```bash
 # 1. Choose the workflow
-WORKFLOW="ingest_tabulate"   # or: integration, ingest_export
+WORKFLOW="ingest_tabulate"   # or: integration, ingest_export, nmf_vae, gex_mil, tcr_mil, tcr_epitope
 
 # 2. Set your LabKey coordinates (only needed for LabKey-mode samples)
 LABKEY_BASE_URL="https://labkey.example.org"
@@ -155,6 +155,10 @@ NXF_HOME="/gscratch/mylab/.nextflow"
 | `integration` | Ingest → export counts → harmonize → scMODAL | HPC + GPU (`-profile slurm`) |
 | `ingest_export` | Download/load Seurat RDS + export 10x-like counts | Local Mac or HPC (CPU) |
 | `ingest_tabulate` | Download/load cell metadata → build `subjectIdTable.csv` | Local Mac or HPC (CPU) |
+| `nmf_vae` | Ingest → export → merge → NMF-VAE factorize | GPU (`-profile slurm`) |
+| `gex_mil` | Ingest → export → merge → scVI + attention-MIL | GPU (`-profile slurm`) |
+| `tcr_mil` | Ingest → quantify TCRs → BertTCR MIL | GPU (`-profile slurm`) |
+| `tcr_epitope` | Ingest → quantify TCRs → ESM-2 embed → epitope binding | GPU (`-profile slurm`) |
 
 ### PIPELINE_ROOT auto-detection
 
@@ -354,5 +358,9 @@ It can also be launched from a different directory since it resolves `PIPELINE_R
 - [Workflow details — Integration Pipeline](workflows/integration-pipeline.md)
 - [Workflow details — Ingest + Export](workflows/ingest-export.md)
 - [Workflow details — Ingest + Tabulate](workflows/ingest-tabulate.md)
+- [Workflow details — NMF-VAE](workflows/nmf-vae.md)
+- [Workflow details — GEX MIL](workflows/gex-mil.md)
+- [Workflow details — TCR MIL](workflows/tcr-mil.md)
+- [Workflow details — TCR Epitope](workflows/tcr-epitope.md)
 - [Parameter reference](parameters.md)
 - [Data formats and schemas](data-formats.md)

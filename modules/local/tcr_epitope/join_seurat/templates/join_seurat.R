@@ -96,7 +96,7 @@ cat("[JOIN] Merged clone table: ", nrow(merged), " rows, ", ncol(merged), " cols
 # If clonotype_id is NA/missing in clone_meta, fall back to TRA|TRB hash
 clone_lookup <- merged
 if (!"clonotype_id" %in% colnames(clone_lookup)) {
-    clone_lookup$clonotype_id <- NA_character_
+    clone_lookup[["clonotype_id"]] <- NA_character_
 }
 
 # ── Load Seurat object ────────────────────────────────────────────────────────
@@ -127,7 +127,7 @@ add_cols <- setdiff(colnames(clone_lookup), c("clone_id", "clonotype_id"))
 # Make a named vector / list for fast lookup by clonotype_id
 # Handle clonotype_id NA → NA lookup gracefully
 lookup_list <- lapply(add_cols, function(col) {
-    setNames(clone_lookup[[col]], clone_lookup$clonotype_id)
+    setNames(clone_lookup[[col]], clone_lookup[["clonotype_id"]])
 })
 
 # Add columns to Seurat metadata

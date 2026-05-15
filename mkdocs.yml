@@ -52,6 +52,10 @@ nav:
     - Integration Pipeline: workflows/integration-pipeline.md
     - Ingest + Export: workflows/ingest-export.md
     - Ingest + Tabulate: workflows/ingest-tabulate.md
+    - NMF-VAE: workflows/nmf-vae.md
+    - GEX MIL: workflows/gex-mil.md
+    - TCR MIL: workflows/tcr-mil.md
+    - TCR Epitope: workflows/tcr-epitope.md
   - Vignettes:
     - Synthetic Tabulation Walkthrough: vignettes/synthetic-tabulation.md
   - Data Formats: data-formats.md

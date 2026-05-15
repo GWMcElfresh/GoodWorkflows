@@ -71,7 +71,7 @@ nextflow run main.nf \
   --labkey_folder /My/Folder
 ```
 
-The `full` workflow is intentionally blocked on local CPU execution outside GitHub Actions smoke tests because `SCMODAL_INTEGRATE` needs a GPU-backed SLURM environment.
+The `integration` workflow is intentionally blocked on local CPU execution outside GitHub Actions smoke tests because `SCMODAL_INTEGRATE` needs a GPU-backed SLURM environment.
 
 If needed, you can still force behavior explicitly with `-profile local` or `-profile slurm`.
 
@@ -127,7 +127,7 @@ sbatch run.sh
 
 ```bash
 bash slurm_nextflow.sh \
-  --workflow full \
+  --workflow integration \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Folder
 ```
@@ -153,7 +153,7 @@ Optional: fast-forward the checkout immediately before launch:
 
 ```bash
 SYNC_REPO_BEFORE_RUN=true bash slurm_nextflow.sh \
-  --workflow full \
+  --workflow integration \
   --labkey_base_url https://labkey.example.org \
   --labkey_folder /My/Folder
 ```
@@ -181,7 +181,7 @@ So the implemented pattern is:
 
 GitHub Actions validates the repository in two layers:
 
-1. **Workflow smoke tests** — runs `main.nf` with `-profile test -stub-run` for `full`, `ingest_export`, and `ingest_tabulate`. The `full` workflow smoke test additionally passes `--scmodal_use_cpu true` to bypass the local-executor GPU guard; `SCMODAL_INTEGRATE` runs its stub block, which validates DSL2 wiring without requiring a GPU.
+1. **Workflow smoke tests** — runs `main.nf` with `-profile test -stub-run` for `integration`, `ingest_export`, and `ingest_tabulate`. The `integration` workflow smoke test additionally passes `--scmodal_use_cpu true` to bypass the local-executor GPU guard; `SCMODAL_INTEGRATE` runs its stub block, which validates DSL2 wiring without requiring a GPU.
 2. **Module smoke tests** — runs each module wrapper under `tests/modules/` so every module is exercised independently.
 
 The `test` profile disables containers and uses the local executor so CI can validate DSL2 wiring quickly without requiring HPC infrastructure.

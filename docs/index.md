@@ -11,6 +11,10 @@ A DSL2 **Nextflow** pipeline for composing reusable single-cell RNA-seq workflow
 | [`integration`](workflows/integration-pipeline.md) | Download/load → export counts → harmonize → scMODAL integration | **HPC + GPU (SLURM required)** |
 | [`ingest_export`](workflows/ingest-export.md) | Download/load Seurat RDS and export 10x-like counts | Local / Mac / HPC (CPU) |
 | [`ingest_tabulate`](workflows/ingest-tabulate.md) | Download/load cell metadata and build `subjectIdTable.csv` | Local / Mac / HPC (CPU) |
+| [`nmf_vae`](workflows/nmf-vae.md) | Ingest → export → merge → NMF-VAE factorize | **GPU** |
+| [`gex_mil`](workflows/gex-mil.md) | Ingest → export → merge → scVI + attention-MIL | **GPU** |
+| [`tcr_mil`](workflows/tcr-mil.md) | Ingest → quantify TCRs → BertTCR MIL | **GPU** |
+| [`tcr_epitope`](workflows/tcr-epitope.md) | Ingest → quantify TCRs → ESM-2 embed → epitope binding | **GPU** |
 
 Select the workflow with `--workflow <name>`.
 

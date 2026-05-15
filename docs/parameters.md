@@ -8,7 +8,7 @@ Complete reference for all `--param` flags accepted by `main.nf`. Defaults are s
 
 | Parameter | Default | Description |
 |---|---|---|
-| `--workflow` | `integration` | Named workflow to execute. One of `integration`, `ingest_export`, `ingest_tabulate`. |
+| `--workflow` | `integration` | Named workflow to execute. One of `integration`, `ingest_export`, `ingest_tabulate`, `nmf_vae`, `gex_mil`, `tcr_mil`, `tcr_epitope`. |
 | `--input` | `data/samplesheet.csv` | Path to the samplesheet CSV. See [Data Formats → Samplesheet](data-formats.md#samplesheet). |
 | `--outdir` | `outputs/` | Directory where published results are written. |
 
