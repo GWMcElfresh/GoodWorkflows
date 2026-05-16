@@ -16,12 +16,11 @@ Nextflow substitutions (resolved before Python runs):
 import json
 import math
 import os
-# Disable Numba JIT + cache to avoid "cannot cache function" errors in
-# Apptainer containers where site-packages is a read-only zip archive.
-# NUMBA_DISABLE_JIT alone doesn't block @vectorize's enable_caching() path
-# (used by pynndescent → umap → scmodal internal imports).
-os.environ['NUMBA_DISABLE_JIT'] = '1'
-os.environ['NUMBA_DISABLE_CACHE'] = '1'
+# Set Numba cache to /tmp so JIT caching works in Apptainer containers
+# where site-packages is read-only and home directory is not writable.
+# Numba's CacheImpl falls back through 4 locator classes; only
+# _UserProvidedCacheLocator (driven by CACHE_DIR) succeeds here.
+os.environ['NUMBA_CACHE_DIR'] = '/tmp'
 import pathlib
 import shutil
 import subprocess
