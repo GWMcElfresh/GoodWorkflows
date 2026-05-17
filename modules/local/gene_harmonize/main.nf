@@ -10,7 +10,7 @@ process GENE_HARMONIZE {
     tag 'gene-harmonize'
     label 'process_harmonize'
 
-    container "${params.scmodal_container}"
+    container { params.scmodal_container }
 
     publishDir "${params.outdir}/harmonized", mode: 'copy'
 

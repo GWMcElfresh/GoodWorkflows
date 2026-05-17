@@ -9,7 +9,7 @@ process NMF_VAE_MERGE_COUNTS {
     tag 'nmf-vae-merge-counts'
     label 'process_nmf_vae'
 
-    container "${params.nmfvae_container}"
+    container { params.nmfvae_container }
 
     publishDir "${params.outdir}/nmf_vae", mode: 'copy'
 

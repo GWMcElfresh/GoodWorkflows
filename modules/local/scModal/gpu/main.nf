@@ -8,7 +8,7 @@
 process SCMODAL_INTEGRATE {
     label 'process_gpu'
 
-    container "${params.scmodal_container}"
+    container { params.scmodal_container }
 
     publishDir "${params.outdir}/scmodal", mode: 'copy'
 
