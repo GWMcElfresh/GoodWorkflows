@@ -66,11 +66,11 @@ joint_mtx <- do.call(cbind, lapply(matrices, function(m) {
 metas <- lapply(parts, `[[`, "meta")
 joint_meta <- data.table::rbindlist(metas, fill = TRUE, use.names = TRUE)
 
-# Ensure all character columns for h5py compatibility
+# Ensure all columns are character for h5py compatibility.
+# Avoid conditional checks (e.g. is.character) — R list-columns or mixed types
+# from rbindlist across samples can slip through and cause h5py TypeError.
 for (col in names(joint_meta)) {
-    if (!is.character(joint_meta[[col]])) {
-        joint_meta[[col]] <- as.character(joint_meta[[col]])
-    }
+    joint_meta[[col]] <- as.character(joint_meta[[col]])
 }
 
 setorder(joint_meta, sample_id, barcode)
