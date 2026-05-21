@@ -98,7 +98,17 @@ def _handle_sigterm(signum, frame):
         try:
             step = getattr(_model, "current_step", 0)
             _model.save_checkpoint(step)
-            print(f"SCMODAL_INTEGRATE: Checkpoint saved at step {step}", flush=True)
+            # Write progress file so user can see step reached even after job exit
+            prog = out_dir / "_progress.txt"
+            try:
+                prog.write_text(
+                    f"attempt={ATTEMPT} step={step}/{TRAINING_STEPS} "
+                    f"batch_size={BATCH_SIZE} status=SIGTERM_SAVED\n"
+                )
+            except Exception:
+                pass
+            print(f"SCMODAL_INTEGRATE: Checkpoint saved at step {step}/{TRAINING_STEPS}", flush=True)
+            print(f"SCMODAL_INTEGRATE: Progress file: {prog}", flush=True)
         except Exception as exc:
             print(f"SCMODAL_INTEGRATE: Could not save checkpoint on SIGTERM: {exc}", flush=True)
     sys.stdout.flush()
@@ -133,6 +143,15 @@ LEIDEN_RESOLUTION = float("${params.leiden_resolution}")
 # ---------------------------------------------------------------------------
 out_dir = pathlib.Path("model_outputs")
 out_dir.mkdir(exist_ok=True)
+
+# Log work directory and output paths for debugging
+cwd = pathlib.Path.cwd()
+print(f"SCMODAL_INTEGRATE: work dir      = {cwd}", flush=True)
+print(f"SCMODAL_INTEGRATE: output dir    = {out_dir}", flush=True)
+print(f"SCMODAL_INTEGRATE: model dir     = {out_dir / 'scmodal_model'}", flush=True)
+print(f"SCMODAL_INTEGRATE: attempt       = {ATTEMPT}, "
+      f"batch_size={BATCH_SIZE}, training_steps={TRAINING_STEPS}", flush=True)
+ckpt_progress = out_dir / "_progress.txt"
 
 try:
     result = subprocess.run(
