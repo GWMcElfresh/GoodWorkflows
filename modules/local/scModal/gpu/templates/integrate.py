@@ -16,6 +16,7 @@ Nextflow substitutions (resolved before Python runs):
 import json
 import math
 import os
+import signal
 # Set Numba cache to /tmp so JIT caching works in Apptainer containers
 # where site-packages is read-only and home directory is not writable.
 # Numba's CacheImpl falls back through 4 locator classes; only
@@ -81,6 +82,31 @@ def _log_oom(exc: BaseException, phase: str) -> None:
         flush=True,
     )
     sys.exit(42)
+
+
+# ---------------------------------------------------------------------------
+# SIGTERM handler — saves checkpoint on SLURM time-limit / preemption kills
+# ---------------------------------------------------------------------------
+_model = None  # set after Model() construction for signal handler access
+
+
+def _handle_sigterm(signum, frame):
+    """SIGTERM handler: save checkpoint and exit with code 143 (128+15) for Nextflow retry."""
+    global _model
+    print("\nSCMODAL_INTEGRATE: SIGTERM received — saving checkpoint for resume...", flush=True)
+    if _model is not None:
+        try:
+            step = getattr(_model, "current_step", 0)
+            _model.save_checkpoint(step)
+            print(f"SCMODAL_INTEGRATE: Checkpoint saved at step {step}", flush=True)
+        except Exception as exc:
+            print(f"SCMODAL_INTEGRATE: Could not save checkpoint on SIGTERM: {exc}", flush=True)
+    sys.stdout.flush()
+    sys.stderr.flush()
+    sys.exit(143)
+
+
+signal.signal(signal.SIGTERM, _handle_sigterm)
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +248,7 @@ try:
         model_path=str(model_dir),
         result_path=str(out_dir),
     )
+    _model = model  # for SIGTERM handler checkpoint save
 
     if len(adatas) == 2:
         n_shared_path = HARMONIZED_DIR / "n_shared.txt"
