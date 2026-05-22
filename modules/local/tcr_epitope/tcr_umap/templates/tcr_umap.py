@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# NUMBA_DISABLE_JIT=1
 """
 Nextflow template: tcr_umap.py
 TCR_UMAP — Leiden clustering + UMAP projection on ESM-2 clone embeddings.

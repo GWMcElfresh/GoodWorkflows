@@ -93,7 +93,7 @@ _model = None  # set after Model() construction for signal handler access
 def _handle_sigterm(signum, frame):
     """SIGTERM handler: save checkpoint and exit with code 143 (128+15) for Nextflow retry."""
     global _model
-    print("\nSCMODAL_INTEGRATE: SIGTERM received — saving checkpoint for resume...", flush=True)
+    print("\\nSCMODAL_INTEGRATE: SIGTERM received — saving checkpoint for resume...", flush=True)
     if _model is not None:
         try:
             step = getattr(_model, "current_step", 0)
@@ -103,7 +103,7 @@ def _handle_sigterm(signum, frame):
             try:
                 prog.write_text(
                     f"attempt={ATTEMPT} step={step}/{TRAINING_STEPS} "
-                    f"batch_size={BATCH_SIZE} status=SIGTERM_SAVED\n"
+                    f"batch_size={BATCH_SIZE} status=SIGTERM_SAVED\\n"
                 )
             except Exception:
                 pass

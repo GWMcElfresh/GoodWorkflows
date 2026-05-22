@@ -7,6 +7,12 @@ AnnData (.h5ad) file and writes a genes.txt gene list.
 Used by process NMF_VAE_MERGE_COUNTS.
 """
 
+import os
+# Set Numba cache to /tmp in case anndata's import chain pulls in
+# Numba-using packages (scanpy, umap, etc.) — prevents "cannot cache
+# function" RuntimeError in Apptainer containers.
+os.environ['NUMBA_CACHE_DIR'] = '/tmp'
+
 import pathlib
 
 import anndata as ad
