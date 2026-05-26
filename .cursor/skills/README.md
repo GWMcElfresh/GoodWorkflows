@@ -2,6 +2,49 @@
 
 Project skills for working on GoodWorkflows, a DSL2 Nextflow workflow manager for reusable single-cell analysis pipelines targeting local Podman and SLURM + Apptainer environments.
 
+## How to Invoke
+
+Skills are not shell commands. In **Agent** chat, Cursor loads them when your request matches their description, or when you name them explicitly.
+
+**Automatic routing** — describe the task clearly:
+
+- “Add a new saved workflow …” → `pipeline`, `16-evolve`, or `goodworkflows-workflow-manager`
+- “Review this `.nf` for DSL2” → `goodworkflows-dsl2-validation`
+- “Fix template / `.command.sh` error” → `goodworkflows-template-runtime`
+- “Sync gw and cluster launchers” → `goodworkflows-template-parity`
+- “What should I verify before a PR?” → `goodworkflows-verify`
+
+**Explicit invocation** — name the skill in your message (most reliable):
+
+```text
+Use pipeline. Add a workflow called my_new_workflow.
+```
+
+```text
+Follow 04-tech-plan and goodworkflows-dsl2-validation for this module.
+```
+
+```text
+Use 08-verify-build on the ingest_export changes.
+```
+
+For long runbook detail, ask the agent to read the matching `reference.md` beside the skill (for example `goodworkflows-dsl2-validation/reference.md`).
+
+**Subagents** — ask the parent agent to delegate; definitions live in `.cursor/agents/`:
+
+```text
+Use goodworkflows-state-manager for workflow-state.yaml only.
+Delegate DSL2 to dsl2-specialist and launcher parity to template-parity-specialist.
+```
+
+**What runs without asking**
+
+- `.cursor/rules/*.mdc` — persistent guidance (always-on or file-scoped).
+- `.cursor/hooks.json` — advisory checks on edits and shell commands.
+- `memory-bank/*.md` — durable project facts; mention them when planning (“read memory-bank/workflows.md”).
+
+Reload Cursor after large `.cursor/` changes if skills or hooks do not seem to apply.
+
 ## Lifecycle Routing
 
 Use `pipeline` for tracked multi-step work. It coordinates the numbered lifecycle, `workflow-state.yaml`, subagents, rules, hooks, and verification gates.
