@@ -11,12 +11,14 @@ This is the top-level lifecycle skill for GoodWorkflows. It adapts the Vecinita 
 
 Before doing work, invoke or consult `goodworkflows-state-manager` with `operation: read_context` for this skill and the user's intent. Do not edit `workflow-state.yaml` directly unless you are the state manager.
 
+For new workflows, run `grill-me` during stage 01: create or update the cycle grill file under `requirements-grill/` and do not advance to `02-verify-plan` until that file is **accepted**.
+
 ## Stage Map
 
 | Stage | Skill | GoodWorkflows purpose |
 | --- | --- | --- |
 | 00 | `00-context` | Gather repo, domain, workflow, module, config, docs, and memory-bank context. |
-| 01 | `01-requirements` | Define workflow purpose, samplesheet columns, params, outputs, compute profile, and acceptance criteria. |
+| 01 | `01-requirements` + `grill-me` | Define workflow contract; record Q&A in `requirements-grill/{cycle}-{cli}.md` before planning. |
 | 02 | `02-verify-plan` | Check requirements against existing workflows, DSL2 constraints, data contracts, and docs obligations. |
 | 03 | `03-plan-tooling` | Ensure Cursor skills, rules, hooks, and state tracking support the requested workflow work. |
 | 04 | `04-tech-plan` | Plan module boundaries, channel shapes, containers, labels, configs, tests, docs, and CI touch points. |

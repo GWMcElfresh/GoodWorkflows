@@ -11,6 +11,7 @@ Read state and the requirements brief.
 
 - Workflow name follows `snake_case` for files and CLI values.
 - Samplesheet columns are sufficient for ingest mode and downstream modules.
+- Samplesheet drift ledger covers parser/validator surfaces, generator surfaces, example samplesheets, docs/schema, launchers, tests, CI smoke inputs, and `memory-bank/` references.
 - Outputs can be stubbed and documented.
 - Compute profile is explicit and compatible with CI stub-run.
 - Requirements identify all docs/schema/memory-bank touch points.

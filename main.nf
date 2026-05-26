@@ -12,6 +12,7 @@ include { NMF_VAE_PIPELINE } from './workflows/nmf_vae.nf'
 include { GEX_MIL_PIPELINE } from './workflows/gex_mil_pipeline.nf'
 include { TCR_MIL_PIPELINE } from './workflows/tcr_mil_pipeline.nf'
 include { TCR_EPITOPE_PIPELINE } from './workflows/tcr_epitope_pipeline.nf'
+include { MAKE_TCR_VECTOR_DATABASE_PIPELINE } from './workflows/make_tcr_vector_database_pipeline.nf'
 
 // Sub-workflow contains all pipeline logic (list literals + if-else dispatch).
 // Keeping it separate from the top-level workflow{} avoids a Nextflow 26.04.0 DSL2
@@ -21,7 +22,7 @@ workflow run_pipeline {
     main:
         supportedWorkflows = [
             'integration', 'ingest_export', 'ingest_tabulate', 'nmf_vae',
-            'gex_mil', 'tcr_mil', 'tcr_epitope'
+            'gex_mil', 'tcr_mil', 'tcr_epitope', 'make_tcr_vector_database'
         ]
 
         if (params.help) {
@@ -40,6 +41,7 @@ workflow run_pipeline {
             --workflow gex_mil         Fetch Seurat RDS, export counts, merge, train scVI + attention-MIL
             --workflow tcr_mil         Fetch Seurat RDS, quantify TCRs via tcrClustR, train BertTCR MIL
             --workflow tcr_epitope     Quantify TCRs via tcrClustR, embed clones with ESM-2, predict epitope binding
+            --workflow make_tcr_vector_database Embed TRA/TRB via ESM-2 and build per-cDNA parquet/vector index
 
             Defaults:
               --input FILE              Samplesheet CSV   [default: ${params.input}]
@@ -107,6 +109,8 @@ workflow run_pipeline {
             TCR_MIL_PIPELINE(params.input)
         } else if (selectedWorkflow == 'tcr_epitope') {
             TCR_EPITOPE_PIPELINE(params.input)
+        } else if (selectedWorkflow == 'make_tcr_vector_database') {
+            MAKE_TCR_VECTOR_DATABASE_PIPELINE(params.input)
         }
 }
 

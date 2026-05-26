@@ -10,7 +10,7 @@ Compare the implemented change with the requirements and technical plan.
 ## Review
 
 - Workflow CLI value and docs match.
-- Samplesheet columns and params match schema/docs.
+- Samplesheet columns, parser/validator behavior, generated examples, launchers, tests, CI smoke inputs, params, schema/docs, and `memory-bank/` references match the accepted drift ledger.
 - Outputs match stubs, docs, and downstream consumers.
 - Compute profile and resource assumptions are documented.
 - Verification evidence supports the claims made.

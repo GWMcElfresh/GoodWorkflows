@@ -45,9 +45,47 @@ Delegate DSL2 to dsl2-specialist and launcher parity to template-parity-speciali
 
 Reload Cursor after large `.cursor/` changes if skills or hooks do not seem to apply.
 
+## New Workflow Entrypoint
+
+Use this single prompt template for every new saved workflow or pipeline addition. The parent agent should read `workflow-state.yaml` through `goodworkflows-state-manager`, open or resume a `16-evolve` cycle, and then run the numbered skills in order. It must run **`grill-me`** before planning implementation details and record Q&A in `requirements-grill/`.
+
+```text
+Use pipeline.
+Start a tracked evolve cycle for a new GoodWorkflows saved workflow/pipeline.
+
+Workflow:
+- CLI value:
+- Scientific goal:
+- Scope:
+- Inputs and samplesheet expectations:
+- Tools, modules, templates, or containers to use:
+- Compute target:
+- Required outputs:
+- Known constraints:
+- Verification target:
+
+Use grill-me: create requirements-grill/{cycle}-{cli}.md from requirements-grill/_TEMPLATE.md,
+grill me on missing requirements (samplesheet columns, params, outputs, docs/schema,
+compute, acceptance criteria), and record answers in that file before planning.
+Then delegate subagents by surface and proceed through the numbered skills.
+```
+
+The run should play out the same way each time:
+
+1. `pipeline` reads state through `goodworkflows-state-manager` and records the evolve cycle.
+2. `00-context` gathers closest workflow, module, config, launcher, docs, schema, and memory-bank patterns.
+3. `grill-me` + `01-requirements` create/update `requirements-grill/{cycle}-{cli}.md` and grill until the contract is accepted.
+4. `02-verify-plan` checks that contract, including samplesheet drift risk.
+5. `04-tech-plan` plans DSL2, templates, launchers, docs, CI, tests, and verification, using specialist subagents when surfaces can be split.
+6. `05-verify-tech` through `13-real-run-smoke` proceed only as far as the accepted scope requires, with state updates at each stage boundary.
+
+For samplesheets, every new workflow must maintain a drift ledger from requirements through release: required and optional columns, mode-specific constraints, parser/validator surfaces, generator surfaces, example samplesheets, docs/schema, launchers, tests, CI smoke inputs, and `memory-bank/` references must agree. Any column rename, default, optionality change, or mode constraint change is drift until those surfaces are updated or the gap is recorded.
+
 ## Lifecycle Routing
 
 Use `pipeline` for tracked multi-step work. It coordinates the numbered lifecycle, `workflow-state.yaml`, subagents, rules, hooks, and verification gates.
+
+Use `grill-me` during `01-requirements` to capture questions and answers in `requirements-grill/` before technical planning.
 
 | Goal | Route |
 | --- | --- |
@@ -85,6 +123,7 @@ Use `pipeline` for tracked multi-step work. It coordinates the numbered lifecycl
 
 | Skill | Use |
 | --- | --- |
+| `grill-me` | Structured requirements Q&A in `requirements-grill/` before `02-verify-plan` |
 | `goodworkflows-repo-context` | Understand architecture and workflow intent |
 | `goodworkflows-workflow-manager` | Compact route for stagewise workflow work |
 | `goodworkflows-dsl2-validation` | Validate `.nf` and `.config` edits |

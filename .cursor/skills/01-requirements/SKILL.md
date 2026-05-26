@@ -7,11 +7,21 @@ description: Define requirements for a GoodWorkflows workflow/module change. Use
 
 Read `pipeline-preamble.md` and state context first.
 
+## Grill file (required for new workflows)
+
+Use `grill-me` before treating requirements as complete.
+
+- Create or update `requirements-grill/{CYCLE_ID}-{CLI_VALUE}.md` from `requirements-grill/_TEMPLATE.md`.
+- Record every decision in that file's **Answer** blocks; do not rely on chat history alone.
+- Block `02-verify-plan` until grill `Status` is `accepted` and blocking questions are answered.
+- Register the grill file path in `workflow-state.yaml` via `goodworkflows-state-manager`.
+
 ## Capture
 
 - Workflow name and CLI value for `--workflow`.
 - Scientific purpose and stage sequence.
 - Input samplesheet name, required columns, optional columns, and mode-specific constraints.
+- Samplesheet drift ledger: parser/validator surfaces, generator surfaces, example samplesheets, docs/schema, launchers, tests, CI smoke inputs, and `memory-bank/` references that must agree.
 - Required params, defaults, and schema/doc impact.
 - Outputs, published paths, and data format expectations.
 - Compute target: CPU, local GPU, SLURM GPU, or optional real-run profile.
@@ -25,4 +35,4 @@ Read `pipeline-preamble.md` and state context first.
 
 ## Output
 
-Produce a concise requirements brief and update state artifacts/decisions. If requirements are underspecified, ask before planning technical details.
+Produce a concise requirements brief (derived from the accepted grill file) and update state artifacts/decisions. Treat samplesheet column renames, defaults, optionality, and mode constraints as drift until every affected surface is identified. If requirements are underspecified, use `grill-me` and update the grill file before planning technical details.

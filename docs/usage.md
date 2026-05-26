@@ -134,7 +134,7 @@ Open `run.sh` and fill in the `# FILL IN` section near the top:
 
 ```bash
 # 1. Choose the workflow
-WORKFLOW="ingest_tabulate"   # or: integration, ingest_export, nmf_vae, gex_mil, tcr_mil, tcr_epitope
+WORKFLOW="ingest_tabulate"   # or: integration, ingest_export, nmf_vae, gex_mil, tcr_mil, tcr_epitope, make_tcr_vector_database
 
 # 2. Set your LabKey coordinates (only needed for LabKey-mode samples)
 LABKEY_BASE_URL="https://labkey.example.org"
@@ -159,6 +159,7 @@ NXF_HOME="/gscratch/mylab/.nextflow"
 | `gex_mil` | Ingest → export → merge → scVI + attention-MIL | GPU (`-profile slurm`) |
 | `tcr_mil` | Ingest → quantify TCRs → BertTCR MIL | GPU (`-profile slurm`) |
 | `tcr_epitope` | Ingest → quantify TCRs → ESM-2 embed → epitope binding | GPU (`-profile slurm`) |
+| `make_tcr_vector_database` | Ingest → extract TRA/TRB → ESM-2 embed → per-`cDNA_ID` vector DB | GPU (`-profile slurm`) |
 
 ### PIPELINE_ROOT auto-detection
 
@@ -362,5 +363,6 @@ It can also be launched from a different directory since it resolves `PIPELINE_R
 - [Workflow details — GEX MIL](workflows/gex-mil.md)
 - [Workflow details — TCR MIL](workflows/tcr-mil.md)
 - [Workflow details — TCR Epitope](workflows/tcr-epitope.md)
+- [Workflow details — make TCR Vector Database](workflows/make-tcr-vector-database.md)
 - [Parameter reference](parameters.md)
 - [Data formats and schemas](data-formats.md)

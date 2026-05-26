@@ -49,7 +49,7 @@ SAMPLE_03,,,/home/user/data/mydata.h5ad,mouse
 ### INGEST — Seurat RDS
 
 **File:** `outputs/ingest/{sample_id}.rds`  
-**Produced by:** All workflows with ingest stage (`integration`, `ingest_export`, `ingest_tabulate`, `nmf_vae`, `gex_mil`, `tcr_mil`, `tcr_epitope`)
+**Produced by:** All workflows with ingest stage (`integration`, `ingest_export`, `ingest_tabulate`, `nmf_vae`, `gex_mil`, `tcr_mil`, `tcr_epitope`, `make_tcr_vector_database`)
 
 A Seurat v5 RDS object containing:
 
@@ -199,3 +199,22 @@ tbl <- read.csv("outputs/tabulate/subjectIdTable.csv")
 ```
 
 See the [Synthetic Tabulation Walkthrough](vignettes/synthetic-tabulation.md) for a safe, seeded example, and use `example_tabulation_script.rmd` in the repository root as the companion R Markdown notebook.
+
+---
+
+### TCR_VECTORDATABASE — Parquet vector database shards
+
+**Directory:** `outputs/tcr_vectordbs/vectordb_out/`
+
+**Produced by:** [`make_tcr_vector_database`](workflows/make-tcr-vector-database.md) (GPU)
+
+For each `cDNA_ID`:
+
+- `<cDNA_ID>_single.parquet`
+  - Rows for chain `TRA` and `TRB` with per-row ESM-2 embeddings
+  - Columns: `cDNA_ID`, `SubjectId`, `barcode`, `chain`, `sequence`, `sequence_index`, `esm2_model`, `embedding`
+- `<cDNA_ID>_paired.parquet`
+  - Rows for paired alpha+beta sequences (`TRA:TRB`) matched on `barcode` and `sequence_index`
+  - Columns: same schema as `_single` but with `chain='paired'` and `sequence` holding `TRA:TRB`
+- `<cDNA_ID>_single_index.joblib` and `<cDNA_ID>_paired_index.joblib`
+  - Persisted nearest-neighbor index (sklearn, cosine metric) for fast similarity queries over embeddings

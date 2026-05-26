@@ -103,6 +103,13 @@ SAMPLESHEET_EOF
                 test -f "${TEST_ROOT}/outputs/tcr_mil/tcr_model.pt"
                 test -f "${TEST_ROOT}/outputs/tcr_quant/merged_tcr_metadata.csv"
                 ;;
+            make_tcr_vector_database)
+                # make_tcr_vector_database outputs: per-cDNA parquet + persisted ANN index
+                test -f "${TEST_ROOT}/outputs/tcr_vectordbs/vectordb_out/SAMPLE_01_single.parquet"
+                test -f "${TEST_ROOT}/outputs/tcr_vectordbs/vectordb_out/SAMPLE_01_paired.parquet"
+                test -f "${TEST_ROOT}/outputs/tcr_vectordbs/vectordb_out/SAMPLE_01_single_index.joblib"
+                test -f "${TEST_ROOT}/outputs/tcr_vectordbs/vectordb_out/SAMPLE_01_paired_index.joblib"
+                ;;
             gex_mil)
                 # GEX MIL outputs: GEX_MERGE_COUNTS → TRAIN_GEX_MIL
                 test -f "${TEST_ROOT}/outputs/gex/merged_gex.h5ad"

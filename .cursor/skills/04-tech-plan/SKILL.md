@@ -14,7 +14,7 @@ Read state, requirements, closest workflow/module patterns, and relevant domain 
 - Process labels, containers, and config resources.
 - Template language and runtime concerns.
 - Workflow registration in `main.nf`.
-- Samplesheet generation and launcher updates.
+- Samplesheet generation, parsing/validation, example inputs, launcher updates, and drift ledger closure.
 - Tests, stub-run commands, docs, schema, README, and memory-bank updates.
 - CI matrix or smoke wrapper impact.
 
