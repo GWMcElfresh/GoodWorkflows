@@ -1,0 +1,16 @@
+---
+description: Runtime and escaping rules for GoodWorkflows Nextflow-rendered templates
+globs: "modules/local/**/templates/*"
+alwaysApply: false
+---
+
+# Template Runtime Rules
+
+Nextflow renders templates through Groovy before R, Python, or shell sees them.
+
+- Escape bare `$` as `\$` unless it is an intentional `${...}` Nextflow substitution.
+- Prefer R `[[]]` access over `$` in templates.
+- Avoid raw `\n`, `\t`, and `\r` in Python template strings when Groovy rendering is involved; use `chr(10)` and `chr(9)` where safer.
+- Set `NUMBA_CACHE_DIR=/tmp` before imports that can load numba/scanpy/umap inside Apptainer.
+- Keep export, harmonize, and merge outputs sparse/raw unless the downstream model stage owns normalization.
+- Inspect generated `.command.sh` when syntax errors or missing Groovy variables appear.

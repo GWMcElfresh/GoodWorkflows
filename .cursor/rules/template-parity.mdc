@@ -1,0 +1,14 @@
+---
+description: Keep GoodWorkflows local and cluster templates, workflow lists, and image manifests aligned
+globs: "{template/**,scripts/ci/**,scripts/image-manifest.txt,main.nf,.github/workflows/**}"
+alwaysApply: false
+---
+
+# Template Parity
+
+- Treat `main.nf` `supportedWorkflows` as the workflow-list source of truth.
+- Treat `scripts/image-manifest.txt` as the container-image source of truth.
+- Keep `template/gw/setup.sh`, `scripts/ci/cache_container_images.sh`, and image manifests aligned.
+- Keep `template/gw/run.sh`, `template/gw/check_workflows.sh`, docs, schema, and CI workflow matrices aligned when workflows change.
+- Preserve intentional local/cluster differences: profile, container runtime, LabKey credential handling, SBATCH metadata, and ANSI logging.
+- For new workflows, add samplesheet generation or registry metadata when the default `samplesheet.csv` is not enough.

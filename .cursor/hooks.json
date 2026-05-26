@@ -1,0 +1,26 @@
+{
+  "$schema": "https://unpkg.com/cursor-hooks@latest/schema/hooks.schema.json",
+  "version": 1,
+  "hooks": {
+    "beforeShellExecution": [
+      {
+        "command": "python .cursor/hooks/shell_guard.py",
+        "timeout": 10
+      }
+    ],
+    "afterFileEdit": [
+      {
+        "command": "python .cursor/hooks/workflow_state_check.py",
+        "timeout": 10
+      },
+      {
+        "command": "python .cursor/hooks/goodworkflows_edit_check.py",
+        "timeout": 20
+      },
+      {
+        "command": "python .cursor/hooks/verification_hint.py",
+        "timeout": 20
+      }
+    ]
+  }
+}

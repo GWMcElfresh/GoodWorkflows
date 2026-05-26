@@ -1,0 +1,12 @@
+---
+description: Commit and PR discipline for GoodWorkflows lifecycle work
+alwaysApply: true
+---
+
+# Atomic Commits
+
+- Only commit when the user explicitly asks.
+- Keep commits focused on one workflow/module/tooling concern.
+- Do not include secrets, generated run outputs, caches, or machine-local samplesheets.
+- Before any requested commit, inspect status, diff, and recent log; stage only relevant files.
+- Use messages that describe the workflow or lifecycle surface changed.

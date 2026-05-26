@@ -1,0 +1,12 @@
+---
+description: Build-order rules for GoodWorkflows workflow-manager implementation
+alwaysApply: true
+---
+
+# Build Execution
+
+- Build in dependency order: smoke/test scaffolds, DSL2/configs, templates, launchers/CI/schema, docs/memory-bank.
+- Load the relevant domain skill before editing `.nf`, `.config`, templates, or launcher parity files.
+- Keep changes focused to the active task and avoid unrelated refactors.
+- Preserve existing user changes in the working tree.
+- Never leave generated run artifacts as source changes.

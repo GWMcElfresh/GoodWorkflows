@@ -1,0 +1,16 @@
+---
+description: Verification expectations for GoodWorkflows changes
+alwaysApply: true
+---
+
+# Verification Expectations
+
+After substantive edits, run the narrowest relevant check and broaden based on risk.
+
+- `.nf` or `.config`: affected module/workflow stub-run with `-profile test -stub-run`.
+- Shell scripts: `shellcheck` if available, otherwise `bash -n`.
+- Docs: docs generation and `mkdocs build --strict` when docs tooling or rendered docs changed.
+- Python tests under `tests/`: run the relevant pytest selection when Python tooling is available.
+- Template changes: combine syntax review with affected stub-run, because rendered `.command.sh` can differ from source.
+
+If a check cannot run locally, say which tool or data was missing.

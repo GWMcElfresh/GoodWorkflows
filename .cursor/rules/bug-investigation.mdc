@@ -1,0 +1,13 @@
+---
+description: Debugging process for GoodWorkflows CI, Nextflow, template, and runtime failures
+alwaysApply: false
+globs: "**/*.{nf,config,py,r,R,sh}"
+---
+
+# Bug Investigation
+
+- Start from the first root cause, not the last cascading error.
+- For Nextflow failures, read upward from the bottom of `nextflow.log`.
+- For template syntax/runtime failures, inspect generated `.command.sh`.
+- Classify the bug as DSL2, config, template rendering, container runtime, launcher, CI, docs/schema, or fixture data.
+- Add a targeted regression check when practical and record what was verified.

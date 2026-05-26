@@ -1,0 +1,16 @@
+---
+description: GoodWorkflows DSL2 constraints for Nextflow modules, workflows, and configs
+globs: "**/*.{nf,config}"
+alwaysApply: false
+---
+
+# Nextflow DSL2 Constraints
+
+- Only `include`, `process`, and `workflow` blocks belong at top level in `.nf` files.
+- Do not use `switch` inside workflow bodies; use `if/else if/else`.
+- Every process must include a `stub:` block after `script:` or `exec:`.
+- Use `container { params.x }` in module directives; do not use eager `"${params.x}"`.
+- Do not add config-level `container = { params.x }` in `withName` or `withLabel` blocks.
+- Do not put top-level `def` declarations in `.config` files.
+- Do not interpolate input variables like `${meta.id}` in `tag` or `publishDir`.
+- For file-mode inputs, pass `tuple val(meta), path(file)` as `[meta, file(meta.path)]`.

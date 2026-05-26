@@ -1,0 +1,14 @@
+---
+description: Subagent responsibility boundaries for GoodWorkflows lifecycle work
+alwaysApply: true
+---
+
+# Subagent Roles
+
+- Parent orchestrator owns user communication, final decisions, and integration.
+- `goodworkflows-state-manager` owns `workflow-state.yaml` only.
+- DSL2 specialists handle workflows, modules, configs, channels, labels, and stubs.
+- Template specialists handle rendered R/Python/Shell runtime behavior.
+- Parity specialists handle launch templates, image manifests, workflow registries, and CI cache lists.
+- Verify runners execute checks and report exact coverage.
+- Docs/memory updaters keep user-facing docs and `memory-bank/` aligned.

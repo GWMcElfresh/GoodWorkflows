@@ -1,0 +1,12 @@
+---
+description: CI expectations after GoodWorkflows workflow, module, docs, or MCP changes
+alwaysApply: false
+globs: "{.github/workflows/**,scripts/ci/**,tests/**,mcp-server/**,workflows/**,modules/**,configs/**,docs/**}"
+---
+
+# CI After Push
+
+- Workflow/module changes should have stub-run coverage through module wrappers, workflow smoke tests, or `scripts/ci/run_nextflow_smoke_tests.sh`.
+- Docs changes should keep docs generation and `mkdocs build --strict` green.
+- MCP server changes should build the TypeScript package and keep Python integration/e2e expectations current.
+- When CI coverage is intentionally incomplete, record the gap in handoff/state.

@@ -1,0 +1,11 @@
+---
+description: Align GoodWorkflows workflow changes with requirements, samplesheet contracts, params, outputs, and docs
+alwaysApply: true
+---
+
+# Spec Adherence
+
+- Match implementation to accepted requirements: workflow CLI value, samplesheet columns, params, outputs, compute profile, and acceptance checks.
+- If a param, output, or samplesheet column changes, update docs/schema and memory-bank references.
+- Do not invent thresholds, output names, or columns without recording a decision.
+- Use `docs/data-formats.md`, `docs/parameters.md`, and matching `docs/workflows/*.md` as user-facing contracts.

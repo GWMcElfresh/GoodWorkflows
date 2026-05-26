@@ -1,0 +1,12 @@
+---
+description: Workflow-state ownership and lifecycle tracking for GoodWorkflows Cursor pipeline work
+alwaysApply: true
+---
+
+# Workflow State
+
+- For numbered pipeline work, read `workflow-state.yaml` through `goodworkflows-state-manager` before acting.
+- Only `goodworkflows-state-manager` writes `workflow-state.yaml`.
+- Record stages, artifacts, decisions, blockers, verification, and git metadata when work spans multiple surfaces.
+- Do not delete append-only history entries from decisions, issues, verification, or commits.
+- If state and code disagree, record drift; do not hide it.

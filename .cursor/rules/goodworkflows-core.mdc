@@ -1,0 +1,14 @@
+---
+description: Core GoodWorkflows repository conventions and workflow-manager expectations
+alwaysApply: true
+---
+
+# GoodWorkflows Core
+
+GoodWorkflows is a DSL2 Nextflow workflow manager for reusable single-cell pipelines. Prefer existing repo patterns over generic framework defaults.
+
+- Keep workflow changes aligned across `main.nf`, `workflows/`, `modules/local/`, `configs/`, `template/`, CI, docs, and `memory-bank/`.
+- Do not edit generated run artifacts such as `work/`, `outputs/`, `logs/`, `runs/`, `.nextflow/`, `.ci/docker-cache/`, or generated binary test data.
+- Preserve local/cluster intent: local scaffolds use Podman/local GPU assumptions; cluster scaffolds use SLURM + Apptainer SIF cache assumptions.
+- When behavior changes, proactively check the relevant docs and memory-bank page.
+- Report verification honestly; stub-run validates wiring, not real GPU/container/HPC behavior.

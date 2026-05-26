@@ -1,0 +1,77 @@
+schema_version: 1
+project: GoodWorkflows
+overall_status: completed
+current_stage: "17-retrospective"
+active_cycle: null
+stages:
+  00-context:
+    status: completed
+    started_at: null
+    completed_at: null
+    summary: "Existing GoodWorkflows skills, memory-bank context, and Vecinita .cursor workflow shape were reviewed."
+    artifacts:
+      - ".cursor/skills/goodworkflows-repo-context/SKILL.md"
+    verification: []
+    blockers: []
+  01-requirements:
+    status: completed
+    started_at: null
+    completed_at: null
+    summary: "User requested full Vecinita lifecycle adaptation for future GoodWorkflows workflow implementation."
+    artifacts: []
+    verification: []
+    blockers: []
+  02-verify-plan:
+    status: completed
+    started_at: null
+    completed_at: null
+    summary: "Implementation plan accepted for numbered skills, state tracking, subagent roles, rules, hooks, and verification gates."
+    artifacts: []
+    verification: []
+    blockers: []
+  03-plan-tooling:
+    status: completed
+    started_at: null
+    completed_at: null
+    summary: "Project Cursor workflow lifecycle installed with shared files, numbered skills, state protocol, agents, rules, hooks, and routing docs."
+    artifacts:
+      - ".cursor/skills/pipeline/SKILL.md"
+      - ".cursor/skills/pipeline-preamble.md"
+      - ".cursor/skills/workflow-state-reference.md"
+      - ".cursor/skills/workflow-state-agent-protocol.md"
+      - ".cursor/skills/00-context/SKILL.md"
+      - ".cursor/skills/17-retrospective/SKILL.md"
+      - ".cursor/agents/goodworkflows-state-manager.md"
+      - ".cursor/rules/workflow-state.mdc"
+      - ".cursor/hooks/workflow_state_check.py"
+    verification:
+      - "python -m py_compile .cursor/hooks/goodworkflows_edit_check.py .cursor/hooks/shell_guard.py .cursor/hooks/verification_hint.py .cursor/hooks/workflow_state_check.py"
+      - "python -c hooks.json parse check"
+      - "numbered_skills=18, rules=13, agents=6"
+    blockers: []
+  04-tech-plan: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
+  05-verify-tech: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
+  06-tech-tooling: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
+  07-build: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
+  08-verify-build: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
+  09-qa: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
+  10-e2e: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
+  11-verify-impl: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
+  12-verify-release: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
+  13-real-run-smoke: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
+  14-hotfix: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
+  15-workflow-health: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
+  16-evolve: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
+  17-retrospective: {status: completed, started_at: null, completed_at: null, summary: "Initial lifecycle implementation completed; future retrospectives should tune skills, rules, hooks, and state based on real workflow additions.", artifacts: [".cursor/skills/README.md"], verification: [], blockers: []}
+evolve_cycles: []
+decisions_log:
+  - "Adopt full Vecinita lifecycle shape, remapped to GoodWorkflows Nextflow workflow development."
+  - "Consolidated root skills directory into Cursor-owned skill reference files; memory-bank remains durable project knowledge."
+issue_log: []
+artifacts: []
+verification_log: []
+git_history:
+  current_branch: null
+  commits: []
+  branches: []
+agents: {}

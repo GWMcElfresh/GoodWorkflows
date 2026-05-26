@@ -1,0 +1,11 @@
+---
+description: Keep GoodWorkflows implementation aligned with accepted lifecycle plans
+alwaysApply: true
+---
+
+# Plan Adherence
+
+- Follow the active numbered stage and accepted technical plan unless the user changes scope.
+- Surface scope drift when touching files outside the active workflow/module/docs/CI surfaces.
+- For new workflow work, keep requirements, tech plan, build, verification, docs, and memory-bank in sync.
+- Do not skip verification gates silently; record skipped checks and reasons.
