@@ -200,6 +200,53 @@ mkdocs build --strict
 
 The published vignette and example plots are driven by the seeded synthetic fixture bundle in `tests/fixtures/synthetic_trial_data/`, so docs and CI do not depend on sensitive or machine-local files.
 
+## Base Docker image
+
+The repository publishes a multi-runtime base image to GHCR at
+`ghcr.io/gwmcelfresh/goodworkflows:latest` with **Python** (managed by
+[`uv`](https://github.com/astral-sh/uv)), **R**, and **Rust** pre-installed.
+
+The image is rebuilt automatically on every push to `main` that touches the
+`Dockerfile`, on a monthly schedule, and on manual dispatch.
+
+### Quick start
+
+```bash
+# Pull the latest base image
+docker pull ghcr.io/gwmcelfresh/goodworkflows:latest
+
+# Spin up a quick Python venv
+docker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \
+  sh -c 'uv venv /tmp/venv && . /tmp/venv/bin/activate && uv pip install pandas && python -c "import pandas; print(pandas.__version__)"'
+
+# Install R packages on the fly
+docker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \
+  Rscript -e "install.packages('jsonlite', repos='https://cloud.r-project.org'); library(jsonlite); cat('OK\n')"
+```
+
+### Extending the image
+
+```dockerfile
+FROM ghcr.io/gwmcelfresh/goodworkflows:latest
+
+# Python deps
+RUN uv pip install --system scanpy anndata
+
+# R deps
+RUN Rscript -e "install.packages('Seurat', repos='https://cloud.r-project.org')"
+
+# Rust crate (binary)
+RUN cargo install ripgrep
+```
+
+### Build args
+
+| Arg | Default | Description |
+|-----|---------|-------------|
+| `PYTHON_VERSION` | `3.12` | Python minor version (deadsnakes PPA) |
+| `R_VERSION` | latest | Pin a specific R version |
+| `RUST_VERSION` | `stable` | Rust toolchain channel |
+
 ## License
 
 MIT – see `LICENSE`.
