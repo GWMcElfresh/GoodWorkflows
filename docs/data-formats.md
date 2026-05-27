@@ -216,5 +216,5 @@ For each `cDNA_ID`:
 - `<cDNA_ID>_paired.parquet`
   - Rows for paired alpha+beta sequences (`TRA:TRB`) matched on `barcode` and `sequence_index`
   - Columns: same schema as `_single` but with `chain='paired'` and `sequence` holding `TRA:TRB`
-- `<cDNA_ID>_single_index.joblib` and `<cDNA_ID>_paired_index.joblib`
-  - Persisted nearest-neighbor index (sklearn, cosine metric) for fast similarity queries over embeddings
+- `<cDNA_ID>_single_index.faiss` + `<cDNA_ID>_single_index_meta.json` (and paired counterparts)
+  - FAISS `IndexFlatIP` on L2-normalized embeddings (cosine similarity); JSON sidecar lists indexed sequences

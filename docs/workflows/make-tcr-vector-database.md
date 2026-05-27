@@ -30,8 +30,8 @@ For each `cDNA_ID`:
 
 - `<cDNA_ID>_single.parquet` — rows for chain `TRA` and `TRB` with per-row embeddings
 - `<cDNA_ID>_paired.parquet` — rows where both TRA and TRB sequences exist for the same `sequence_index`, with paired embeddings over `TRA:TRB`
-- `<cDNA_ID>_single_index.joblib` — persisted nearest-neighbor index (sklearn, cosine distance)
-- `<cDNA_ID>_paired_index.joblib` — persisted nearest-neighbor index (sklearn, cosine distance)
+- `<cDNA_ID>_single_index.faiss` + `<cDNA_ID>_single_index_meta.json` — FAISS flat index (cosine via L2-normalized inner product) and sequence metadata
+- `<cDNA_ID>_paired_index.faiss` + `<cDNA_ID>_paired_index_meta.json` — same for paired `TRA:TRB` sequences
 
 ## Notes / constraints
 

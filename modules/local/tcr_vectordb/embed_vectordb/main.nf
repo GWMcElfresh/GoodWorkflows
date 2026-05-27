@@ -31,8 +31,10 @@ process EMBED_TCR_VECTORDATABASE {
     # Stub-run: assume one cDNA_ID per sample and use sample_id for filenames.
     touch "vectordb_out/${meta.id}_single.parquet"
     touch "vectordb_out/${meta.id}_paired.parquet"
-    touch "vectordb_out/${meta.id}_single_index.joblib"
-    touch "vectordb_out/${meta.id}_paired_index.joblib"
+    touch "vectordb_out/${meta.id}_single_index.faiss"
+    touch "vectordb_out/${meta.id}_single_index_meta.json"
+    touch "vectordb_out/${meta.id}_paired_index.faiss"
+    touch "vectordb_out/${meta.id}_paired_index_meta.json"
     """
 }
 

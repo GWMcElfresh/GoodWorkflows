@@ -107,8 +107,10 @@ SAMPLESHEET_EOF
                 # make_tcr_vector_database outputs: per-cDNA parquet + persisted ANN index
                 test -f "${TEST_ROOT}/outputs/tcr_vectordbs/vectordb_out/SAMPLE_01_single.parquet"
                 test -f "${TEST_ROOT}/outputs/tcr_vectordbs/vectordb_out/SAMPLE_01_paired.parquet"
-                test -f "${TEST_ROOT}/outputs/tcr_vectordbs/vectordb_out/SAMPLE_01_single_index.joblib"
-                test -f "${TEST_ROOT}/outputs/tcr_vectordbs/vectordb_out/SAMPLE_01_paired_index.joblib"
+                test -f "${TEST_ROOT}/outputs/tcr_vectordbs/vectordb_out/SAMPLE_01_single_index.faiss"
+                test -f "${TEST_ROOT}/outputs/tcr_vectordbs/vectordb_out/SAMPLE_01_single_index_meta.json"
+                test -f "${TEST_ROOT}/outputs/tcr_vectordbs/vectordb_out/SAMPLE_01_paired_index.faiss"
+                test -f "${TEST_ROOT}/outputs/tcr_vectordbs/vectordb_out/SAMPLE_01_paired_index_meta.json"
                 ;;
             gex_mil)
                 # GEX MIL outputs: GEX_MERGE_COUNTS → TRAIN_GEX_MIL

@@ -12,20 +12,19 @@ Inputs:
 Outputs (written into vectordb_out/ and published via Nextflow publishDir):
   - {cDNA_ID}_single.parquet
   - {cDNA_ID}_paired.parquet
-  - {cDNA_ID}_single_index.joblib
-  - {cDNA_ID}_paired_index.joblib
+  - {cDNA_ID}_single_index.faiss + {cDNA_ID}_single_index_meta.json
+  - {cDNA_ID}_paired_index.faiss + {cDNA_ID}_paired_index_meta.json
 """
 
 import os
-import re
 from pathlib import Path
 
-import joblib
 import numpy as np
 import pandas as pd
 import torch
-from sklearn.neighbors import NearestNeighbors
 from transformers import AutoModel, AutoTokenizer
+
+from mil_ton.vectordb.faiss_index import build_flat_cosine_index, write_index_bundle
 
 # ── Nextflow template variables ──────────────────────────────────────────────
 sequences_csv = Path("${sequences_csv}").resolve()
@@ -90,19 +89,6 @@ def embed_texts(model, tokenizer, texts, *, max_length, batch_size, device):
             pooled = masked_mean_last_hidden(outputs, inputs["attention_mask"])
             embeddings.append(pooled.float().cpu().numpy())
     return np.concatenate(embeddings, axis=0)
-
-
-def build_knn_index(X: np.ndarray, k: int):
-    if X.shape[0] == 0:
-        return None
-    k_eff = min(max(1, k), X.shape[0])
-    nn = NearestNeighbors(
-        n_neighbors=k_eff,
-        metric="cosine",
-        algorithm="brute",
-    )
-    nn.fit(X)
-    return nn
 
 
 def copy_if_exists(src: Path, dst: Path):
@@ -170,24 +156,31 @@ def main():
     for cdna_id in cdna_ids:
         single_path = work_vectordb_dir / f"{cdna_id}_single.parquet"
         paired_path = work_vectordb_dir / f"{cdna_id}_paired.parquet"
-        single_index_path = work_vectordb_dir / f"{cdna_id}_single_index.joblib"
-        paired_index_path = work_vectordb_dir / f"{cdna_id}_paired_index.joblib"
+        single_index_path = work_vectordb_dir / f"{cdna_id}_single_index.faiss"
+        single_meta_path = work_vectordb_dir / f"{cdna_id}_single_index_meta.json"
+        paired_index_path = work_vectordb_dir / f"{cdna_id}_paired_index.faiss"
+        paired_meta_path = work_vectordb_dir / f"{cdna_id}_paired_index_meta.json"
 
         # Resume: if published files already exist, copy them into the work outputs.
         pub_single = published_vectordb_dir / f"{cdna_id}_single.parquet"
         pub_paired = published_vectordb_dir / f"{cdna_id}_paired.parquet"
-        pub_single_idx = published_vectordb_dir / f"{cdna_id}_single_index.joblib"
-        pub_paired_idx = published_vectordb_dir / f"{cdna_id}_paired_index.joblib"
+        pub_single_idx = published_vectordb_dir / f"{cdna_id}_single_index.faiss"
+        pub_single_meta = published_vectordb_dir / f"{cdna_id}_single_index_meta.json"
+        pub_paired_idx = published_vectordb_dir / f"{cdna_id}_paired_index.faiss"
+        pub_paired_meta = published_vectordb_dir / f"{cdna_id}_paired_index_meta.json"
 
-        copied_any = False
         if copy_if_exists(pub_single, single_path):
-            copied_any = True
+            pass
         if copy_if_exists(pub_paired, paired_path):
-            copied_any = True
+            pass
         if copy_if_exists(pub_single_idx, single_index_path):
-            copied_any = True
+            pass
+        if copy_if_exists(pub_single_meta, single_meta_path):
+            pass
         if copy_if_exists(pub_paired_idx, paired_index_path):
-            copied_any = True
+            pass
+        if copy_if_exists(pub_paired_meta, paired_meta_path):
+            pass
 
         # If both parquets exist, skip embedding for this shard.
         if single_path.exists() and paired_path.exists():
@@ -205,8 +198,12 @@ def main():
             empty_paired["chain"] = "paired"
             empty_paired.to_parquet(paired_path, index=False)
 
-            joblib.dump({"model": None, "items": []}, single_index_path)
-            joblib.dump({"model": None, "items": []}, paired_index_path)
+            write_index_bundle(
+                None, [], index_path=single_index_path, meta_path=single_meta_path, dim=hidden_size
+            )
+            write_index_bundle(
+                None, [], index_path=paired_index_path, meta_path=paired_meta_path, dim=hidden_size
+            )
             continue
 
         # ── Single-chain parquet ───────────────────────────────────────────
@@ -227,17 +224,19 @@ def main():
 
         shard_single.to_parquet(single_path, index=False)
 
-        # Index on unique sequences per chain.
-        if unique_emb.shape[0] > 0:
-            X = unique_emb.astype(np.float32)
-            nn = build_knn_index(X, knn_k)
-            items = [
-                {"chain": unique_single.iloc[i]["chain"], "sequence": unique_single.iloc[i]["sequence"]}
-                for i in range(len(unique_single))
-            ]
-            joblib.dump({"model": nn, "items": items, "metric": "cosine"}, single_index_path)
-        else:
-            joblib.dump({"model": None, "items": [], "metric": "cosine"}, single_index_path)
+        # Index on unique sequences per chain (FAISS, cosine via L2-normalized inner product).
+        items = [
+            {"chain": unique_single.iloc[i]["chain"], "sequence": unique_single.iloc[i]["sequence"]}
+            for i in range(len(unique_single))
+        ]
+        single_faiss = build_flat_cosine_index(unique_emb) if unique_emb.shape[0] > 0 else None
+        write_index_bundle(
+            single_faiss,
+            items,
+            index_path=single_index_path,
+            meta_path=single_meta_path,
+            dim=hidden_size,
+        )
 
         # ── Paired-chain parquet ───────────────────────────────────────────
         df_TRA = shard[shard["chain"] == "TRA"].copy()
@@ -248,7 +247,9 @@ def main():
                 "cDNA_ID", "SubjectId", "barcode", "chain", "sequence", "sequence_index", "esm2_model", "embedding"
             ])
             empty_paired.to_parquet(paired_path, index=False)
-            joblib.dump({"model": None, "items": []}, paired_index_path)
+            write_index_bundle(
+                None, [], index_path=paired_index_path, meta_path=paired_meta_path, dim=hidden_size
+            )
             continue
 
         paired = df_TRA.merge(
@@ -262,7 +263,9 @@ def main():
                 "cDNA_ID", "SubjectId", "barcode", "chain", "sequence", "sequence_index", "esm2_model", "embedding"
             ])
             empty_paired.to_parquet(paired_path, index=False)
-            joblib.dump({"model": None, "items": []}, paired_index_path)
+            write_index_bundle(
+                None, [], index_path=paired_index_path, meta_path=paired_meta_path, dim=hidden_size
+            )
             continue
 
         paired["paired_sequence"] = paired["sequence_TRA"].astype(str) + ":" + paired["sequence_TRB"].astype(str)
@@ -290,13 +293,15 @@ def main():
         out_paired.to_parquet(paired_path, index=False)
 
         # Paired index on unique paired sequences.
-        if paired_emb.shape[0] > 0:
-            Xp = paired_emb.astype(np.float32)
-            nn_p = build_knn_index(Xp, knn_k)
-            items_p = [{"sequence": paired_seqs[i]} for i in range(len(paired_seqs))]
-            joblib.dump({"model": nn_p, "items": items_p, "metric": "cosine"}, paired_index_path)
-        else:
-            joblib.dump({"model": None, "items": [], "metric": "cosine"}, paired_index_path)
+        items_p = [{"sequence": paired_seqs[i]} for i in range(len(paired_seqs))]
+        paired_faiss = build_flat_cosine_index(paired_emb) if paired_emb.shape[0] > 0 else None
+        write_index_bundle(
+            paired_faiss,
+            items_p,
+            index_path=paired_index_path,
+            meta_path=paired_meta_path,
+            dim=hidden_size,
+        )
 
         print(f"[EMBED_TCR_VECTORDATABASE] Wrote: {cdna_id} single/paired parquet + indices")
 
