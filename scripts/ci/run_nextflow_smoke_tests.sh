@@ -68,6 +68,10 @@ SAMPLESHEET_EOF
                 SAMPLESHEET="${PROJECT_DIR}/test-data/gex/samplesheet.csv"
                 PROFILE="test_tcr_mil"
                 ;;
+            batch_effect_assessments)
+                SAMPLESHEET="${PROJECT_DIR}/test-data/batch_effect_assessments/samplesheet.csv"
+                PROFILE="test"
+                ;;
             *)
                 SAMPLESHEET="${PROJECT_DIR}/data/samplesheet.csv"
                 PROFILE="test"
@@ -102,6 +106,10 @@ SAMPLESHEET_EOF
                 test -f "${TEST_ROOT}/outputs/tcr_mil/tcr_predictions.csv"
                 test -f "${TEST_ROOT}/outputs/tcr_mil/tcr_model.pt"
                 test -f "${TEST_ROOT}/outputs/tcr_quant/merged_tcr_metadata.csv"
+                ;;
+            batch_effect_assessments)
+                test -f "${TEST_ROOT}/outputs/batch_effect_assessments/SMOKE_01_prep.json"
+                test -f "${TEST_ROOT}/outputs/batch_effect_assessments/SMOKE_01_summary.csv"
                 ;;
             make_tcr_vector_database)
                 # make_tcr_vector_database outputs: per-cDNA parquet + persisted ANN index

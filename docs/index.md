@@ -16,6 +16,7 @@ A DSL2 **Nextflow** pipeline for composing reusable single-cell RNA-seq workflow
 | [`tcr_mil`](workflows/tcr-mil.md) | Ingest → quantify TCRs → BertTCR MIL | **GPU** |
 | [`tcr_epitope`](workflows/tcr-epitope.md) | Ingest → quantify TCRs → ESM-2 embed → epitope binding | **GPU** |
 | [`make_tcr_vector_database`](workflows/make-tcr-vector-database.md) | Ingest → extract TRA/TRB → ESM-2 embed → per-`cDNA_ID` vector database | **GPU** |
+| [`batch_effect_assessments`](workflows/batch-effect-assessments.md) | Ingest → LISI / CiLISI / ASW / optional kBET on Seurat embeddings | **HPC CPU** (GoodWorkflows base + uvr) |
 
 Select the workflow with `--workflow <name>`.
 

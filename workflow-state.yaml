@@ -1,32 +1,31 @@
 schema_version: 1
 project: GoodWorkflows
 overall_status: in_progress
-current_stage: "09-qa"
-active_cycle: EV-001
+current_stage: "07-build"
+active_cycle: EV-002
 stages:
   00-context:
     status: completed
-    started_at: null
-    completed_at: null
-    summary: "Existing GoodWorkflows skills, memory-bank context, and Vecinita .cursor workflow shape were reviewed."
-    artifacts:
-      - ".cursor/skills/goodworkflows-repo-context/SKILL.md"
+    started_at: "2026-05-27"
+    completed_at: "2026-05-27"
+    summary: "EV-002 batch_effect_assessments: nearest patterns identified—tri-mode ingest from make_tcr_vector_database; RIRA celltype hierarchy inference from tabulate workflow for CiLISI/celltype_ASW column selection."
+    artifacts: []
     verification: []
     blockers: []
   01-requirements:
     status: completed
-    started_at: "2026-05-26"
-    completed_at: "2026-05-26"
-    summary: "make_tcr_vector_database (EV-001): ESM-2 embeddings from Seurat TRA/TRB → parquet vector DB; requirements accepted (grill-me)."
+    started_at: "2026-05-27"
+    completed_at: "2026-05-27"
+    summary: "EV-002 batch_effect_assessments: requirements grill accepted 2026-05-27 at requirements-grill/EV-002-batch_effect_assessments.md."
     artifacts:
-      - "requirements-grill/EV-001-make_tcr_vector_database.md"
+      - "requirements-grill/EV-002-batch_effect_assessments.md"
     verification: []
     blockers: []
   02-verify-plan:
     status: completed
-    started_at: "2026-05-26"
-    completed_at: "2026-05-26"
-    summary: "Contract sanity check findings: tri-mode ingest availability confirmed; embedding dependencies identified; missing `faiss` libs require container/CI updates; conflicting-drop requires Seurat `V`/`J` columns; CI runner needs update for faiss/embedding build. Drift risk: samplesheet column naming and embedding/faiss dependency alignment between MIL-ton and the CI runner."
+    started_at: "2026-05-27"
+    completed_at: "2026-05-27"
+    summary: "EV-002 pass: samplesheet adds integration_assessment_methods + batch_column; separate metric processes; base_image container deferred to rdiscvr interim; parallelization at per-sample/per-reduction task level."
     artifacts: []
     verification: []
     blockers: []
@@ -50,20 +49,22 @@ stages:
       - "python -c hooks.json parse check"
       - "numbered_skills=18, rules=13, agents=6"
     blockers: []
-  04-tech-plan: {status: completed, started_at: null, completed_at: "2026-05-26", summary: "Created make_tcr_vector_database workflow, extracted + embedded TCR modules, and wired docs/CI for the implementation.", artifacts: [], verification: [], blockers: []}
+  04-tech-plan:
+    status: completed
+    started_at: "2026-05-27"
+    completed_at: "2026-05-27"
+    summary: "EV-002 batch_effect_assessments: technical plan completed—tri-mode ingest wiring, samplesheet contract (integration_assessment_methods, batch_column), separate metric modules, RIRA celltype mapping, per-sample/per-reduction SLURM tasks; base_image deferred with rdiscvr interim container."
+    artifacts: []
+    verification: []
+    blockers: []
   05-verify-tech: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
   06-tech-tooling: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
   07-build:
-    status: completed
-    started_at: "2026-05-26"
-    completed_at: "2026-05-26"
-    summary: "make_tcr_vector_database build complete: workflows/make_tcr_vector_database_pipeline.nf, modules/local/tcr_vectordb (extract_tcr_sequences + embed_vectordb with R/Python templates), main.nf + configs wiring, docs (parameters, data-formats, workflow page), and CI smoke script hookup."
-    artifacts:
-      - "workflows/make_tcr_vector_database_pipeline.nf"
-      - "modules/local/tcr_vectordb/extract_tcr_sequences/main.nf"
-      - "modules/local/tcr_vectordb/embed_vectordb/main.nf"
-      - "docs/workflows/make-tcr-vector-database.md"
-      - "scripts/ci/run_nextflow_smoke_tests.sh"
+    status: in_progress
+    started_at: "2026-05-27"
+    completed_at: null
+    summary: "EV-002 batch_effect_assessments: implementation in progress—workflows, modules, templates, docs, CI, and template parity."
+    artifacts: []
     verification: []
     blockers: []
   08-verify-build:
@@ -93,7 +94,14 @@ stages:
   13-real-run-smoke: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
   14-hotfix: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
   15-workflow-health: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
-  16-evolve: {status: pending, started_at: null, completed_at: null, summary: "", artifacts: [], verification: [], blockers: []}
+  16-evolve:
+    status: in_progress
+    started_at: "2026-05-27"
+    completed_at: null
+    summary: "EV-002 batch_effect_assessments at 07-build; EV-001 make_tcr_vector_database remains in_progress in parallel."
+    artifacts: []
+    verification: []
+    blockers: []
   17-retrospective:
     status: completed
     started_at: null
@@ -153,6 +161,56 @@ evolve_cycles:
         completed_at: "2026-05-26"
         summary: "QA checks: python -m py_compile embed_esm2_vectordb.py passed; python -m json.tool nextflow_schema.json passed; mkdocs build --strict succeeded; nextflow stub-run compile not verified (nextflow not on PATH)."
     blockers: []
+  - id: EV-002
+    title: "Add batch_effect_assessments saved workflow"
+    status: in_progress
+    feature_ids:
+      - batch_effect_assessments
+    cli_value: batch_effect_assessments
+    scientific_goal: "Assess batch effects in Seurat objects via kBET, iLISI, CiLISI, batch ASW using scIntegrationMetrics and kBET packages"
+    grill_file: requirements-grill/EV-002-batch_effect_assessments.md
+    current_stage: "07-build"
+    stage_path: "00-context through 13-real-run-smoke"
+    started_at: "2026-05-27"
+    affected_surfaces:
+      - workflows
+      - modules
+      - templates
+      - configs
+      - docs
+      - ci
+      - memory-bank
+    stages:
+      00-context:
+        status: completed
+        started_at: "2026-05-27"
+        completed_at: "2026-05-27"
+        summary: "Nearest patterns identified—tri-mode ingest from make_tcr_vector_database; RIRA celltype hierarchy inference from tabulate workflow."
+      01-requirements:
+        status: completed
+        started_at: "2026-05-27"
+        completed_at: "2026-05-27"
+        blockers: []
+        summary: "Requirements grill accepted 2026-05-27 at requirements-grill/EV-002-batch_effect_assessments.md."
+      02-verify-plan:
+        status: completed
+        started_at: "2026-05-27"
+        completed_at: "2026-05-27"
+        summary: "Pass: samplesheet adds integration_assessment_methods + batch_column; separate metric processes; base_image container deferred to rdiscvr interim; parallelization at per-sample/per-reduction task level."
+      04-tech-plan:
+        status: completed
+        started_at: "2026-05-27"
+        completed_at: "2026-05-27"
+        summary: "Technical plan completed—tri-mode ingest, separate metric modules, RIRA celltype mapping, per-sample/per-reduction SLURM tasks; rdiscvr interim container until base_image ready."
+      07-build:
+        status: in_progress
+        started_at: "2026-05-27"
+        summary: "Implementation in progress—workflows, modules, templates, docs, CI, template parity."
+      16-evolve:
+        status: in_progress
+        started_at: "2026-05-27"
+        summary: "EV-002 evolve cycle active at 07-build."
+    blockers: []
 decisions_log:
   - "Adopt full Vecinita lifecycle shape, remapped to GoodWorkflows Nextflow workflow development."
   - "Consolidated root skills directory into Cursor-owned skill reference files; memory-bank remains durable project knowledge."
@@ -163,6 +221,9 @@ decisions_log:
   - "EV-001 make_tcr_vector_database: Requirements grilling in progress; technical planning blocked until user answers open questions."
   - "Requirements Q&A recorded in requirements-grill/EV-001-make_tcr_vector_database.md; acceptance pending user answers."
   - "EV-001: user accepted requirements; advancing to 02-verify-plan."
+  - "EV-002 batch_effect_assessments: requirements grilling started; technical planning blocked until grill accepted."
+  - "EV-002 batch_effect_assessments: requirements accepted 2026-05-27; grill file accepted; advancing through 02-verify-plan and 04-tech-plan to 07-build."
+  - "EV-002 batch_effect_assessments: default integration_assessment_methods LISI,CiLISI,ASW,CELLTYPE_ASW; kBET opt-in per row."
 issue_log: []
 artifacts:
   - path: ".cursor/skills/README.md"
@@ -189,6 +250,11 @@ artifacts:
     kind: requirements-grill
     stage: "01-requirements"
     summary: "Structured Q&A ledger for requirements grilling (grill-me skill)"
+  - path: "requirements-grill/EV-002-batch_effect_assessments.md"
+    kind: requirements-grill
+    stage: "01-requirements"
+    cycle: EV-002
+    summary: "Accepted requirements grill for batch_effect_assessments (2026-05-27)"
 verification_log:
   - stage: "09-qa"
     command: "python -m py_compile modules/local/tcr_vectordb/embed_vectordb/templates/embed_esm2_vectordb.py"

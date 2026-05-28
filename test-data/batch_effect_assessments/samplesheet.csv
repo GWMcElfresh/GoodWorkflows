@@ -1,0 +1,2 @@
+sample_id,output_file_id,url,path,species,batch_column,integration_assessment_methods
+SMOKE_01,,,test-data/batch_effect_assessments/SMOKE.rds,human,Batch,LISI,CiLISI,ASW,CELLTYPE_ASW

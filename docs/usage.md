@@ -134,7 +134,7 @@ Open `run.sh` and fill in the `# FILL IN` section near the top:
 
 ```bash
 # 1. Choose the workflow
-WORKFLOW="ingest_tabulate"   # or: integration, ingest_export, nmf_vae, gex_mil, tcr_mil, tcr_epitope, make_tcr_vector_database
+WORKFLOW="ingest_tabulate"   # or: integration, ingest_export, nmf_vae, gex_mil, tcr_mil, tcr_epitope, make_tcr_vector_database, batch_effect_assessments
 
 # 2. Set your LabKey coordinates (only needed for LabKey-mode samples)
 LABKEY_BASE_URL="https://labkey.example.org"
@@ -160,6 +160,7 @@ NXF_HOME="/gscratch/mylab/.nextflow"
 | `tcr_mil` | Ingest → quantify TCRs → BertTCR MIL | GPU (`-profile slurm`) |
 | `tcr_epitope` | Ingest → quantify TCRs → ESM-2 embed → epitope binding | GPU (`-profile slurm`) |
 | `make_tcr_vector_database` | Ingest → extract TRA/TRB → ESM-2 embed → per-`cDNA_ID` vector DB | GPU (`-profile slurm`) |
+| `batch_effect_assessments` | Ingest → LISI / CiLISI / ASW / optional kBET (GoodWorkflows base + uvr) | HPC CPU (`-profile slurm`) |
 
 ### PIPELINE_ROOT auto-detection
 

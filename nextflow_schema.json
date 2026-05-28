@@ -14,7 +14,7 @@
                     "type": "string",
                     "default": "integration",
                     "description": "Named workflow to execute.",
-                    "enum": ["integration", "ingest_export", "ingest_tabulate", "nmf_vae", "gex_mil", "tcr_mil", "tcr_epitope", "make_tcr_vector_database"],
+                    "enum": ["integration", "ingest_export", "ingest_tabulate", "nmf_vae", "gex_mil", "tcr_mil", "tcr_epitope", "make_tcr_vector_database", "batch_effect_assessments"],
                     "help_text": "Select one of the supported saved workflows. Some require GPU/SLURM; others run locally (CPU)."
                 },
                 "input": {
@@ -141,6 +141,35 @@
                 }
             }
         },
+        "batch_assessment_options": {
+            "title": "Batch effect assessment options",
+            "type": "object",
+            "description": "Post-integration batch-mixing metrics (GoodWorkflows base image + on-the-fly uvr installs).",
+            "properties": {
+                "goodworkflows_container": {
+                    "type": "string",
+                    "default": "ghcr.io/gwmcelfresh/goodworkflows:latest",
+                    "description": "Base image with uv, uvr, R, and Rust. Assessment processes install scIntegrationMetrics and kBET into a transient uvr project per task."
+                },
+                "batch_assessment_default_methods": {
+                    "type": "string",
+                    "default": "LISI,CiLISI,ASW,CELLTYPE_ASW",
+                    "description": "Default integration_assessment_methods when the samplesheet column is empty. kBET is opt-in per row."
+                },
+                "batch_assessment_min_cells_per_batch": {
+                    "type": "integer",
+                    "default": 20,
+                    "minimum": 1,
+                    "description": "Minimum cells required in every batch label before assessment proceeds."
+                },
+                "batch_assessment_kbet_cells_per_batch": {
+                    "type": "integer",
+                    "default": 1000,
+                    "minimum": 1,
+                    "description": "Stratified downsample target per batch before kBET (re-PCA on downsampled object)."
+                }
+            }
+        },
         "generic_options": {
             "title": "Generic options",
             "type": "object",
@@ -160,6 +189,7 @@
         {"$ref": "#/definitions/species_options"},
         {"$ref": "#/definitions/tabulation_options"},
         {"$ref": "#/definitions/scmodal_options"},
+        {"$ref": "#/definitions/batch_assessment_options"},
         {"$ref": "#/definitions/generic_options"}
     ]
 }
