@@ -91,6 +91,10 @@ register tcr_epitope epitope_file \
 # are documented here for the pre-flight column check:
 register gex_mil SubjectId "samplesheet.csv" ""
 
+register batch_effect_assessments batch_column \
+    "--input test-data/batch_effect_assessments/samplesheet.csv" \
+    "--input test-data/batch_effect_assessments/samplesheet.csv"
+
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ── Pre-parse: extract workflow names for --help ─────────────────────────────

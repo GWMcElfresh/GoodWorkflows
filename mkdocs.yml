@@ -57,6 +57,7 @@ nav:
     - TCR MIL: workflows/tcr-mil.md
     - TCR Epitope: workflows/tcr-epitope.md
     - Make TCR Vector Database: workflows/make-tcr-vector-database.md
+    - Batch Effect Assessments: workflows/batch-effect-assessments.md
   - Vignettes:
     - Synthetic Tabulation Walkthrough: vignettes/synthetic-tabulation.md
   - Data Formats: data-formats.md

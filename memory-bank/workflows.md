@@ -136,3 +136,42 @@ outputs/
 ```
 
 > **Note:** As of Nextflow 26.04.0, `publishDir` cannot use `${meta.id}` interpolation, so outputs are published flat (e.g., `outputs/ingest/SAMPLE_01_metadata.csv`) rather than nested in per-sample subdirectories.
+
+---
+
+## 4. Batch effect assessments (`batch_effect_assessments`)
+
+**File:** `workflows/batch_effect_assessments_pipeline.nf`
+
+### Purpose
+
+Post-integration batch-mixing QC on ingested Seurat objects: iLISI, CiLISI, batch/celltype ASW, optional kBET. Ingest uses Rdiscvr; metrics use `ghcr.io/gwmcelfresh/goodworkflows:latest` with per-task **uvr** installs (workspace removed on exit).
+
+### Input
+
+- Samplesheet with tri-mode ingest plus required `batch_column` and optional `integration_assessment_methods`
+- Default methods: `LISI,CiLISI,ASW,CELLTYPE_ASW`; kBET opt-in per row
+
+### Stages
+
+| Stage | Process | Notes |
+|---|---|---|
+| 1 | INGEST_* | `{sample_id}.rds` |
+| 2 | PREP_BATCH_ASSESSMENT | `{sample_id}_prep.json` (reductions, inferred celltype) |
+| 3 | ASSESS_* (per reduction) | Separate SLURM tasks per metric |
+| 4 | COLLECT_BATCH_ASSESSMENT | Summary CSV + plot; `run_summary.csv` via `collectFile` |
+
+### Compute
+
+- Fast metrics: `process_tabulate` (4 CPUs, 32 GB default in `base.config`)
+- kBET: `process_kbet` (8 CPUs, up to 256 GB, 36 h on SLURM)
+
+### Outputs
+
+```
+outputs/batch_effect_assessments/
+├── {sample_id}_prep.json
+├── {sample_id}_summary.csv
+├── {sample_id}_metrics.png
+└── run_summary.csv
+```

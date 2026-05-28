@@ -8,7 +8,7 @@ This page documents every data format consumed and produced by GoodWorkflows, or
 
 **Path:** `--input` (default `data/samplesheet.csv`)
 
-The samplesheet is the single entry point for all seven workflows. It is a comma-separated file with a header row.
+The samplesheet is the single entry point for all saved workflows. It is a comma-separated file with a header row.
 
 ### Columns
 
@@ -19,6 +19,13 @@ The samplesheet is the single entry point for all seven workflows. It is a comma
 | `url` | string | Public HTTP(S) URL to a data file (`.rds`, `.h5ad`, `.csv`, `.tsv`, `.txt`). Leave empty if using LabKey or local file mode. |
 | `path` | string | Absolute path to a data file on the local filesystem. Leave empty if using LabKey or URL mode. |
 | `species` | string | Species label for this sample. Must match one of the values in `--species_order`. |
+
+#### `batch_effect_assessments` columns
+
+| Column | Type | Description |
+|---|---|---|
+| `batch_column` | string | **Required** for this workflow. Name of the `meta.data` column holding batch labels. |
+| `integration_assessment_methods` | string | Comma-separated metric tokens: `LISI`, `CiLISI`, `ASW`, `CELLTYPE_ASW`, `kBET`. When empty, defaults to `LISI,CiLISI,ASW,CELLTYPE_ASW` (kBET is opt-in per row). |
 
 ### Tri-mode dispatch
 
@@ -49,7 +56,7 @@ SAMPLE_03,,,/home/user/data/mydata.h5ad,mouse
 ### INGEST — Seurat RDS
 
 **File:** `outputs/ingest/{sample_id}.rds`  
-**Produced by:** All workflows with ingest stage (`integration`, `ingest_export`, `ingest_tabulate`, `nmf_vae`, `gex_mil`, `tcr_mil`, `tcr_epitope`, `make_tcr_vector_database`)
+**Produced by:** All workflows with ingest stage (`integration`, `ingest_export`, `ingest_tabulate`, `nmf_vae`, `gex_mil`, `tcr_mil`, `tcr_epitope`, `make_tcr_vector_database`, `batch_effect_assessments`)
 
 A Seurat v5 RDS object containing:
 

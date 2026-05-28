@@ -24,19 +24,22 @@
 | `ghcr.io/bimberlabinternal/rdiscvr:latest` | INGEST_LABKEY, INGEST_URL, INGEST_FILE, INGEST_METADATA, TABULATE |
 | `ghcr.io/bimberlabinternal/cellmembrane:latest` | EXPORT_COUNTS |
 | `ghcr.io/gwmcelfresh/scmodal:latest` | GENE_HARMONIZE, SCMODAL_INTEGRATE |
+| `ghcr.io/gwmcelfresh/goodworkflows:latest` | `batch_effect_assessments` metric processes (on-the-fly **uvr** R deps) |
 
-### GoodWorkflows Base Image (non-module)
+### GoodWorkflows base image (non-module)
 
 | Image | Runtimes | Package managers | Purpose |
 |---|---|---|---|
-| `ghcr.io/gwmcelfresh/goodworkflows:latest` | Python 3.10 (system) + uv-managed 3.12, R, Rust | [`uv`](https://github.com/astral-sh/uv), [`uvr`](https://github.com/nbafrank/uvr) | Shared base for ad-hoc Python/R dependency work, prototyping, and extension via `FROM` |
+| `ghcr.io/gwmcelfresh/goodworkflows:latest` | Python 3.10 (system) + uv-managed 3.12, R, Rust | [`uv`](https://github.com/astral-sh/uv), [`uvr`](https://github.com/nbafrank/uvr) | Shared base for ad-hoc Python/R deps, prototyping, and `FROM` extension |
 
-Built from repo `Dockerfile` (`foundation` → `deps` → `runtime` stages); published by `.github/workflows/docker-publish.yml` via [dockerDependencies](https://github.com/GWMcElfresh/dockerDependencies). Not used as the default Nextflow module runtime — module images above remain production sources of truth.
+Built from repo `Dockerfile` (`foundation` → `deps` → `runtime`); published by `.github/workflows/docker-publish.yml` via [dockerDependencies](https://github.com/GWMcElfresh/dockerDependencies). Module images above remain the default Nextflow runtimes for existing workflows.
 
 **Ad-hoc dependency patterns:**
 
 - Python: `uv pip install --system <pkg>` on system 3.10, or `uv python install 3.12` + `uv venv --python 3.12`
 - R: `uvr init`, `uvr add <pkg>`, `uvr sync`, `uvr run script.R`; CI reproducibility via `uvr sync --frozen`
+
+**EV-002 (`batch_effect_assessments`):** each assessment task runs `uvr init` in `${PWD}/.uvr-workspace`, installs scIntegrationMetrics/kBET, `uvr run -- Rscript …`, then removes the workspace on exit.
 
 ## HPC Infrastructure
 
