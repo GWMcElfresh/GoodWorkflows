@@ -36,7 +36,23 @@ The repository uses GitHub Actions for four layers of validation:
 
 **Key design:** Tests use `continue-on-error: true` so all layers run, but a final check step fails the job if any layer failed.
 
-### 3. Docs Validation and Deploy (`docs.yml`)
+### 3. Base Docker Image (`docker-publish.yml`)
+
+**Triggers:** Push/PR touching `Dockerfile` or the workflow file; monthly schedule; manual dispatch.
+
+**Shared workflows:** [GWMcElfresh/dockerDependencies](https://github.com/GWMcElfresh/dockerDependencies) (same pattern as [MIL-ton CI](https://github.com/GWMcElfresh/MIL-ton/blob/main/.github/workflows/ci.yml)).
+
+**Jobs:**
+- `build-base` — publishes monthly `ghcr.io/gwmcelfresh/goodworkflows/base-deps:YYYY-MM`
+- `build-and-test` — pulls or rebuilds `deps:<hash-YYYY-MM>`, runs runtime smoke checks, pushes `:latest` on `main`
+
+**PR behavior:** Smoke tests run inside the locally built/pulled **deps image** (not an unpushed GHCR tag).
+
+**Test command:** Verifies `python3`, `uv`, `uv python find 3.12`, `uvr`, `R`, `rustc`, and `cargo`.
+
+Use this image for ad-hoc dependency spikes during evolve cycles; promote deps to module containers when they become production Nextflow requirements.
+
+### 4. Docs Validation and Deploy (`docs.yml`)
 
 **Trigger:** PRs and pushes that touch workflows, docs, schema, or docs tooling.
 

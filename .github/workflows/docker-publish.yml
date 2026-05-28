@@ -1,0 +1,59 @@
+name: Build and publish base image
+
+# Runs runtime smoke checks inside the cached Docker dependency image on every
+# push and pull request. The dependency image is either pulled from GHCR (fast
+# path) or rebuilt from the Dockerfile deps stage (slow path on cache miss).
+#
+# Calls shared workflows from:
+#   https://github.com/GWMcElfresh/dockerDependencies
+#
+# Template: https://github.com/GWMcElfresh/MIL-ton/blob/main/.github/workflows/ci.yml
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - ".github/workflows/docker-publish.yml"
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - ".github/workflows/docker-publish.yml"
+  schedule:
+    # Rebuild monthly base-deps to pick up security patches
+    - cron: "0 4 1 * *"
+  workflow_dispatch:
+
+jobs:
+  build-base:
+    uses: GWMcElfresh/dockerDependencies/.github/workflows/build-base-image.yml@main
+    permissions:
+      contents: read
+      packages: write
+    secrets: inherit
+
+  build-and-test:
+    needs: build-base
+    if: ${{ !cancelled() }}
+    uses: GWMcElfresh/dockerDependencies/.github/workflows/docker-cache.yml@main
+    with:
+      python-version: "3.12"
+      rust-version: stable
+      use-base-image: true
+      # Hash Dockerfile explicitly so deps images refresh after install-logic changes.
+      dependency-files: Dockerfile
+      test-command: >-
+        set -e &&
+        echo "=== Python ===" && python3 --version &&
+        echo "=== uv ===" && uv --version &&
+        echo "=== uv Python 3.12 ===" && uv python find 3.12 &&
+        echo "=== uvr ===" && uvr --version &&
+        echo "=== R ===" && R --version | head -n1 &&
+        echo "=== Rust ===" && rustc --version && cargo --version &&
+        echo "All runtimes OK"
+      push-images: true
+      push-runtime: ${{ github.ref == 'refs/heads/main' }}
+    permissions:
+      contents: read
+      packages: write
+    secrets: inherit

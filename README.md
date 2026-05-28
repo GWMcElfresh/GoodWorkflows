@@ -200,6 +200,68 @@ mkdocs build --strict
 
 The published vignette and example plots are driven by the seeded synthetic fixture bundle in `tests/fixtures/synthetic_trial_data/`, so docs and CI do not depend on sensitive or machine-local files.
 
+## Base Docker image
+
+The repository publishes a multi-runtime base image to GHCR at
+`ghcr.io/gwmcelfresh/goodworkflows:latest` with **Python** (managed by
+[`uv`](https://github.com/astral-sh/uv)), **R** (plus
+[`uvr`](https://github.com/nbafrank/uvr)), and **Rust** pre-installed.
+
+The image is built via [GWMcElfresh/dockerDependencies](https://github.com/GWMcElfresh/dockerDependencies)
+reusable workflows (same pattern as [MIL-ton CI](https://github.com/GWMcElfresh/MIL-ton/blob/main/.github/workflows/ci.yml)):
+
+- `base-deps:YYYY-MM` — monthly foundation layer
+- `deps:<hash-YYYY-MM>` — incremental dependency cache
+- `:latest` — runtime image published on pushes to `main`
+
+### Build args
+
+| Arg | Default | Description |
+|-----|---------|-------------|
+| `PYTHON_VERSION` | `3.12` | uv-managed Python to pre-cache (system default stays Ubuntu 3.10) |
+| `R_VERSION` | latest | Pin a specific R version |
+| `RUST_VERSION` | `stable` | Rust toolchain channel |
+| `BASE_IMAGE` | `foundation` | Set by docker-cache when reusing monthly `base-deps` |
+| `SKIP_BASE_DEPS` | `false` | Set by docker-cache when building incrementally on `base-deps` |
+
+### Quick start
+
+```bash
+# Pull the latest base image
+docker pull ghcr.io/gwmcelfresh/goodworkflows:latest
+
+# Spin up a quick Python venv
+docker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \
+  sh -c 'uv venv /tmp/venv && . /tmp/venv/bin/activate && uv pip install pandas && python -c "import pandas; print(pandas.__version__)"'
+
+# Use a newer Python via uv (system default is Ubuntu 3.10)
+docker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \
+  sh -c 'uv venv --python 3.12 /tmp/venv && . /tmp/venv/bin/activate && python --version'
+
+# Install R packages on the fly
+docker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \
+  Rscript -e "install.packages('jsonlite', repos='https://cloud.r-project.org'); library(jsonlite); cat('OK\n')"
+
+# Verify uvr is available
+docker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \
+  uvr --version
+```
+
+### Extending the image
+
+```dockerfile
+FROM ghcr.io/gwmcelfresh/goodworkflows:latest
+
+# Python deps
+RUN uv pip install --system scanpy anndata
+
+# R deps
+RUN Rscript -e "install.packages('Seurat', repos='https://cloud.r-project.org')"
+
+# Rust crate (binary)
+RUN cargo install ripgrep
+```
+
 ## License
 
 MIT – see `LICENSE`.
