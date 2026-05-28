@@ -80,6 +80,7 @@ jobs:
             set -e
             echo "=== Python ===" && python3 --version
             echo "=== uv ==="     && uv --version
+            echo "=== uvr ==="    && uvr --version
             echo "=== R ==="      && R --version | head -n1
             echo "=== Rust ==="   && rustc --version && cargo --version
             echo "✅ All runtimes OK"

@@ -1,7 +1,7 @@
 # =============================================================================
 # GoodWorkflows base image
 # =============================================================================
-# A lightweight, extensible base with R, Python (via uv), and Rust pre-installed.
+# A lightweight, extensible base with R, Python (via uv), uvr, and Rust pre-installed.
 # Consumers can quickly spin up venvs with `uv` (Python) or install R packages
 # without rebuilding the whole image.
 #
@@ -17,7 +17,7 @@
 FROM ubuntu:22.04 AS base
 
 LABEL org.opencontainers.image.source="https://github.com/GWMcElfresh/GoodWorkflows"
-LABEL org.opencontainers.image.description="Base image with R, Python (uv), and Rust for quick venv-based workflows"
+LABEL org.opencontainers.image.description="Base image with R, Python (uv), uvr, and Rust for quick reproducible workflows"
 
 # Versions — override at build time with --build-arg
 ARG PYTHON_VERSION=3.12
@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates \
         curl \
         git \
+        gnupg \
         libcurl4-openssl-dev \
         libssl-dev \
         libxml2-dev \
@@ -48,7 +49,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Python via deadsnakes + uv ---------------------------------------------
-RUN add-apt-repository -y ppa:deadsnakes/ppa \
+RUN install -d -m 0755 /etc/apt/keyrings \
+    && curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xBA6932366A755776" \
+        | gpg --dearmor -o /etc/apt/keyrings/deadsnakes.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/deadsnakes.gpg] http://ppa.launchpad.net/deadsnakes/ppa/ubuntu $(. /etc/os-release && echo ${VERSION_CODENAME}) main" \
+        > /etc/apt/sources.list.d/deadsnakes-ppa.list \
     && apt-get update \
     && apt-get install -y --no-install-recommends \
         python${PYTHON_VERSION} \
@@ -75,6 +80,13 @@ RUN wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc \
     fi \
     && rm -rf /var/lib/apt/lists/*
 
+# ---- uvr (R package manager CLI) ---------------------------------------------
+ARG TARGETARCH
+RUN if [ "${TARGETARCH}" = "arm64" ]; then UVR_ARCH="aarch64-unknown-linux-gnu"; else UVR_ARCH="x86_64-unknown-linux-gnu"; fi \
+    && curl -fsSL "https://github.com/nbafrank/uvr/releases/latest/download/uvr-${UVR_ARCH}.tar.gz" \
+        | tar -xz -C /usr/local/bin uvr \
+    && chmod +x /usr/local/bin/uvr
+
 # ---- Rust via rustup ---------------------------------------------------------
 ENV CARGO_HOME=/usr/local/cargo \
     RUSTUP_HOME=/usr/local/rustup \
@@ -91,6 +103,7 @@ WORKDIR /workspace
 # Smoke-test: make sure all three runtimes are functional
 RUN python3 --version \
     && uv --version \
+    && uvr --version \
     && R --version | head -n1 \
     && rustc --version \
     && cargo --version

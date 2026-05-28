@@ -25,6 +25,19 @@
 | `ghcr.io/bimberlabinternal/cellmembrane:latest` | EXPORT_COUNTS |
 | `ghcr.io/gwmcelfresh/scmodal:latest` | GENE_HARMONIZE, SCMODAL_INTEGRATE |
 
+### GoodWorkflows Base Image (non-module)
+
+| Image | Runtimes | Package managers | Purpose |
+|---|---|---|---|
+| `ghcr.io/gwmcelfresh/goodworkflows:latest` | Python 3.12, R, Rust | [`uv`](https://github.com/astral-sh/uv), [`uvr`](https://github.com/nbafrank/uvr) | Shared base for ad-hoc Python/R dependency work, prototyping, and extension via `FROM` |
+
+Built from repo `Dockerfile`; published by `.github/workflows/docker-publish.yml`. Not used as the default Nextflow module runtime — module images above remain production sources of truth.
+
+**Ad-hoc dependency patterns:**
+
+- Python: `uv pip install --system <pkg>` or `uv venv` + `uv pip install`
+- R: `uvr init`, `uvr add <pkg>`, `uvr sync`, `uvr run script.R`; CI reproducibility via `uvr sync --frozen`
+
 ## HPC Infrastructure
 
 | Component | Details |
