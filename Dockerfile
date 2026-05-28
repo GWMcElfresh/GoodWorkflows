@@ -1,26 +1,22 @@
 # =============================================================================
-# GoodWorkflows base image
+# GoodWorkflows base / dependency image (dockerDependencies multi-stage)
 # =============================================================================
-# A lightweight, extensible base with R, Python (via uv), uvr, and Rust pre-installed.
-# Consumers can quickly spin up venvs with `uv` (Python) or install R packages
-# without rebuilding the whole image.
+# Stages:
+#   foundation — heavy runtimes (Ubuntu 3.10, uv, R, uvr, Rust)
+#   deps       — cached dependency layer (monthly base-deps + incremental hash)
+#   runtime    — published ghcr.io/gwmcelfresh/goodworkflows:latest on main
 #
-# Build:
-#   docker build -t ghcr.io/gwmcelfresh/goodworkflows:latest .
-#
-# Extend (example):
-#   FROM ghcr.io/gwmcelfresh/goodworkflows:latest
-#   RUN uv pip install --system scanpy anndata
-#   RUN Rscript -e "install.packages('Seurat', repos='https://cloud.r-project.org')"
+# CI uses GWMcElfresh/dockerDependencies reusable workflows:
+#   build-base-image.yml  → ghcr.io/<repo>/base-deps:YYYY-MM
+#   docker-cache.yml      → ghcr.io/<repo>/deps:<hash-YYYY-MM>, tests, :latest
 # =============================================================================
 
-FROM ubuntu:22.04 AS base
+FROM ubuntu:22.04 AS foundation
 
 LABEL org.opencontainers.image.source="https://github.com/GWMcElfresh/GoodWorkflows"
 LABEL org.opencontainers.image.description="Base image with R, Python (uv), uvr, and Rust for quick reproducible workflows"
 
-# Versions — override at build time with --build-arg
-ARG UV_PYTHON_VERSION=3.12
+ARG PYTHON_VERSION=3.12
 ARG R_VERSION=""
 ARG RUST_VERSION=stable
 
@@ -48,8 +44,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ---- Python (system 3.10) + uv -----------------------------------------------
-# Ubuntu 22.04 ships Python 3.10. Keep it as system default so apt tooling stays
-# compatible. Install newer runtimes per-project via `uv python install`.
 RUN apt-get update && apt-get install -y --no-install-recommends \
         python3 \
         python3-dev \
@@ -59,9 +53,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 ENV UV_SYSTEM_PYTHON=1
 
-# Pre-cache one uv-managed Python for common workflows (not the system default).
-ARG UV_PYTHON_VERSION
-RUN uv python install "${UV_PYTHON_VERSION}"
+ARG PYTHON_VERSION
+RUN uv python install "${PYTHON_VERSION}"
 
 # ---- R -----------------------------------------------------------------------
 RUN install -d -m 0755 /etc/apt/keyrings \
@@ -95,17 +88,30 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
     && rustup component add rustfmt clippy \
     && chmod -R a+w ${CARGO_HOME} ${RUSTUP_HOME}
 
-# ---- final setup -------------------------------------------------------------
-WORKDIR /workspace
+# ---- deps (cached dependency layer) ------------------------------------------
+# Default BASE_IMAGE=foundation for full builds. docker-cache passes a monthly
+# base-deps image with SKIP_BASE_DEPS=true for fast incremental rebuilds.
+ARG BASE_IMAGE=foundation
+FROM ${BASE_IMAGE} AS deps
 
-# Smoke-test: make sure all runtimes are functional
-ARG UV_PYTHON_VERSION
-RUN python3 --version \
+ARG SKIP_BASE_DEPS=false
+ARG PYTHON_VERSION=3.12
+
+RUN if [ "${SKIP_BASE_DEPS}" = "true" ]; then \
+        echo "Using pre-built base-deps image"; \
+    else \
+        echo "Building deps layer from foundation"; \
+    fi \
+    && python3 --version \
     && uv --version \
-    && uv python find "${UV_PYTHON_VERSION}" \
+    && uv python find "${PYTHON_VERSION}" \
     && uvr --version \
     && R --version | head -n1 \
     && rustc --version \
     && cargo --version
 
+# ---- runtime (published :latest on main) -------------------------------------
+FROM deps AS runtime
+
+WORKDIR /workspace
 CMD ["/bin/bash"]

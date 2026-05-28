@@ -70,10 +70,11 @@ uvr run analysis.R
 
 ### Dockerfile Pitfalls (from base-image CI)
 
-- Keep **system Python 3.10** as default on Ubuntu 22.04; do not repoint `python3` via deadsnakes/`update-alternatives` — it breaks apt tooling (`apt_pkg`).
-- Install newer Python versions with **`uv python install`**, not PPAs, in this base image.
+- Base image CI uses [GWMcElfresh/dockerDependencies](https://github.com/GWMcElfresh/dockerDependencies) reusable workflows; do not hand-roll buildx + `docker run` against unpushed GHCR tags on PRs.
+- Keep **system Python 3.10** as default on Ubuntu 22.04; install newer Python with **`uv python install`**, not PPAs.
 - Do **not** use `add-apt-repository` inside Docker for third-party repos (CRAN, etc.); use explicit `/etc/apt/keyrings` + `sources.list.d` entries with `signed-by=`.
 - Install `uvr` from GitHub release tarballs; select arch via `TARGETARCH` (`x86_64-unknown-linux-gnu` / `aarch64-unknown-linux-gnu`).
+- Dockerfile must expose `foundation`, `deps`, and `runtime` stages for dockerDependencies caching (`BASE_IMAGE`, `SKIP_BASE_DEPS` build args).
 
 ## Output
 

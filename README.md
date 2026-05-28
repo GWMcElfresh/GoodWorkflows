@@ -207,8 +207,22 @@ The repository publishes a multi-runtime base image to GHCR at
 [`uv`](https://github.com/astral-sh/uv)), **R** (plus
 [`uvr`](https://github.com/nbafrank/uvr)), and **Rust** pre-installed.
 
-The image is rebuilt automatically on every push to `main` that touches the
-`Dockerfile`, on a monthly schedule, and on manual dispatch.
+The image is built via [GWMcElfresh/dockerDependencies](https://github.com/GWMcElfresh/dockerDependencies)
+reusable workflows (same pattern as [MIL-ton CI](https://github.com/GWMcElfresh/MIL-ton/blob/main/.github/workflows/ci.yml)):
+
+- `base-deps:YYYY-MM` — monthly foundation layer
+- `deps:<hash-YYYY-MM>` — incremental dependency cache
+- `:latest` — runtime image published on pushes to `main`
+
+### Build args
+
+| Arg | Default | Description |
+|-----|---------|-------------|
+| `PYTHON_VERSION` | `3.12` | uv-managed Python to pre-cache (system default stays Ubuntu 3.10) |
+| `R_VERSION` | latest | Pin a specific R version |
+| `RUST_VERSION` | `stable` | Rust toolchain channel |
+| `BASE_IMAGE` | `foundation` | Set by docker-cache when reusing monthly `base-deps` |
+| `SKIP_BASE_DEPS` | `false` | Set by docker-cache when building incrementally on `base-deps` |
 
 ### Quick start
 
@@ -247,14 +261,6 @@ RUN Rscript -e "install.packages('Seurat', repos='https://cloud.r-project.org')"
 # Rust crate (binary)
 RUN cargo install ripgrep
 ```
-
-### Build args
-
-| Arg | Default | Description |
-|-----|---------|-------------|
-| `UV_PYTHON_VERSION` | `3.12` | uv-managed Python to pre-cache (system default stays Ubuntu 3.10) |
-| `R_VERSION` | latest | Pin a specific R version |
-| `RUST_VERSION` | `stable` | Rust toolchain channel |
 
 ## License
 

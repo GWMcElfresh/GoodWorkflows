@@ -40,11 +40,15 @@ The repository uses GitHub Actions for four layers of validation:
 
 **Triggers:** Push/PR touching `Dockerfile` or the workflow file; monthly schedule; manual dispatch.
 
-**Purpose:** Build and publish `ghcr.io/gwmcelfresh/goodworkflows:latest` with Python (`uv`), R (`uvr`), and Rust.
+**Shared workflows:** [GWMcElfresh/dockerDependencies](https://github.com/GWMcElfresh/dockerDependencies) (same pattern as [MIL-ton CI](https://github.com/GWMcElfresh/MIL-ton/blob/main/.github/workflows/ci.yml)).
 
-**PR behavior:** Builds the image (cache-only via buildx when not pushing) and smoke-tests runtimes including `python3`, `uv`, `uvr`, `R`, `rustc`, and `cargo`.
+**Jobs:**
+- `build-base` — publishes monthly `ghcr.io/gwmcelfresh/goodworkflows/base-deps:YYYY-MM`
+- `build-and-test` — pulls or rebuilds `deps:<hash-YYYY-MM>`, runs runtime smoke checks, pushes `:latest` on `main`
 
-**Main behavior:** Pushes tagged images (`latest`, commit SHA, monthly tag) to GHCR.
+**PR behavior:** Smoke tests run inside the locally built/pulled **deps image** (not an unpushed GHCR tag).
+
+**Test command:** Verifies `python3`, `uv`, `uv python find 3.12`, `uvr`, `R`, `rustc`, and `cargo`.
 
 Use this image for ad-hoc dependency spikes during evolve cycles; promote deps to module containers when they become production Nextflow requirements.
 
