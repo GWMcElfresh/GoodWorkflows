@@ -11,6 +11,9 @@
 #   docker-cache.yml      → ghcr.io/<repo>/deps:<hash-YYYY-MM>, tests, :latest
 # =============================================================================
 
+# Must be declared before the first FROM so BuildKit can resolve `FROM ${BASE_IMAGE}`.
+ARG BASE_IMAGE=foundation
+
 FROM ubuntu:22.04 AS foundation
 
 LABEL org.opencontainers.image.source="https://github.com/GWMcElfresh/GoodWorkflows"
@@ -91,7 +94,6 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
 # ---- deps (cached dependency layer) ------------------------------------------
 # Default BASE_IMAGE=foundation for full builds. docker-cache passes a monthly
 # base-deps image with SKIP_BASE_DEPS=true for fast incremental rebuilds.
-ARG BASE_IMAGE=foundation
 FROM ${BASE_IMAGE} AS deps
 
 ARG SKIP_BASE_DEPS=false
