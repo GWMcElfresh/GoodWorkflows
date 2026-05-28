@@ -32,8 +32,9 @@ Use this image during evolve cycles when you need quick dependency experiments *
 
 ### Python — ad-hoc with `uv`
 
-- System Python is preconfigured (`UV_SYSTEM_PYTHON=1`).
-- One-shot install: `uv pip install --system <pkg>`
+- System Python stays Ubuntu 3.10 (keeps apt tooling stable in the base image).
+- Default installs: `uv pip install --system <pkg>` uses system 3.10.
+- Newer runtimes: `uv python install 3.12`, then `uv venv --python 3.12 /tmp/venv`.
 - Isolated venv (preferred for scratch work):
 
 ```bash
@@ -69,7 +70,9 @@ uvr run analysis.R
 
 ### Dockerfile Pitfalls (from base-image CI)
 
-- Do **not** use `add-apt-repository` for deadsnakes inside Docker; use explicit `/etc/apt/keyrings` + `sources.list.d` entries.
+- Keep **system Python 3.10** as default on Ubuntu 22.04; do not repoint `python3` via deadsnakes/`update-alternatives` — it breaks apt tooling (`apt_pkg`).
+- Install newer Python versions with **`uv python install`**, not PPAs, in this base image.
+- Do **not** use `add-apt-repository` inside Docker for third-party repos (CRAN, etc.); use explicit `/etc/apt/keyrings` + `sources.list.d` entries with `signed-by=`.
 - Install `uvr` from GitHub release tarballs; select arch via `TARGETARCH` (`x86_64-unknown-linux-gnu` / `aarch64-unknown-linux-gnu`).
 
 ## Output

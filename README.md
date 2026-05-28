@@ -220,6 +220,10 @@ docker pull ghcr.io/gwmcelfresh/goodworkflows:latest
 docker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \
   sh -c 'uv venv /tmp/venv && . /tmp/venv/bin/activate && uv pip install pandas && python -c "import pandas; print(pandas.__version__)"'
 
+# Use a newer Python via uv (system default is Ubuntu 3.10)
+docker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \
+  sh -c 'uv venv --python 3.12 /tmp/venv && . /tmp/venv/bin/activate && python --version'
+
 # Install R packages on the fly
 docker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \
   Rscript -e "install.packages('jsonlite', repos='https://cloud.r-project.org'); library(jsonlite); cat('OK\n')"
@@ -248,7 +252,7 @@ RUN cargo install ripgrep
 
 | Arg | Default | Description |
 |-----|---------|-------------|
-| `PYTHON_VERSION` | `3.12` | Python minor version (deadsnakes PPA) |
+| `UV_PYTHON_VERSION` | `3.12` | uv-managed Python to pre-cache (system default stays Ubuntu 3.10) |
 | `R_VERSION` | latest | Pin a specific R version |
 | `RUST_VERSION` | `stable` | Rust toolchain channel |
 

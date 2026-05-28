@@ -20,7 +20,7 @@ LABEL org.opencontainers.image.source="https://github.com/GWMcElfresh/GoodWorkfl
 LABEL org.opencontainers.image.description="Base image with R, Python (uv), uvr, and Rust for quick reproducible workflows"
 
 # Versions — override at build time with --build-arg
-ARG PYTHON_VERSION=3.12
+ARG UV_PYTHON_VERSION=3.12
 ARG R_VERSION=""
 ARG RUST_VERSION=stable
 
@@ -44,33 +44,31 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libjpeg-dev \
         libpng-dev \
         pkg-config \
-        software-properties-common \
         wget \
     && rm -rf /var/lib/apt/lists/*
 
-# ---- Python via deadsnakes + uv ---------------------------------------------
-RUN install -d -m 0755 /etc/apt/keyrings \
-    && curl -fsSL "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0xBA6932366A755776" \
-        | gpg --dearmor -o /etc/apt/keyrings/deadsnakes.gpg \
-    && echo "deb [signed-by=/etc/apt/keyrings/deadsnakes.gpg] http://ppa.launchpad.net/deadsnakes/ppa/ubuntu $(. /etc/os-release && echo ${VERSION_CODENAME}) main" \
-        > /etc/apt/sources.list.d/deadsnakes-ppa.list \
-    && apt-get update \
-    && apt-get install -y --no-install-recommends \
-        python${PYTHON_VERSION} \
-        python${PYTHON_VERSION}-dev \
-        python${PYTHON_VERSION}-venv \
-    && rm -rf /var/lib/apt/lists/* \
-    && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python${PYTHON_VERSION} 1 \
-    && update-alternatives --install /usr/bin/python  python  /usr/bin/python${PYTHON_VERSION} 1
+# ---- Python (system 3.10) + uv -----------------------------------------------
+# Ubuntu 22.04 ships Python 3.10. Keep it as system default so apt tooling stays
+# compatible. Install newer runtimes per-project via `uv python install`.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        python3 \
+        python3-dev \
+        python3-venv \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install uv (fast Python package manager)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 ENV UV_SYSTEM_PYTHON=1
 
+# Pre-cache one uv-managed Python for common workflows (not the system default).
+ARG UV_PYTHON_VERSION
+RUN uv python install "${UV_PYTHON_VERSION}"
+
 # ---- R -----------------------------------------------------------------------
-RUN wget -qO- https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc \
-        | tee -a /etc/apt/trusted.gpg.d/cran_ubuntu_key.asc \
-    && add-apt-repository "deb https://cloud.r-project.org/bin/linux/ubuntu $(lsb_release -cs)-cran40/" \
+RUN install -d -m 0755 /etc/apt/keyrings \
+    && curl -fsSL https://cloud.r-project.org/bin/linux/ubuntu/marutter_pubkey.asc \
+        | gpg --dearmor -o /etc/apt/keyrings/cran.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/cran.gpg] https://cloud.r-project.org/bin/linux/ubuntu $(. /etc/os-release && echo ${VERSION_CODENAME})-cran40/" \
+        > /etc/apt/sources.list.d/cran-r.list \
     && apt-get update \
     && if [ -n "$R_VERSION" ]; then \
         apt-get install -y --no-install-recommends \
@@ -100,9 +98,11 @@ RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
 # ---- final setup -------------------------------------------------------------
 WORKDIR /workspace
 
-# Smoke-test: make sure all three runtimes are functional
+# Smoke-test: make sure all runtimes are functional
+ARG UV_PYTHON_VERSION
 RUN python3 --version \
     && uv --version \
+    && uv python find "${UV_PYTHON_VERSION}" \
     && uvr --version \
     && R --version | head -n1 \
     && rustc --version \
