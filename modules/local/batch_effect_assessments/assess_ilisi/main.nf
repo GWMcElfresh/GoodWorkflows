@@ -38,7 +38,7 @@ process ASSESS_ILISI {
 
     stub:
     """
-    echo 'sample_id,reduction,metric,status' > ${outCsv}
-    echo '${meta.id},${reduction},ilisi,stub' >> ${outCsv}
+    echo 'sample_id,reduction,metric,status' > ${meta.id}_${reduction}_ilisi.csv
+    echo '${meta.id},${reduction},ilisi,stub' >> ${meta.id}_${reduction}_ilisi.csv
     """
 }

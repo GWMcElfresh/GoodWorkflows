@@ -38,7 +38,7 @@ process ASSESS_CILISI {
 
     stub:
     """
-    echo 'sample_id,reduction,metric,status' > ${outCsv}
-    echo '${meta.id},${reduction},cilisi,stub' >> ${outCsv}
+    echo 'sample_id,reduction,metric,status' > ${meta.id}_${reduction}_cilisi.csv
+    echo '${meta.id},${reduction},cilisi,stub' >> ${meta.id}_${reduction}_cilisi.csv
     """
 }

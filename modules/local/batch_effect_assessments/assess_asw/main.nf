@@ -38,7 +38,7 @@ process ASSESS_ASW {
 
     stub:
     """
-    echo 'sample_id,reduction,metric,status' > ${outCsv}
-    echo '${meta.id},${reduction},asw,stub' >> ${outCsv}
+    echo 'sample_id,reduction,metric,status' > ${meta.id}_${reduction}_asw.csv
+    echo '${meta.id},${reduction},asw,stub' >> ${meta.id}_${reduction}_asw.csv
     """
 }

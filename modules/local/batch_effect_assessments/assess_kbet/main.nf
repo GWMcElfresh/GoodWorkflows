@@ -39,7 +39,7 @@ process ASSESS_KBET {
 
     stub:
     """
-    echo 'sample_id,reduction,metric,status' > ${outCsv}
-    echo '${meta.id},${reduction},kbet,stub' >> ${outCsv}
+    echo 'sample_id,reduction,metric,status' > ${meta.id}_${reduction}_kbet.csv
+    echo '${meta.id},${reduction},kbet,stub' >> ${meta.id}_${reduction}_kbet.csv
     """
 }
