@@ -162,3 +162,23 @@ User requested an exhaustive check of recent repo changes to update agent memori
 
 ### Files Created
 - `memory-bank/todos.md` — Full audit findings with severity/impact/fix guidance.
+
+## 2026-05-28 — Base image CI + uv/uvr ad-hoc dependency guidance (retrospective)
+
+### Problem
+New branch added `Dockerfile` and `docker-publish.yml` for a shared base image. CI failed on `add-apt-repository ppa:deadsnakes/ppa` because GPG key import fails in non-interactive Docker builds (not a prompt issue — `DEBIAN_FRONTEND=noninteractive` was already set).
+
+### Fix
+- Replaced deadsnakes PPA setup with explicit apt keyring + `sources.list.d` entry.
+- Installed [`uvr`](https://github.com/nbafrank/uvr) binary from GitHub releases (`TARGETARCH`-aware).
+- Extended PR smoke test to check `uvr --version`.
+
+### Process updates (17-retrospective)
+- **`16-evolve`**: Added "Base Image and Ad-Hoc Dependencies" — when to use `uv` / `uvr` on the base image vs escalate to module containers; Dockerfile pitfalls.
+- **`06-tech-tooling`**: Added base-image tooling table and routing to `16-evolve`.
+- **`memory-bank/tech-stack.md`**, **`memory-bank/ci-cd.md`**: Documented base image and `docker-publish.yml`.
+
+### Guidance for future agents
+- Module containers (`rdiscvr`, `cellmembrane`, `scmodal`) = production Nextflow runtimes.
+- Base image + `uv` / `uvr` = evolve spikes and ad-hoc installs; promote to containers when deps become workflow requirements.
+- In Dockerfiles, avoid `add-apt-repository` for third-party PPAs; prefer explicit signed-by keyrings.
