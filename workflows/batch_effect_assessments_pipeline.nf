@@ -20,7 +20,7 @@ include { COLLECT_BATCH_ASSESSMENT }  from '../modules/local/batch_effect_assess
 def buildBatchEffectAssessmentsSamplesChannel(samplesheetPath) {
     Channel
         .fromPath(samplesheetPath, checkIfExists: true)
-        .splitCsv(header: true, strip: true)
+        .splitCsv(header: true, strip: true, quote: '"')
         .map { row ->
             if (!row.sample_id) {
                 error "Samplesheet missing required value for column 'sample_id': ${row}"

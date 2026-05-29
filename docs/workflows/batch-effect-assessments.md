@@ -23,7 +23,7 @@ Required columns per row:
 |---|---|---|
 | `sample_id` | yes | Sample identifier |
 | `batch_column` | yes | `meta.data` column holding experimental batch labels |
-| `integration_assessment_methods` | no | Comma-separated: `LISI`, `CiLISI`, `ASW`, `CELLTYPE_ASW`, `kBET`. Default when empty: `LISI,CiLISI,ASW,CELLTYPE_ASW` (kBET opt-in per row) |
+| `integration_assessment_methods` | no | Comma-separated: `LISI`, `CiLISI`, `ASW`, `CELLTYPE_ASW`, `kBET`. Default when empty: `LISI,CiLISI,ASW,CELLTYPE_ASW` (kBET opt-in per row). **Quote the cell in CSV** when it contains commas (e.g. `"LISI,CiLISI,ASW,CELLTYPE_ASW"`). |
 | tri-mode ingest | yes | Exactly one of `output_file_id`, `url`, or `path` |
 | `species` | optional | Used by `INGEST_FILE` |
 

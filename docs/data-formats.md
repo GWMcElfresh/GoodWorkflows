@@ -25,7 +25,7 @@ The samplesheet is the single entry point for all saved workflows. It is a comma
 | Column | Type | Description |
 |---|---|---|
 | `batch_column` | string | **Required** for this workflow. Name of the `meta.data` column holding batch labels. |
-| `integration_assessment_methods` | string | Comma-separated metric tokens: `LISI`, `CiLISI`, `ASW`, `CELLTYPE_ASW`, `kBET`. When empty, defaults to `LISI,CiLISI,ASW,CELLTYPE_ASW` (kBET is opt-in per row). |
+| `integration_assessment_methods` | string | Comma-separated metric tokens: `LISI`, `CiLISI`, `ASW`, `CELLTYPE_ASW`, `kBET`. When empty, defaults to `LISI,CiLISI,ASW,CELLTYPE_ASW` (kBET is opt-in per row). Quote the CSV cell when the value contains commas. |
 
 ### Tri-mode dispatch
 
