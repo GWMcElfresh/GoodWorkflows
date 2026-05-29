@@ -39,7 +39,7 @@ load_pbmc3k <- function() {
     InstallData('pbmc3k')
     data('pbmc3k', envir = environment())
     message('[SMOKE] Updating pbmc3k to current Seurat object format...')
-    Seurat::UpdateSeuratObject(pbmc3k.final)
+    return(Seurat::UpdateSeuratObject(pbmc3k.final))
 }
 
 mock_rira_on_pbmc <- function(obj, n_batches = 3L, seed = 1L) {

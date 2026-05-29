@@ -12,6 +12,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+VALID_TEST_HOSTS = frozenset({"wsl", "mac", "bazzite"})
+
 
 def repo_root() -> Path | None:
     cwd = Path.cwd()
@@ -59,7 +61,8 @@ def resolve_test_host(repo: Path) -> tuple[str, str]:
                     "bash",
                     "-c",
                     f'source "{profile_sh}" && GW_REPO_ROOT="{repo}" && '
-                    "resolve_test_host auto && host_default_tier \"${GW_RESOLVED_HOST}\"",
+                    "resolve_test_host auto && echo \"${GW_RESOLVED_HOST}\" && "
+                    "host_default_tier \"${GW_RESOLVED_HOST}\"",
                 ],
                 cwd=repo,
                 capture_output=True,
@@ -68,9 +71,9 @@ def resolve_test_host(repo: Path) -> tuple[str, str]:
                 check=False,
             )
             lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
-            if len(lines) >= 2:
+            if len(lines) >= 2 and lines[0] in VALID_TEST_HOSTS:
                 return lines[0], lines[1]
-            if len(lines) == 1:
+            if len(lines) == 1 and lines[0] in VALID_TEST_HOSTS:
                 return lines[0], _default_tier_for(lines[0])
         except (FileNotFoundError, subprocess.TimeoutExpired):
             pass

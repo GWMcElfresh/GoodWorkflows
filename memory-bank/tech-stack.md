@@ -34,7 +34,7 @@
 
 Built from repo `Dockerfile` (`foundation` → `deps` → `runtime`); published by `.github/workflows/docker-publish.yml` via [dockerDependencies](https://github.com/GWMcElfresh/dockerDependencies). Module images above remain the default Nextflow runtimes for existing workflows.
 
-**Pre-baked in `deps` / `:latest`:** system libs for Seurat/shiny (`cmake`, `libuv1-dev`, `libglpk-dev`, `pandoc`, HDF5/NetCDF/GSL/git2), site-library **`tidyverse`**, **`Seurat`**, **`jsonlite`**, **`Rcpp`**; `UVR_INSTALL_SYSREQS=1` for transient `uvr` workspaces.
+**Pre-baked in `deps` / `:latest`:** system libs for Seurat/tidyverse (`cmake`, `libcairo2-dev`, `libgdal-dev`, `libgeos-dev`, `libproj-dev`, `libudunits2-dev`, `libuv1-dev`, `libglpk-dev`, `pandoc`, HDF5/NetCDF/GSL/git2), site-library **`tidyverse`**, **`Seurat`**, **`jsonlite`**, **`Rcpp`**; `UVR_INSTALL_SYSREQS=1` for transient `uvr` workspaces. Mid-month foundation apt changes require `force-rebuild: true` on `build-base` in `docker-publish.yml` so `base-deps` is not reused without the new sysdeps.
 
 **Ad-hoc dependency patterns:**
 

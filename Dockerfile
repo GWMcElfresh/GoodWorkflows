@@ -35,7 +35,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         git \
         gnupg \
         libcurl4-openssl-dev \
+        libcairo2-dev \
+        libgdal-dev \
+        libgeos-dev \
+        libproj-dev \
         libssl-dev \
+        libudunits2-dev \
         libxml2-dev \
         libfontconfig1-dev \
         libharfbuzz-dev \

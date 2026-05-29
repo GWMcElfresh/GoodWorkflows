@@ -27,6 +27,10 @@ on:
 jobs:
   build-base:
     uses: GWMcElfresh/dockerDependencies/.github/workflows/build-base-image.yml@main
+    with:
+      # Rebuild monthly base-deps when foundation apt packages or deps-stage R bootstrap
+      # change mid-month (incremental builds skip foundation via SKIP_BASE_DEPS).
+      force-rebuild: true
     permissions:
       contents: read
       packages: write

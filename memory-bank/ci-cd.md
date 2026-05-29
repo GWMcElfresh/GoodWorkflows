@@ -48,7 +48,7 @@ The repository uses GitHub Actions for four layers of validation:
 
 **PR behavior:** Smoke tests run inside the locally built/pulled **deps image** (not an unpushed GHCR tag).
 
-**Test command:** Verifies `python3`, `uv`, `uv python find 3.12`, `uvr`, `R`, `rustc`, and `cargo`.
+**Test command:** Verifies `python3`, `uv`, `uv python find 3.12`, `uvr`, `R`, pre-installed `tidyverse` and `Seurat`, `rustc`, and `cargo`.
 
 Use this image for ad-hoc dependency spikes during evolve cycles; promote deps to module containers when they become production Nextflow requirements.
 
