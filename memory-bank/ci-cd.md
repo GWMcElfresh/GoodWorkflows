@@ -61,7 +61,7 @@ Use this image for ad-hoc dependency spikes during evolve cycles; promote deps t
 2. Regenerate synthetic example plots: `uvx --with matplotlib python scripts/docs/generate_example_plots.py`
 3. Build docs with strict mode: `mkdocs build --strict`
 
-**Deploy:** On pushes to `main`, the site is deployed to GitHub Pages at `gwmcelfresh.github.io/GoodWorkflows/`.
+**Deploy:** On pushes to `main`, the site is deployed to GitHub Pages at `gwmcelfresh.github.io/GoodWorkflows/` via `mkdocs gh-deploy` to the `gh_pages` branch. The `site/` directory is build output only (gitignored on `main`; do not commit HTML or nf-docs-generated pages).
 
 ## Container Caching for CI
 
