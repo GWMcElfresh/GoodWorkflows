@@ -57,9 +57,10 @@ Use this image for ad-hoc dependency spikes during evolve cycles; promote deps t
 **Trigger:** PRs and pushes that touch workflows, docs, schema, or docs tooling.
 
 **Steps:**
-1. Regenerate `nf-docs` API reference: `bash scripts/docs/generate_api_docs.sh`
-2. Regenerate synthetic example plots: `uvx --with matplotlib python scripts/docs/generate_example_plots.py`
-3. Build docs with strict mode: `mkdocs build --strict`
+1. Resolve and cache the Nextflow language server JAR (`scripts/docs/ensure_language_server.sh`) using authenticated `GITHUB_TOKEN` API calls and `actions/cache` (avoids unauthenticated GitHub API rate limits on shared runners)
+2. Regenerate `nf-docs` API reference: `bash scripts/docs/generate_api_docs.sh`
+3. Regenerate synthetic example plots: `uvx --with matplotlib python scripts/docs/generate_example_plots.py`
+4. Build docs with strict mode: `mkdocs build --strict`
 
 **Deploy:** On pushes to `main`, the site is deployed to GitHub Pages at `gwmcelfresh.github.io/GoodWorkflows/` via `mkdocs gh-deploy` to the `gh_pages` branch. The `site/` directory is build output only (gitignored on `main`; do not commit HTML or nf-docs-generated pages).
 

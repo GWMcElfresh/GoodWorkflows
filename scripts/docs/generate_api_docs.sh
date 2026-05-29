@@ -56,6 +56,10 @@ if [[ -e "${PROJECT_DIR}/.git" ]]; then
     ln -s "${PROJECT_DIR}/.git" "${NFDOCS_WORKSPACE_DIR}/.git"
 fi
 
+# nf-docs auto-downloads the language server via unauthenticated GitHub API calls.
+# Pre-install the JAR (GITHUB_TOKEN on CI) so shared runners avoid rate limits.
+bash "${PROJECT_DIR}/scripts/docs/ensure_language_server.sh"
+
 uvx nf-docs generate "${NFDOCS_WORKSPACE_DIR}" \
     --format markdown \
     --output "${NFDOCS_OUTPUT_DIR}" \

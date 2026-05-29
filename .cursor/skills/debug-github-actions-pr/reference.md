@@ -30,6 +30,7 @@ Use with `debug-github-actions-pr`. Workflow sources: `.github/workflows/`.
 | `invalid workflow scopes` / `onError:` | DSL2 | Integration stub-run in lint job |
 | `ERROR ~` / `Script_` / channel mismatch | DSL2 / config | Match matrix workflow or module name |
 | `mkdocs build --strict` / broken link | docs | Regenerate API docs first; link only under `docs/` |
+| `403 rate limit exceeded` + `language-server/releases/latest` | docs / nf-docs | Authenticated prefetch in `docs.yml`; local: `GITHUB_TOKEN=… bash scripts/docs/ensure_language_server.sh` |
 | `Unit tests failed` / `Integration tests failed` / `E2E tests failed` | MCP / tests | Read pytest output in same job; check `test-results/*-output.txt` artifacts |
 | `::error::Unit tests failed with outcome` | MCP | Aggregation step; scroll to failing pytest step |
 
