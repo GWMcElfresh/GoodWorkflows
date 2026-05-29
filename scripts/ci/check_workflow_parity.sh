@@ -171,7 +171,6 @@ report_missing "main.nf (stale check_workflows.sh register entries)" "error" "${
 # Resolve repo-root test-data paths referenced in check_workflows.sh register blocks
 echo ""
 echo "── check_workflows.sh test-data samplesheet paths ──"
-GW_DIR="${PROJECT_DIR}/template/gw"
 while read -r ss_file; do
     [[ -z "${ss_file}" ]] && continue
     resolved="${PROJECT_DIR}/${ss_file}"
