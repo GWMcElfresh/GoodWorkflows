@@ -69,6 +69,7 @@ SAMPLESHEET_EOF
                 PROFILE="test_tcr_mil"
                 ;;
             batch_effect_assessments)
+                bash "${PROJECT_DIR}/scripts/ci/ensure_batch_effect_smoke_fixture.sh"
                 SAMPLESHEET="${PROJECT_DIR}/test-data/batch_effect_assessments/samplesheet.csv"
                 PROFILE="test"
                 ;;

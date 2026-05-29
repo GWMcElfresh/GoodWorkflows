@@ -190,6 +190,9 @@ echo " Pipeline:    ${PIPELINE_ROOT}"
 echo " Template:    ${SCRIPT_DIR}"
 echo ""
 
+# Stub-run for batch_effect_assessments requires test-data SMOKE.rds on disk (INGEST_FILE path check).
+bash "${PIPELINE_ROOT}/scripts/ci/ensure_batch_effect_smoke_fixture.sh" 2>/dev/null || true
+
 errors=0
 if command -v nextflow &>/dev/null 2>&1; then
     echo -e "${GREEN}[OK]   Nextflow found: $(nextflow -version 2>&1 | head -1)${NC}"

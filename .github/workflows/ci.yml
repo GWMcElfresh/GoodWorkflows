@@ -103,7 +103,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        workflow: [ingest_export, ingest_tabulate, integration, nmf_vae]
+        workflow: [ingest_export, ingest_tabulate, integration, nmf_vae, batch_effect_assessments]
 
     steps:
       - name: Checkout
