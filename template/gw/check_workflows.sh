@@ -61,7 +61,6 @@ PIPELINE_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
 # shellcheck source=../../scripts/test/lib/host_profile.sh
 source "${PIPELINE_ROOT}/scripts/test/lib/host_profile.sh"
-GW_REPO_ROOT="${PIPELINE_ROOT}"
 
 resolve_samplesheet_path() {
     local rel="$1"

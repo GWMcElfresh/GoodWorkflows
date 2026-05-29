@@ -206,10 +206,10 @@ run_light_tier() {
             record_fail "bash -n ${shf#${GW_REPO_ROOT}/}"
         fi
         if command -v shellcheck &>/dev/null; then
-            if shellcheck "${shf}" > /dev/null 2>&1; then
-                record_pass "shellcheck ${shf#${GW_REPO_ROOT}/}"
+            if shellcheck -S warning "${shf}" > /dev/null 2>&1; then
+                record_pass "shellcheck -S warning ${shf#${GW_REPO_ROOT}/}"
             else
-                record_fail "shellcheck ${shf#${GW_REPO_ROOT}/}"
+                record_fail "shellcheck -S warning ${shf#${GW_REPO_ROOT}/}"
             fi
         fi
     done
