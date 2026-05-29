@@ -145,7 +145,7 @@ RUN mkdir -p "${R_LIBS_SITE}" \
         cat('R site-library OK\n') \
     "
 
-ENV R_LIBS="${R_LIBS_SITE}:${R_LIBS}"
+ENV R_LIBS="${R_LIBS_SITE}"
 
 # ---- runtime (published :latest on main) -------------------------------------
 FROM deps AS runtime

@@ -224,10 +224,18 @@ workflow_real_allowed() {
     esac
 }
 
-# Returns 0 if workflow needs --scmodal_use_cpu true on stub-run (integration only)
+# Returns 0 if workflow needs integration CPU stub args on this host (integration only).
+# Args: host workflow (same convention as workflow_real_allowed).
 workflow_needs_cpu_stub() {
+    local host="${1:-${GW_RESOLVED_HOST}}"
     local wf="$2"
-    [[ "${wf}" == "integration" ]]
+    local arg
+
+    [[ "${wf}" == "integration" ]] || return 1
+    while IFS= read -r arg; do
+        [[ -n "${arg}" ]] && return 0
+    done < <(_yaml_list "${host}" integration_stub_args)
+    return 1
 }
 
 host_has_requirement() {
