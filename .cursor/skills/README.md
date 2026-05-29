@@ -75,11 +75,14 @@ The run should play out the same way each time:
 1. `pipeline` reads state through `goodworkflows-state-manager` and records the evolve cycle.
 2. `00-context` gathers closest workflow, module, config, launcher, docs, schema, and memory-bank patterns.
 3. `grill-me` + `01-requirements` create/update `requirements-grill/{cycle}-{cli}.md` and grill until the contract is accepted.
-4. `02-verify-plan` checks that contract, including samplesheet drift risk.
+4. `02-verify-plan` checks that contract, including samplesheet drift risk and launcher surfaces.
 5. `04-tech-plan` plans DSL2, templates, launchers, docs, CI, tests, and verification, using specialist subagents when surfaces can be split.
-6. `05-verify-tech` through `13-real-run-smoke` proceed only as far as the accepted scope requires, with state updates at each stage boundary.
+6. `06-tech-tooling` is **required** before `07-build` for new workflows (fixtures, `run.sh`, CI smoke plan).
+7. `05-verify-tech` through `13-real-run-smoke` proceed only as far as the accepted scope requires, with state updates at each stage boundary.
 
 For samplesheets, every new workflow must maintain a drift ledger from requirements through release: required and optional columns, mode-specific constraints, parser/validator surfaces, generator surfaces, example samplesheets, docs/schema, launchers, tests, CI smoke inputs, and `memory-bank/` references must agree. Any column rename, default, optionality change, or mode constraint change is drift until those surfaces are updated or the gap is recorded.
+
+**Launcher-ready** is separate from DSL2-ready: `template/gw/run.sh`, `check_workflows.sh`, fixtures, and `bash scripts/ci/check_workflow_parity.sh` must align with `main.nf` before handoff. See `pipeline` Completion Contract.
 
 ## Lifecycle Routing
 

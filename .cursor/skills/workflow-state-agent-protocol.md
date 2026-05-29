@@ -52,6 +52,17 @@ Use only when `workflow-state.yaml` is missing or malformed and the user approve
 - State is bookkeeping, not proof. Verification records must name exact commands or explain skipped checks.
 - If state and code disagree, code and docs are evidence; state should record the drift rather than hide it.
 
+## Stage validity (new saved workflows)
+
+Reject or record drift when:
+
+| Condition | Action |
+| --- | --- |
+| `07-build` active while `06-tech-tooling` is `pending` | Block advance; complete 06 first |
+| `07-build` completed without launcher checklist | Set `issue_log`; keep cycle `in_progress` |
+| Grill launcher boxes checked but files missing | Record drift; block `11-verify-impl` pass |
+| Handoff claims stub-run without `check_workflows.sh` for new CLI | Block; require verification trio |
+
 ## Blocking Deviations
 
 Return `blocking: true` when:
@@ -61,3 +72,4 @@ Return `blocking: true` when:
 - the task would edit generated artifacts as source.
 - the requested handoff claims verification that did not run.
 - scope has drifted outside the active cycle or user request.
+- `scripts/ci/check_workflow_parity.sh` failed on launcher changes and handoff claims launcher-ready.

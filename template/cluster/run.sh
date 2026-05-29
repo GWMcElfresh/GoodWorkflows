@@ -49,6 +49,7 @@ set -euo pipefail
 #   tcr_mil        Ingest, quantify TCRs via tcrClustR, train BertTCR MIL   (GPU/HPC required)
 #   tcr_epitope    TCR clone embedding via ESM-2 + epitope binding prediction (GPU/HPC required)
 #   make_tcr_vector_database  Ingest, extract TRA/TRB, ESM-2 embed, per-cDNA FAISS vector DB (GPU/HPC required)
+#   batch_effect_assessments  Ingest Seurat RDS → LISI / CiLISI / ASW / optional kBET (HPC CPU)
 WORKFLOW="ingest_tabulate"
 
 # LabKey / Prime-seq server credentials (also requires ~/.netrc for authentication)

@@ -10,6 +10,7 @@ Use this when the process itself needs improvement.
 ## Review
 
 - What caused delay, confusion, or repeated tool failures?
+- Did a workflow ship in `main.nf` without launcher/CI parity? If yes, update `pipeline`, grill template, or `scripts/ci/check_workflow_parity.sh`.
 - Which DSL2/template/parity rules should become persistent guidance?
 - Were hooks too noisy or too weak?
 - Did state accurately reflect work and verification?

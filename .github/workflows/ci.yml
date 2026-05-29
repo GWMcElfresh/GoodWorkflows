@@ -42,7 +42,7 @@ jobs:
       - name: ShellCheck HPC and CI helpers
         run: |
           set -e
-          for f in slurm_nextflow.sh slurm_sync_repo.sh template/gw/run.sh template/gw/setup.sh template/gw/fetch_example_data.sh template/cluster/run.sh scripts/*.sh scripts/ci/*.sh; do
+          for f in slurm_nextflow.sh slurm_sync_repo.sh template/gw/run.sh template/gw/setup.sh template/gw/fetch_example_data.sh template/gw/check_workflows.sh template/cluster/run.sh scripts/*.sh scripts/ci/*.sh; do
             test -f "$f" || { echo "::error::Missing file: $f"; exit 1; }
           done
           shellcheck -S warning \
@@ -51,6 +51,7 @@ jobs:
             template/gw/run.sh \
             template/gw/setup.sh \
             template/gw/fetch_example_data.sh \
+            template/gw/check_workflows.sh \
             template/cluster/run.sh \
             scripts/*.sh \
             scripts/ci/*.sh || {
@@ -79,6 +80,9 @@ jobs:
           curl -s https://get.nextflow.io | bash
           sudo mv nextflow /usr/local/bin/nextflow
           nextflow -version
+
+      - name: Workflow launcher parity
+        run: bash scripts/ci/check_workflow_parity.sh
 
       - name: Validate Nextflow profiles & workflow syntax
         run: |

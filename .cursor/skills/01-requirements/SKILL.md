@@ -22,6 +22,8 @@ Use `grill-me` before treating requirements as complete.
 - Scientific purpose and stage sequence.
 - Input samplesheet name, required columns, optional columns, and mode-specific constraints.
 - Samplesheet drift ledger: parser/validator surfaces, generator surfaces, example samplesheets, docs/schema, launchers, tests, CI smoke inputs, and `memory-bank/` references that must agree.
+- **Launcher surfaces checklist** (separate from DSL2 drift): `run.sh`, `check_workflows.sh`, `fetch_example_data.sh`, `setup.sh`/manifest, cluster comments, CI matrix—see grill template.
+- **Fixture strategy** and **samplesheet path convention** (repo-root `test-data/` vs `template/gw/`).
 - Required params, defaults, and schema/doc impact.
 - Outputs, published paths, and data format expectations.
 - Compute target: CPU, local GPU, SLURM GPU, or optional real-run profile.

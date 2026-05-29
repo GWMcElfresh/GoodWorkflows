@@ -9,9 +9,25 @@ This stage validates workflow behavior at the largest practical scope.
 
 ## Stub/E2E Options
 
+- **Required for new workflows:** `template/gw/check_workflows.sh --workflow <cli>` (not only full serial run).
 - `template/gw/check_workflows.sh` for serial local scaffold checks.
-- `scripts/ci/run_nextflow_smoke_tests.sh` for CI-equivalent workflow/module checks.
-- `nextflow run main.nf -profile test -stub-run --workflow <name> --input <samplesheet>` for targeted workflow wiring.
+- `scripts/ci/run_nextflow_smoke_tests.sh workflow <cli>` for CI-equivalent checks.
+- `nextflow run main.nf -profile test -stub-run --workflow <name> --input <samplesheet>` for targeted wiring.
+
+## Path rules
+
+- Samplesheets under repo-root `test-data/` must resolve via `PIPELINE_ROOT` in `check_workflows.sh` (not `template/gw/test-data/...`).
+- Registry `register` lines using `--input test-data/...` are valid when the file exists at `${PIPELINE_ROOT}/test-data/...`.
+
+## Parity
+
+Run before closing an evolve cycle:
+
+```bash
+bash scripts/ci/check_workflow_parity.sh
+```
+
+Use `--strict-ci` when CI matrix must include every `main.nf` workflow.
 
 ## Real Run Boundary
 

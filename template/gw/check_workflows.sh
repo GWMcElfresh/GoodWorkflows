@@ -54,6 +54,17 @@ NC='\033[0m'
 # ── Paths ────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+# Repo-root test-data paths must not resolve under template/gw/.
+resolve_samplesheet_path() {
+    local rel="$1"
+    if [[ "${rel}" == test-data/* ]]; then
+        echo "${PIPELINE_ROOT}/${rel}"
+    else
+        echo "${SCRIPT_DIR}/${rel}"
+    fi
+}
+
 RESULTS=()
 STUB_MODE=true
 SINGLE_WF=""
@@ -239,7 +250,7 @@ for wf_name in "${WORKFLOW_NAMES[@]}"; do
     else
         ss_file="${stub_args}"
     fi
-    ss_path="${SCRIPT_DIR}/${ss_file}"
+    ss_path="$(resolve_samplesheet_path "${ss_file}")"
 
     if [[ ! -f "${ss_path}" ]]; then
         echo -e "${YELLOW}[WARN] ${wf_name}: samplesheet '${ss_file}' not found${NC}"
@@ -333,10 +344,10 @@ for wf_name in "${RUN_LIST[@]}"; do
         EXTRA=""
         if echo "${stub_args}" | grep -q -- "--input"; then
             ss_file=$(echo "${stub_args}" | sed 's/.*--input //' | awk '{print $1}')
-            INPUT_FLAG="--input ${SCRIPT_DIR}/${ss_file}"
+            INPUT_FLAG="--input $(resolve_samplesheet_path "${ss_file}")"
             EXTRA=$(echo "${stub_args}" | sed 's/--input [^ ]* *//g')
-        elif [[ -n "${stub_args}" ]] && [[ -f "${SCRIPT_DIR}/${stub_args}" ]]; then
-            INPUT_FLAG="--input ${SCRIPT_DIR}/${stub_args}"
+        elif [[ -n "${stub_args}" ]] && [[ -f "$(resolve_samplesheet_path "${stub_args}")" ]]; then
+            INPUT_FLAG="--input $(resolve_samplesheet_path "${stub_args}")"
         elif [[ -f "${SCRIPT_DIR}/samplesheet.csv" ]]; then
             INPUT_FLAG="--input ${SCRIPT_DIR}/samplesheet.csv"
         fi
@@ -350,7 +361,7 @@ for wf_name in "${RUN_LIST[@]}"; do
         EXTRA=""
         if echo "${real_args}" | grep -q -- "--input"; then
             ss_file=$(echo "${real_args}" | sed 's/.*--input //' | awk '{print $1}')
-            INPUT_FLAG="--input ${SCRIPT_DIR}/${ss_file}"
+            INPUT_FLAG="--input $(resolve_samplesheet_path "${ss_file}")"
             EXTRA=$(echo "${real_args}" | sed 's/--input [^ ]* *//g')
         fi
         # shellcheck disable=SC2206
