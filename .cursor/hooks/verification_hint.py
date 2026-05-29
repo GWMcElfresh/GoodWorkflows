@@ -1,12 +1,13 @@
 """Cursor stop hook that suggests GoodWorkflows verification from git diff.
 
 This does not run heavy tests. It emits concise advisory context when changed
-files imply a likely verification path.
+files imply a likely verification path, including host-aware test entrypoint hints.
 """
 
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -35,6 +36,56 @@ def changed_files(repo: Path) -> list[str]:
     return [line.strip() for line in proc.stdout.splitlines() if line.strip()]
 
 
+def resolve_test_host(repo: Path) -> tuple[str, str]:
+    """Return (host_id, default_tier) using host_profile.sh when available."""
+    local_override = repo / "template" / "gw" / ".test-host"
+    if local_override.is_file():
+        for line in local_override.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line.startswith("export GW_TEST_HOST="):
+                host = line.split("=", 1)[1].strip().strip('"').strip("'")
+                if host:
+                    return host, _default_tier_for(host)
+
+    if os.environ.get("GW_TEST_HOST"):
+        host = os.environ["GW_TEST_HOST"]
+        return host, _default_tier_for(host)
+
+    profile_sh = repo / "scripts" / "test" / "lib" / "host_profile.sh"
+    if profile_sh.is_file():
+        try:
+            proc = subprocess.run(
+                [
+                    "bash",
+                    "-c",
+                    f'source "{profile_sh}" && GW_REPO_ROOT="{repo}" && '
+                    "resolve_test_host auto && host_default_tier \"${GW_RESOLVED_HOST}\"",
+                ],
+                cwd=repo,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
+            )
+            lines = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+            if len(lines) >= 2:
+                return lines[0], lines[1]
+            if len(lines) == 1:
+                return lines[0], _default_tier_for(lines[0])
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            pass
+
+    import platform
+
+    if platform.system() == "Darwin":
+        return "mac", "stub"
+    return "wsl", "light"
+
+
+def _default_tier_for(host: str) -> str:
+    return {"wsl": "light", "mac": "stub", "bazzite": "stub"}.get(host, "light")
+
+
 def hints(files: list[str]) -> list[str]:
     result: list[str] = []
     if any(path.endswith((".nf", ".config")) for path in files):
@@ -50,6 +101,21 @@ def hints(files: list[str]) -> list[str]:
     return result
 
 
+def host_test_hints(repo: Path) -> list[str]:
+    host, default_tier = resolve_test_host(repo)
+    lines = [
+        f"Resolved host: {host} (default tier: {default_tier})",
+        "Run: bash scripts/test/run_host_tests.sh --affected",
+    ]
+    if default_tier == "light":
+        lines.append("Full serial stub: bash scripts/test/run_host_tests.sh --tier stub")
+    if host == "mac":
+        lines.append("CPU real run: bash scripts/test/run_host_tests.sh --tier real --workflow ingest_export")
+    if host == "bazzite":
+        lines.append("GPU real run: bash scripts/test/run_host_tests.sh --tier real --workflow integration")
+    return lines
+
+
 def main() -> int:
     try:
         json.load(sys.stdin)
@@ -62,11 +128,19 @@ def main() -> int:
         return 0
 
     suggested = hints(changed_files(repo))
-    if not suggested:
+    host_lines = host_test_hints(repo)
+
+    if not suggested and not host_lines:
         print("{}")
         return 0
 
-    message = "[goodworkflows-verify]\n" + "\n".join(f"- {item}" for item in suggested)
+    parts: list[str] = []
+    if suggested:
+        parts.append("[goodworkflows-verify]\n" + "\n".join(f"- {item}" for item in suggested))
+    if host_lines:
+        parts.append("[goodworkflows-host-test]\n" + "\n".join(f"- {item}" for item in host_lines))
+
+    message = "\n\n".join(parts)
     print(json.dumps({"additional_context": message}))
     return 0
 

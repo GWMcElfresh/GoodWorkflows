@@ -29,7 +29,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         ca-certificates \
+        cmake \
         curl \
+        gfortran \
         git \
         gnupg \
         libcurl4-openssl-dev \
@@ -42,6 +44,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libtiff5-dev \
         libjpeg-dev \
         libpng-dev \
+        libhdf5-dev \
+        libnetcdf-dev \
+        libgsl-dev \
+        libgit2-dev \
+        libglpk-dev \
+        libuv1-dev \
+        pandoc \
         pkg-config \
         wget \
     && rm -rf /var/lib/apt/lists/*
@@ -111,6 +120,27 @@ RUN if [ "${SKIP_BASE_DEPS}" = "true" ]; then \
     && R --version | head -n1 \
     && rustc --version \
     && cargo --version
+
+# ---- pre-install R packages (batch_effect_assessments + uvr workflows) ------
+ENV R_LIBS_SITE=/usr/local/lib/R/site-library \
+    UVR_INSTALL_SYSREQS=1
+
+RUN mkdir -p "${R_LIBS_SITE}" \
+    && R --quiet -e " \
+        options(repos = c(CRAN = 'https://cloud.r-project.org')); \
+        pkgs <- c('Rcpp', 'jsonlite', 'tidyverse', 'Seurat'); \
+        install.packages( \
+            pkgs, \
+            lib = Sys.getenv('R_LIBS_SITE'), \
+            Ncpus = max(1L, parallel::detectCores() - 1L), \
+            dependencies = TRUE \
+        ); \
+        missing <- pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]; \
+        if (length(missing)) stop('Missing R packages: ', paste(missing, collapse = ', ')); \
+        cat('R site-library OK\n') \
+    "
+
+ENV R_LIBS="${R_LIBS_SITE}:${R_LIBS}"
 
 # ---- runtime (published :latest on main) -------------------------------------
 FROM deps AS runtime

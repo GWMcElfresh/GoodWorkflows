@@ -48,6 +48,7 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Usage: usage.md
+  - Testing on multiple hosts: testing-hosts.md
   - Workflows:
     - Integration Pipeline: workflows/integration-pipeline.md
     - Ingest + Export: workflows/ingest-export.md

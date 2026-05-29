@@ -29,6 +29,9 @@ template/gw/*_samplesheet.csv
 template/gw/tabulate_samplesheet.csv
 template/gw/samplesheet.csv
 
+# Local test host override (machine-specific; not committed)
+template/gw/.test-host
+
 # ARCHS4 GEO metadata cache
 .archs4/
 

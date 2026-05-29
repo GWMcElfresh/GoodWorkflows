@@ -86,6 +86,19 @@ Seeded synthetic fixture bundle used for:
 - Vignette walkthrough
 - Does not depend on sensitive or machine-local files
 
+## Local multi-host testing
+
+CI uses `-profile test -stub-run` on GitHub Actions runners. Local development uses host profiles in `template/gw/test-hosts.yaml`:
+
+| Layer | Command | Scope |
+|-------|---------|-------|
+| **Entrypoint** | `bash scripts/test/run_host_tests.sh` | Auto host + default tier |
+| **Light (WSL default)** | `--tier light` or `--affected` | Config, `bash -n`, CI smoke for touched workflows |
+| **Stub** | `--tier stub` | Serial `check_workflows.sh` stub-run |
+| **Real** | `--tier real` | Podman; Mac CPU-only; Bazzite all workflows |
+
+Cursor skill `18-host-test` and hook `verification_hint.py` suggest the entrypoint after edits.
+
 ## CI Design Principles
 
 1. **Stub-run for speed** — No real computation in CI; stub blocks validate wiring

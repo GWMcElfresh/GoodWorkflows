@@ -34,6 +34,8 @@
 
 Built from repo `Dockerfile` (`foundation` → `deps` → `runtime`); published by `.github/workflows/docker-publish.yml` via [dockerDependencies](https://github.com/GWMcElfresh/dockerDependencies). Module images above remain the default Nextflow runtimes for existing workflows.
 
+**Pre-baked in `deps` / `:latest`:** system libs for Seurat/shiny (`cmake`, `libuv1-dev`, `libglpk-dev`, `pandoc`, HDF5/NetCDF/GSL/git2), site-library **`tidyverse`**, **`Seurat`**, **`jsonlite`**, **`Rcpp`**; `UVR_INSTALL_SYSREQS=1` for transient `uvr` workspaces.
+
 **Ad-hoc dependency patterns:**
 
 - Python: `uv pip install --system <pkg>` on system 3.10, or `uv python install 3.12` + `uv venv --python 3.12`

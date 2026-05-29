@@ -58,6 +58,35 @@ Published under `outputs/batch_effect_assessments/`:
 
 ## Verification
 
+**Fixtures for real / local Podman runs**
+
+| Artifact | Path | Purpose |
+|----------|------|---------|
+| Committed samplesheet | `test-data/batch_effect_assessments/samplesheet.csv` | Defines `batch_column`, methods, and `path` to RDS |
+| Generated Seurat RDS | `test-data/batch_effect_assessments/SMOKE.rds` | Ingest input (not committed; gitignored `*.rds`) |
+
+Generate the RDS once (requires R + Seurat; uses **PBMC3k with mocked RIRA columns**, not `small_rira.rds`):
+
+```bash
+Rscript scripts/ci/create_batch_effect_smoke_rds.R
+# or
+bash scripts/ci/ensure_batch_effect_smoke_fixture.sh
+```
+
+If `template/gw/data/pbmc3k_human.rds` exists (from `fetch_example_data.sh`), that subset is reused; otherwise pbmc3k is downloaded via SeuratData.
+
+The RDS must include:
+
+- `Batch` column in `meta.data` (matches samplesheet `batch_column`); **three batches** (`Batch1`–`Batch3`) assigned **at random** per cell (≥20 cells per batch)
+- ≥20 cells per batch (`batch_assessment_min_cells_per_batch`)
+- At least one reduction (generator runs Normalize → Scale → PCA)
+- Mocked RIRA columns for CiLISI / `CELLTYPE_ASW`:
+  - `RIRA_Immune.cellclass` — TNK vs Myeloid from PBMC3k cluster groups
+  - `RIRA_TNK_v2.cellclass` — CD4 / CD8 for TNK cells
+  - `RIRA_Myeloid_v3.cellclass` — mono/DC labels for Myeloid cells
+
+Stub/smoke only needs the file to exist (empty placeholder OK for `-stub-run`).
+
 ```bash
 nextflow run main.nf -profile test -stub-run \
   --workflow batch_effect_assessments \

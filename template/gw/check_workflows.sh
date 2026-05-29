@@ -17,9 +17,13 @@
 #   bash check_workflows.sh --real                    # real runs on test data
 #   bash check_workflows.sh --workflow nmf_vae        # single workflow, stub
 #   bash check_workflows.sh --real --workflow nmf_vae # single workflow, real
+#   bash check_workflows.sh --host mac --tier real --workflow ingest_export
 #   bash check_workflows.sh --help                    # show usage
 #
-# PURPOSE:
+# Host profiles (see template/gw/test-hosts.yaml):
+#   --host auto|wsl|mac|bazzite   Test machine profile (default: auto-detect)
+#   --tier auto|light|stub|real   Test depth (default: host default_tier)
+#   Light tier: use scripts/test/run_host_tests.sh instead
 #   Validates every workflow compiles (--stub, default) or actually runs
 #   on toy test data (--real). Pre-flights: Nextflow availability, samplesheet
 #   integrity, data files. Auto-discovers workflows from main.nf — anything in
@@ -55,7 +59,10 @@ NC='\033[0m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 
-# Repo-root test-data paths must not resolve under template/gw/.
+# shellcheck source=../../scripts/test/lib/host_profile.sh
+source "${PIPELINE_ROOT}/scripts/test/lib/host_profile.sh"
+GW_REPO_ROOT="${PIPELINE_ROOT}"
+
 resolve_samplesheet_path() {
     local rel="$1"
     if [[ "${rel}" == test-data/* ]]; then
@@ -68,6 +75,10 @@ resolve_samplesheet_path() {
 RESULTS=()
 STUB_MODE=true
 SINGLE_WF=""
+TEST_HOST="auto"
+TEST_TIER="auto"
+RESOLVED_TIER=""
+SKIPPED=0
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # WORKFLOW REGISTRY (overrides for non-default samplesheets / flags)
@@ -113,13 +124,10 @@ declare -A ALL_WORKFLOWS
 NF_WORKFLOWS=()
 
 if [[ -f "${PIPELINE_ROOT}/main.nf" ]]; then
-    NF_RAW=$(awk '/supportedWorkflows\s*=\s*\[/{p=1; buf=$0; next} p{buf=buf $0} p && /\]/{p=0; print buf; buf=""}' \
-        "${PIPELINE_ROOT}/main.nf" 2>/dev/null || true)
-    if [[ -n "${NF_RAW}" ]]; then
-        while IFS= read -r wf; do
-            [[ -n "${wf}" ]] && NF_WORKFLOWS+=("${wf}")
-        done < <(echo "${NF_RAW}" | grep -oP "'[^']+'" | tr -d "'")
-    fi
+    while IFS= read -r wf; do
+        [[ -n "${wf}" ]] && NF_WORKFLOWS+=("${wf}")
+    done < <(sed -n "/supportedWorkflows = \[/,/\]/p" "${PIPELINE_ROOT}/main.nf" 2>/dev/null \
+        | grep -oE "'[a-z_]+'" | tr -d "'" || true)
 fi
 
 for wf in "${!WF_STUB[@]}"; do ALL_WORKFLOWS["${wf}"]="${wf}"; done
@@ -133,28 +141,34 @@ mapfile -t WORKFLOW_NAMES < <(for wf in "${!ALL_WORKFLOWS[@]}"; do echo "${wf}";
 # ── Parse args ───────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        --real)     STUB_MODE=false; shift ;;
-        --stub)     STUB_MODE=true;  shift ;;
+        --real)     STUB_MODE=false; TEST_TIER="real"; shift ;;
+        --stub)     STUB_MODE=true;  TEST_TIER="stub"; shift ;;
+        --host)     TEST_HOST="$2";  shift 2 ;;
+        --host=*)   TEST_HOST="${1#*=}"; shift ;;
+        --tier)     TEST_TIER="$2";  shift 2 ;;
+        --tier=*)   TEST_TIER="${1#*=}"; shift ;;
         --workflow) SINGLE_WF="$2";  shift 2 ;;
         --workflow=*) SINGLE_WF="${1#*=}"; shift ;;
         --help|-h)
-            echo "Usage: bash check_workflows.sh [--real] [--workflow <name>]"
+            echo "Usage: bash check_workflows.sh [--host auto|wsl|mac|bazzite] [--tier auto|stub|real] [--workflow <name>]"
             echo ""
-            echo "Modes:"
-            echo "  (no flag)  Quick stub-run validation (default)"
-            echo "             No containers needed — validates compilation."
-            echo "  --real     Full pipeline execution on toy test data."
-            echo "             Requires: 'bash setup.sh' first, then"
-            echo "             'bash fetch_example_data.sh' to generate data."
+            echo "Modes (--tier, or legacy --stub / --real):"
+            echo "  stub (default on most hosts)  Serial -stub-run -profile test"
+            echo "  real                          Podman runs (host-filtered on mac)"
+            echo "  light                         Use: bash scripts/test/run_host_tests.sh"
             echo ""
             echo "Options:"
+            echo "  --host X      Test host profile (default: auto-detect)"
             echo "  --workflow X  Run a single workflow instead of all"
             echo "  --help        Show this message"
             echo ""
             echo "Registered workflows:"
             for wf in "${!ALL_WORKFLOWS[@]}"; do echo "  - ${wf}"; done
             echo ""
-            echo "Prerequisites for --real mode:"
+            echo "Host profiles: template/gw/test-hosts.yaml"
+            echo "Override: template/gw/.test-host (export GW_TEST_HOST=bazzite)"
+            echo ""
+            echo "Prerequisites for --tier real:"
             echo "  - Container images pulled:  bash setup.sh"
             echo "  - Test data generated:      bash fetch_example_data.sh"
             echo "  - Nextflow on PATH"
@@ -166,6 +180,29 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+resolve_test_host "${TEST_HOST}"
+RESOLVED_TIER="$(resolve_tier "${GW_RESOLVED_HOST}" "${TEST_TIER}")"
+STUB_MODE=true
+case "${RESOLVED_TIER}" in
+    light)
+        echo -e "${YELLOW}Light tier is handled by the host test entrypoint:${NC}"
+        echo "  bash scripts/test/run_host_tests.sh --host ${GW_RESOLVED_HOST} --tier light"
+        exit 0
+        ;;
+    stub)  STUB_MODE=true ;;
+    real)  STUB_MODE=false ;;
+    *)
+        echo -e "${RED}Unknown tier '${RESOLVED_TIER}'${NC}"
+        exit 1
+        ;;
+esac
+
+if ! ${STUB_MODE} && ! host_real_allowed "${GW_RESOLVED_HOST}"; then
+    echo -e "${RED}ERROR: Real runs are not allowed on host '${GW_RESOLVED_HOST}'.${NC}"
+    echo "Use --tier stub or run on mac/bazzite."
+    exit 1
+fi
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # Auto-register: any workflow in main.nf not in the registry gets defaults
@@ -186,6 +223,8 @@ echo "║  GoodWorkflows — Workflow Sanity Check                  ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 echo " Mode:        $(${STUB_MODE} && echo 'stub-run (quick)' || echo 'REAL (containers)')"
+echo " Host:        ${GW_RESOLVED_HOST}"
+echo " Tier:        ${RESOLVED_TIER}"
 echo " Pipeline:    ${PIPELINE_ROOT}"
 echo " Template:    ${SCRIPT_DIR}"
 echo ""
@@ -282,8 +321,11 @@ for wf_name in "${WORKFLOW_NAMES[@]}"; do
             while IFS=, read -r -a row; do
                 val="${row[$((path_col - 1))]}"
                 val="${val//\"/}"
-                if [[ -n "${val}" && ! -f "${val}" ]]; then
-                    missing=$((missing + 1))
+                if [[ -n "${val}" ]]; then
+                    resolved_val="$(resolve_samplesheet_path "${val}")"
+                    if [[ ! -f "${resolved_val}" ]]; then
+                        missing=$((missing + 1))
+                    fi
                 fi
             done < <(tail -n +2 "${ss_path}")
             if [[ "${missing}" -gt 0 ]]; then
@@ -320,14 +362,29 @@ echo ""
 
 TOTAL=0; PASSED=0; FAILED=0
 
+REAL_PROFILE="$(host_real_profile "${GW_RESOLVED_HOST}")"
+STUB_PROFILE="$(host_stub_profile "${GW_RESOLVED_HOST}")"
+
 # ── Verify test profile loads ────────────────────────────────────────────────
 if ${STUB_MODE}; then
-    nextflow config -profile test "${PIPELINE_ROOT}/main.nf" > /dev/null 2>&1 || \
-        echo -e "${YELLOW}[WARN] 'nextflow config -profile test' failed — config may be broken${NC}"
+    nextflow config -profile "${STUB_PROFILE}" "${PIPELINE_ROOT}/main.nf" > /dev/null 2>&1 || \
+        echo -e "${YELLOW}[WARN] 'nextflow config -profile ${STUB_PROFILE}' failed — config may be broken${NC}"
 fi
 
 # ── Main run loop ─────────────────────────────────────────────────────────────
 for wf_name in "${RUN_LIST[@]}"; do
+    if ! ${STUB_MODE}; then
+        if ! workflow_real_allowed "${GW_RESOLVED_HOST}" "${wf_name}" true; then
+            echo -e "${BOLD}[$((TOTAL + 1))/${#RUN_LIST[@]}] ${wf_name}${NC}"
+            echo -e "  ${YELLOW}⊘ SKIP${NC} (GPU workflow on ${GW_RESOLVED_HOST}; real CPU-only on mac)"
+            TOTAL=$((TOTAL + 1))
+            SKIPPED=$((SKIPPED + 1))
+            RESULTS+=("${wf_name}|SKIP|—")
+            echo ""
+            continue
+        fi
+    fi
+
     stub_args="${WF_STUB[${wf_name}]-samplesheet.csv}"
     real_args="${WF_REAL[${wf_name}]-}"
 
@@ -355,9 +412,16 @@ for wf_name in "${RUN_LIST[@]}"; do
             INPUT_FLAG="--input ${SCRIPT_DIR}/samplesheet.csv"
         fi
 
+        CPU_STUB_ARGS=()
+        if workflow_needs_cpu_stub "${GW_RESOLVED_HOST}" "${wf_name}"; then
+            while IFS= read -r arg; do
+                [[ -n "${arg}" ]] && CPU_STUB_ARGS+=("${arg}")
+            done < <(host_integration_stub_args "${GW_RESOLVED_HOST}")
+        fi
+
         # shellcheck disable=SC2206
-        CMD=(nextflow run "${PIPELINE_ROOT}/main.nf" -stub-run -profile test \
-            --workflow "${wf_name}" ${INPUT_FLAG} ${EXTRA} \
+        CMD=(nextflow run "${PIPELINE_ROOT}/main.nf" -stub-run -profile "${STUB_PROFILE}" \
+            --workflow "${wf_name}" ${INPUT_FLAG} ${EXTRA} "${CPU_STUB_ARGS[@]}" \
             --outdir "${OUTPUT_DIR}/outputs")
     else
         INPUT_FLAG=""
@@ -367,8 +431,9 @@ for wf_name in "${RUN_LIST[@]}"; do
             INPUT_FLAG="--input $(resolve_samplesheet_path "${ss_file}")"
             EXTRA=$(echo "${real_args}" | sed 's/--input [^ ]* *//g')
         fi
+        export GW_RUN_PROFILE="${REAL_PROFILE}"
         # shellcheck disable=SC2206
-        CMD=(bash "${SCRIPT_DIR}/run.sh" --workflow "${wf_name}" ${INPUT_FLAG} ${EXTRA})
+        CMD=(bash "${SCRIPT_DIR}/run.sh" --profile "${REAL_PROFILE}" --workflow "${wf_name}" ${INPUT_FLAG} ${EXTRA})
     fi
 
     echo -e "${BOLD}[$((TOTAL + 1))/${#RUN_LIST[@]}] ${wf_name}${NC}"
@@ -421,14 +486,19 @@ for result in "${RESULTS[@]}"; do
     IFS='|' read -r name status duration <<< "${result}"
     if [[ "${status}" == "PASS" ]]; then
         printf "  ${GREEN}%-20s %-6s${NC} %s\n" "${name}" "${status}" "${duration}"
+    elif [[ "${status}" == "SKIP" ]]; then
+        printf "  ${YELLOW}%-20s %-6s${NC} %s\n" "${name}" "${status}" "${duration}"
     else
         printf "  ${RED}%-20s %-6s${NC} %s\n" "${name}" "${status}" "${duration}"
     fi
 done
 echo ""
-echo "  Total:  ${TOTAL}"
-echo -e "  ${GREEN}Passed: ${PASSED}${NC}"
-echo -e "  ${RED}Failed: ${FAILED}${NC}"
+echo "  Total:   ${TOTAL}"
+echo -e "  ${GREEN}Passed:  ${PASSED}${NC}"
+echo -e "  ${RED}Failed:  ${FAILED}${NC}"
+if [[ ${SKIPPED} -gt 0 ]]; then
+    echo -e "  ${YELLOW}Skipped: ${SKIPPED}${NC}"
+fi
 echo ""
 
 if [[ ${FAILED} -gt 0 ]]; then

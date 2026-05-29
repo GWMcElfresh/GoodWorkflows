@@ -9,6 +9,7 @@ This stage validates workflow behavior at the largest practical scope.
 
 ## Stub/E2E Options
 
+- **Host-aware local tests:** `bash scripts/test/run_host_tests.sh` (skill `18-host-test`) — WSL light, Mac CPU-real, Bazzite GPU-real.
 - **Required for new workflows:** `template/gw/check_workflows.sh --workflow <cli>` (not only full serial run).
 - `template/gw/check_workflows.sh` for serial local scaffold checks.
 - `scripts/ci/run_nextflow_smoke_tests.sh workflow <cli>` for CI-equivalent checks.
@@ -31,7 +32,7 @@ Use `--strict-ci` when CI matrix must include every `main.nf` workflow.
 
 ## Real Run Boundary
 
-Real Podman/GPU/SLURM checks belong in `13-real-run-smoke` unless explicitly requested here. Do not present real-run failures as stub-run failures or vice versa.
+Host-filtered real Podman runs via `scripts/test/run_host_tests.sh --tier real` are allowed on Mac (CPU workflows) and Bazzite (all workflows). Full GPU/SLURM proof beyond that belongs in `13-real-run-smoke` when explicitly requested. Do not present real-run failures as stub-run failures or vice versa.
 
 ## Output
 

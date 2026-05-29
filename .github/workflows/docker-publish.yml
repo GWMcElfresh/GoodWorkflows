@@ -49,6 +49,10 @@ jobs:
         echo "=== uv Python 3.12 ===" && uv python find 3.12 &&
         echo "=== uvr ===" && uvr --version &&
         echo "=== R ===" && R --version | head -n1 &&
+        echo "=== R tidyverse ===" &&
+        Rscript -e "suppressPackageStartupMessages(library(tidyverse)); cat('tidyverse ok\n')" &&
+        echo "=== R Seurat ===" &&
+        Rscript -e "suppressPackageStartupMessages(library(Seurat)); cat('Seurat ok\n')" &&
         echo "=== Rust ===" && rustc --version && cargo --version &&
         echo "All runtimes OK"
       push-images: true

@@ -42,7 +42,7 @@ def buildBatchEffectAssessmentsSamplesChannel(samplesheetPath) {
             }
 
             def methods = row.containsKey('integration_assessment_methods') && row.integration_assessment_methods?.trim()
-                ? row.integration_assessment_methods.toString().trim()
+                ? row.integration_assessment_methods.toString().trim().replaceAll('^"|"$', '')
                 : params.batch_assessment_default_methods.toString()
 
             def meta = [
@@ -78,6 +78,15 @@ workflow BATCH_EFFECT_ASSESSMENTS_PIPELINE {
     main:
     ch_samples = buildBatchEffectAssessmentsSamplesChannel(samplesheet)
 
+    def batchTpl = "${projectDir}/modules/local/batch_effect_assessments/templates"
+    def tpl_batch_utils = file("${batchTpl}/batch_metrics_utils.R")
+    def tpl_prep = file("${batchTpl}/prep_batch_assessment.R")
+    def tpl_ilisi = file("${batchTpl}/assess_ilisi.R")
+    def tpl_cilisi = file("${batchTpl}/assess_cilisi.R")
+    def tpl_asw = file("${batchTpl}/assess_asw.R")
+    def tpl_kbet = file("${batchTpl}/assess_kbet.R")
+    def tpl_collect = file("${batchTpl}/collect_batch_assessment.R")
+
     def ch_branched = ch_samples.branch { meta ->
         labkey: meta.mode == 'labkey'
         url:    meta.mode == 'url'
@@ -88,7 +97,9 @@ workflow BATCH_EFFECT_ASSESSMENTS_PIPELINE {
         .mix(INGEST_URL(ch_branched.url).rds)
         .mix(INGEST_FILE(ch_branched.file.map { m -> tuple(m, file(m.path)) }).rds)
 
-    PREP_BATCH_ASSESSMENT(ch_ingested)
+    PREP_BATCH_ASSESSMENT(
+        ch_ingested.map { meta, rds -> tuple(meta, rds, tpl_batch_utils, tpl_prep) }
+    )
 
     def ch_prep_by_id = PREP_BATCH_ASSESSMENT.out.prep
         .map { meta, prep_json -> tuple(meta.id, meta, prep_json) }
@@ -104,10 +115,18 @@ workflow BATCH_EFFECT_ASSESSMENTS_PIPELINE {
             }
         }
 
-    ASSESS_ILISI(ch_per_reduction)
-    ASSESS_CILISI(ch_per_reduction)
-    ASSESS_ASW(ch_per_reduction)
-    ASSESS_KBET(ch_per_reduction)
+    ASSESS_ILISI(ch_per_reduction.map { meta, rds, prep_json, red ->
+        tuple(meta, rds, prep_json, red, tpl_batch_utils, tpl_ilisi)
+    })
+    ASSESS_CILISI(ch_per_reduction.map { meta, rds, prep_json, red ->
+        tuple(meta, rds, prep_json, red, tpl_batch_utils, tpl_cilisi)
+    })
+    ASSESS_ASW(ch_per_reduction.map { meta, rds, prep_json, red ->
+        tuple(meta, rds, prep_json, red, tpl_batch_utils, tpl_asw)
+    })
+    ASSESS_KBET(ch_per_reduction.map { meta, rds, prep_json, red ->
+        tuple(meta, rds, prep_json, red, tpl_batch_utils, tpl_kbet)
+    })
 
     def ch_key = ch_per_reduction
         .map { meta, rds, prep_json, reduction -> tuple("${meta.id}::${reduction}", meta, prep_json) }
@@ -127,7 +146,7 @@ workflow BATCH_EFFECT_ASSESSMENTS_PIPELINE {
         .join(ch_asw)
         .join(ch_kbet)
         .map { key, meta, prep_json, ilisi, cilisi, asw, kbet ->
-            tuple(meta, prep_json, ilisi, cilisi, asw, kbet)
+            tuple(meta, prep_json, ilisi, cilisi, asw, kbet, tpl_collect)
         }
 
     COLLECT_BATCH_ASSESSMENT(ch_collect_in)

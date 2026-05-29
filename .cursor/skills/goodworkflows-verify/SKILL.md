@@ -7,6 +7,14 @@ description: Verify GoodWorkflows changes before handoff, PR, or commit. Use aft
 
 Choose checks based on files touched. Prefer fast local checks first, then workflow-level smoke tests.
 
+## Host-aware entrypoint (first local check)
+
+```bash
+bash scripts/test/run_host_tests.sh --affected
+```
+
+See skill `18-host-test` for WSL (light), Mac (CPU real), and Bazzite (GPU real) routing. Profiles: `template/gw/test-hosts.yaml`.
+
 ## Check Matrix
 
 - `.nf`: Nextflow parser/stub-run for affected workflow or module wrapper.
