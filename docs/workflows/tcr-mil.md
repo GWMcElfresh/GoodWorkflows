@@ -56,4 +56,4 @@ bash template/gw/run.sh --workflow tcr_mil
 
 Requires a Seurat object with TRA/TRB CDR3 columns. For test data, run `fetch_example_data.sh` which injects synthetic TCR columns.
 
-For the generated code-level reference, see [API Reference → Workflows](../api/workflows.md#tcr-mil-pipeline).
+For the generated code-level reference, see [API Reference → Workflows](../api/generated/workflows.md#tcr-mil-pipeline).

@@ -15,7 +15,7 @@ bash scripts/test/run_host_tests.sh --host wsl --tier stub
 
 ## Host profiles
 
-Configuration: [`template/gw/test-hosts.yaml`](../template/gw/test-hosts.yaml)
+Configuration: `template/gw/test-hosts.yaml` (at the repository root; not part of the docs site)
 
 | Host | Auto-detect | Default tier | Real runs |
 |------|-------------|--------------|-----------|

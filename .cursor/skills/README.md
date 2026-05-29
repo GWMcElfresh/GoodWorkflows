@@ -13,6 +13,7 @@ Skills are not shell commands. In **Agent** chat, Cursor loads them when your re
 - “Fix template / `.command.sh` error” → `goodworkflows-template-runtime`
 - “Sync gw and cluster launchers” → `goodworkflows-template-parity`
 - “What should I verify before a PR?” → `goodworkflows-verify`
+- “Debug red GitHub Actions on a PR” → `debug-github-actions-pr`
 - “Test on this machine / WSL / Mac / Bazzite” → `18-host-test`
 
 **Explicit invocation** — name the skill in your message (most reliable):
@@ -100,6 +101,7 @@ Use `grill-me` during `01-requirements` to capture questions and answers in `req
 | Add a new saved workflow | `pipeline` -> `16-evolve` -> `00-context` through `13-real-run-smoke` as needed |
 | Add a module to an existing workflow | `04-tech-plan` -> `07-build` -> `08-verify-build` |
 | Fix a failing Nextflow run | `14-hotfix` with `goodworkflows-dsl2-validation` or `goodworkflows-template-runtime` |
+| Debug red GitHub Actions on a PR | `debug-github-actions-pr` → `14-hotfix` / `goodworkflows-verify` |
 | Audit workflow/docs/CI drift | `15-workflow-health` |
 | Improve the Cursor workflow itself | `17-retrospective` |
 | Run final checks before handoff | `08-verify-build`, `09-qa`, `10-e2e`, then `12-verify-release` |
@@ -139,6 +141,7 @@ Use `grill-me` during `01-requirements` to capture questions and answers in `req
 | `goodworkflows-template-runtime` | Edit R/Python/Shell templates safely |
 | `goodworkflows-template-parity` | Keep local/cluster/CI launch surfaces aligned |
 | `goodworkflows-verify` | Choose and report verification checks |
+| `debug-github-actions-pr` | Triage failing PR checks via `gh` and bounded log excerpts |
 | `18-host-test` | Run branched local tests via `scripts/test/run_host_tests.sh` |
 
 ## Subagent Roles

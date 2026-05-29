@@ -99,6 +99,10 @@ CI uses `-profile test -stub-run` on GitHub Actions runners. Local development u
 
 Cursor skill `18-host-test` and hook `verification_hint.py` suggest the entrypoint after edits.
 
+## Debugging CI
+
+For red PR checks, use the Cursor skill `debug-github-actions-pr` (`.cursor/skills/debug-github-actions-pr/`): resolve the PR with `gh`, fetch `--log-failed` only, extract error lines with context, then map to local repro commands in `reference.md`.
+
 ## CI Design Principles
 
 1. **Stub-run for speed** — No real computation in CI; stub blocks validate wiring
