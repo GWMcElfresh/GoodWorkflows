@@ -78,16 +78,33 @@ _Agents and humans fill **Answer** blocks. Leave `_(pending)_` until decided. Ma
 
 **Answer:** _(pending)_
 
-### Samplesheet drift surfaces (check when accepted)
+### Samplesheet drift surfaces — contract (check when accepted)
 
 - [ ] Workflow parser in `workflows/*.nf`
 - [ ] Samplesheet validator (if any)
 - [ ] Example samplesheet under `test-data/`
 - [ ] `docs/data-formats.md`
 - [ ] `nextflow_schema.json`
-- [ ] Launcher / generator (`template/gw`, `template/cluster`)
-- [ ] CI smoke samplesheet
+- [ ] CI smoke samplesheet + `scripts/ci/run_nextflow_smoke_tests.sh` case
 - [ ] `memory-bank/` references
+
+### Launcher surfaces — runnable (check when accepted)
+
+_Checking a box requires the file to exist or a generator command to be named in the tech plan._
+
+- [ ] `main.nf` `supportedWorkflows`
+- [ ] `template/gw/run.sh` `VALID_WORKFLOWS` + help text
+- [ ] `template/gw/check_workflows.sh` registry (paths resolve from `template/gw` cwd)
+- [ ] `template/gw/fetch_example_data.sh` **or** committed `test-data/<workflow>/` fixtures
+- [ ] `template/gw/setup.sh` + `scripts/image-manifest.txt` (+ CI cache script if images changed)
+- [ ] `template/gw/README.md` workflow table
+- [ ] `template/cluster/run.sh` comment + `docs/usage.md`
+- [ ] `.github/workflows/ci.yml` smoke matrix (when workflow-level smoke exists)
+- [ ] `bash scripts/ci/check_workflow_parity.sh` passes after implementation
+
+**Fixture strategy (blocking):** _(committed test-data / fetch_example_data.sh / scripts/ci/create_* — who runs it before stub-run?)_
+
+**Samplesheet path convention:** _(repo-root `test-data/...` vs `template/gw/...`)_
 
 ---
 

@@ -23,6 +23,17 @@ Numbered stages 00-13 can run in delta mode for an active evolve cycle. Only red
 - Add samplesheet generation with workflow implementation.
 - Add stub-run coverage before real-run expectations.
 - Replace unshipped branch behavior directly; do not preserve compatibility with current-branch mistakes.
+- `affected_surfaces` for new workflows must include `template/gw`, `template/cluster`, `test-data`, and `ci`—not only `workflows` and `modules`.
+
+## Definition of done (new saved workflow)
+
+An evolve cycle closes only when:
+
+- `06-tech-tooling` completed (not pending while `07-build` runs).
+- `08-verify-build` and `10-e2e` recorded the verification trio for the CLI value.
+- `11-verify-impl` passed with launcher evidence table (see `11-verify-impl` skill).
+- `bash scripts/ci/check_workflow_parity.sh` passes (warnings documented if CI matrix lags).
+- Effortless-run acceptance satisfied or explicitly deferred in `issue_log`.
 
 ## Base Image and Ad-Hoc Dependencies
 

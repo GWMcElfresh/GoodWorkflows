@@ -90,19 +90,18 @@ workflow BATCH_EFFECT_ASSESSMENTS_PIPELINE {
 
     PREP_BATCH_ASSESSMENT(ch_ingested)
 
+    def ch_prep_by_id = PREP_BATCH_ASSESSMENT.out.prep
+        .map { meta, prep_json -> tuple(meta.id, meta, prep_json) }
+
     def ch_rds_by_id = ch_ingested.map { meta, rds -> tuple(meta.id, rds) }
 
-    def ch_per_reduction = PREP_BATCH_ASSESSMENT.out.prep
-        .map { meta, prep_json ->
+    def ch_per_reduction = ch_prep_by_id
+        .join(ch_rds_by_id)
+        .flatMap { sample_id, meta, prep_json, rds ->
             def prep = new groovy.json.JsonSlurper().parseText(prep_json.text)
             prep.reductions.collect { red ->
-                tuple(meta.id, meta + [reduction: red.toString()], prep_json, red.toString())
+                tuple(meta, rds, prep_json, red.toString())
             }
-        }
-        .flatten()
-        .join(ch_rds_by_id)
-        .map { sample_id, meta, prep_json, reduction, rds ->
-            tuple(meta, rds, prep_json, reduction)
         }
 
     ASSESS_ILISI(ch_per_reduction)

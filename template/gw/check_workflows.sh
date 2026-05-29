@@ -54,6 +54,17 @@ NC='\033[0m'
 # ── Paths ────────────────────────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PIPELINE_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
+# Repo-root test-data paths must not resolve under template/gw/.
+resolve_samplesheet_path() {
+    local rel="$1"
+    if [[ "${rel}" == test-data/* ]]; then
+        echo "${PIPELINE_ROOT}/${rel}"
+    else
+        echo "${SCRIPT_DIR}/${rel}"
+    fi
+}
+
 RESULTS=()
 STUB_MODE=true
 SINGLE_WF=""
@@ -179,6 +190,9 @@ echo " Pipeline:    ${PIPELINE_ROOT}"
 echo " Template:    ${SCRIPT_DIR}"
 echo ""
 
+# Stub-run for batch_effect_assessments requires test-data SMOKE.rds on disk (INGEST_FILE path check).
+bash "${PIPELINE_ROOT}/scripts/ci/ensure_batch_effect_smoke_fixture.sh" 2>/dev/null || true
+
 errors=0
 if command -v nextflow &>/dev/null 2>&1; then
     echo -e "${GREEN}[OK]   Nextflow found: $(nextflow -version 2>&1 | head -1)${NC}"
@@ -239,7 +253,7 @@ for wf_name in "${WORKFLOW_NAMES[@]}"; do
     else
         ss_file="${stub_args}"
     fi
-    ss_path="${SCRIPT_DIR}/${ss_file}"
+    ss_path="$(resolve_samplesheet_path "${ss_file}")"
 
     if [[ ! -f "${ss_path}" ]]; then
         echo -e "${YELLOW}[WARN] ${wf_name}: samplesheet '${ss_file}' not found${NC}"
@@ -333,10 +347,10 @@ for wf_name in "${RUN_LIST[@]}"; do
         EXTRA=""
         if echo "${stub_args}" | grep -q -- "--input"; then
             ss_file=$(echo "${stub_args}" | sed 's/.*--input //' | awk '{print $1}')
-            INPUT_FLAG="--input ${SCRIPT_DIR}/${ss_file}"
+            INPUT_FLAG="--input $(resolve_samplesheet_path "${ss_file}")"
             EXTRA=$(echo "${stub_args}" | sed 's/--input [^ ]* *//g')
-        elif [[ -n "${stub_args}" ]] && [[ -f "${SCRIPT_DIR}/${stub_args}" ]]; then
-            INPUT_FLAG="--input ${SCRIPT_DIR}/${stub_args}"
+        elif [[ -n "${stub_args}" ]] && [[ -f "$(resolve_samplesheet_path "${stub_args}")" ]]; then
+            INPUT_FLAG="--input $(resolve_samplesheet_path "${stub_args}")"
         elif [[ -f "${SCRIPT_DIR}/samplesheet.csv" ]]; then
             INPUT_FLAG="--input ${SCRIPT_DIR}/samplesheet.csv"
         fi
@@ -350,7 +364,7 @@ for wf_name in "${RUN_LIST[@]}"; do
         EXTRA=""
         if echo "${real_args}" | grep -q -- "--input"; then
             ss_file=$(echo "${real_args}" | sed 's/.*--input //' | awk '{print $1}')
-            INPUT_FLAG="--input ${SCRIPT_DIR}/${ss_file}"
+            INPUT_FLAG="--input $(resolve_samplesheet_path "${ss_file}")"
             EXTRA=$(echo "${real_args}" | sed 's/--input [^ ]* *//g')
         fi
         # shellcheck disable=SC2206

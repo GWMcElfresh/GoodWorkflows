@@ -15,6 +15,7 @@ Read state, requirements, closest workflow/module patterns, and relevant domain 
 - Template language and runtime concerns.
 - Workflow registration in `main.nf`.
 - Samplesheet generation, parsing/validation, example inputs, launcher updates, and drift ledger closure.
+- **Launcher & CI plan** subsection (required for new workflows): concrete paths for `run.sh`, `check_workflows.sh`, `fetch_example_data.sh` / `test-data/`, CI matrix, smoke script, images (store in state for `11-verify-impl`).
 - Tests, stub-run commands, docs, schema, README, and memory-bank updates.
 - CI matrix or smoke wrapper impact.
 

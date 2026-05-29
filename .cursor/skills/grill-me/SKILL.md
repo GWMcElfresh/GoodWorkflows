@@ -74,8 +74,9 @@ Always cover:
 5. Params, models, caching, profiles.
 6. Compute, resume, and batch boundaries.
 7. Containers and stage order.
-8. Verification target and acceptance criteria (**blocking** if missing).
+8. Verification target and acceptance criteria (**blocking** if missing)—must include stub-run, `check_workflows.sh --workflow <cli>`, and CI smoke when applicable.
 9. Docs/schema/registry impact.
+10. **Launcher surfaces** and **fixture strategy** (**blocking** for new workflows if templates promised).
 
 Use **Quick decisions** table for A/B/C choices when the user prefers terse replies.
 
