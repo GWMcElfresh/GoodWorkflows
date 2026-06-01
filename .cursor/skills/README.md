@@ -126,7 +126,7 @@ Use `grill-me` during `01-requirements` to capture questions and answers in `req
 | 13 | `13-real-run-smoke` | Optional real Podman/GPU/SLURM smoke checks |
 | 14 | `14-hotfix` | Debug and fix failures |
 | 15 | `15-workflow-health` | Audit health and drift |
-| 16 | `16-evolve` | Track feature/workflow evolution cycles; base image ad-hoc deps via `uv` / `uvr` |
+| 16 | `16-evolve` | Track feature/workflow evolution cycles; base image ad-hoc deps via `uv` |
 | 17 | `17-retrospective` | Improve the workflow system |
 | 18 | `18-host-test` | Host-aware local test entrypoint (WSL/Mac/Bazzite) |
 

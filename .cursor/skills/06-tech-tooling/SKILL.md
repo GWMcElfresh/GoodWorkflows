@@ -19,7 +19,7 @@ Use this stage when implementation requires support files beyond modules/workflo
 - Container entries in `scripts/image-manifest.txt`, `template/gw/setup.sh`, and CI cache scripts.
 - Planned `.github/workflows/ci.yml` matrix row when workflow-level smoke exists.
 - Docs generation expectations for `scripts/docs/generate_api_docs.sh` and `mkdocs build --strict`.
-- Base image changes in `Dockerfile` and `.github/workflows/docker-publish.yml` when evolve work needs new shared runtimes or libraries (Python via `uv`, R via `uvr`, Rust).
+- Base image changes in `Dockerfile` and `.github/workflows/docker-publish.yml` when evolve work needs new shared runtimes or libraries (Python via `uv`, R, Rust).
 
 ## Required outputs (new workflows)
 
@@ -44,8 +44,8 @@ When implementation needs dependencies beyond existing module containers, prefer
 | Need | Tool | Typical command |
 | --- | --- | --- |
 | Python packages | `uv` | `uv pip install --system <pkg>` or `uv venv` + `uv pip install` |
-| R packages / projects | `uvr` | `uvr init`, `uvr add <pkg>`, `uvr sync`, `uvr run script.R` |
-| Reproducible R env in CI | `uvr` | `uvr sync --frozen` |
+| R packages / projects | `remotes::install_github` or `install.packages` | Pre-install in `Dockerfile`; GitHub-only deps install into writable temp dir at runtime. See `16-evolve` guidance. |
+| Reproducible R env | `Dockerfile` pre-install | All CRAN packages installed in `Dockerfile` build; no on-the-fly package manager needed. |
 
 Promote spikes to module container or `Dockerfile` updates only when the dependency is required for production Nextflow processes or broadly shared across evolve cycles. See `16-evolve` for the full ad-hoc vs escalate guidance.
 

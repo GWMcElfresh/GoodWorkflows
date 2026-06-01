@@ -25,10 +25,10 @@ default_parent_map <- function() {
 }
 
 normalize_immune_aliases <- function(obj) {
-    md <- obj[['meta.data']]
+    md <- obj[[]]
     if ('RIRA_Immune_v2.cellclass' %in% colnames(md) &&
         !'RIRA_Immune.cellclass' %in% colnames(md)) {
-        obj[['meta.data']][['RIRA_Immune.cellclass']] <- md[['RIRA_Immune_v2.cellclass']]
+        obj[[]][['RIRA_Immune.cellclass']] <- md[['RIRA_Immune_v2.cellclass']]
     }
     obj
 }
@@ -37,7 +37,7 @@ infer_celltype_column <- function(obj, parent_col = 'RIRA_Immune.cellclass', par
     if (is.null(parent_map) || length(parent_map) == 0) {
         parent_map <- default_parent_map()
     }
-    md <- obj[['meta.data']]
+    md <- obj[[]]
     present <- intersect(STANDARD_RIRA, colnames(md))
     if (length(present) == 0) {
         return(NA_character_)
@@ -87,7 +87,7 @@ discover_reductions <- function(obj, preferred = c('pca', 'harmony', 'scmodal', 
 }
 
 count_cells_per_batch <- function(obj, batch_col) {
-    md <- obj[['meta.data']]
+    md <- obj[[]]
     if (!batch_col %in% colnames(md)) {
         stop('Batch column not found in meta.data: ', batch_col)
     }

@@ -32,7 +32,7 @@ if (!method_enabled(methods, 'KBET')) {
 
 obj <- readRDS(rds_path)
 batch_col <- prep$batch_column
-md <- obj[['meta.data']]
+md <- obj[[]]
 batches <- as.character(md[[batch_col]])
 
 # Downsample to target cells per batch (stratified), then re-run PCA for kBET.
@@ -56,7 +56,7 @@ status <- 'ok'
 
 if (requireNamespace('kBET', quietly = TRUE)) {
     res <- tryCatch(
-        kBET::kBET(emb, batch = as.character(obj[['meta.data']][[batch_col]]), plot = FALSE),
+        kBET::kBET(emb, batch = as.character(md[[batch_col]]), plot = FALSE),
         error = function(e) e
     )
     if (inherits(res, 'error')) {

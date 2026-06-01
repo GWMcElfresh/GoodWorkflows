@@ -1,6 +1,6 @@
 /*
  * PREP_BATCH_ASSESSMENT — discover reductions, infer celltype column, write prep JSON.
- * Runs in ghcr.io/gwmcelfresh/goodworkflows with transient uvr project (cleaned on exit).
+ * Runs in ghcr.io/gwmcelfresh/goodworkflows with system site-library R deps.
  */
 
 process PREP_BATCH_ASSESSMENT {
@@ -23,23 +23,15 @@ process PREP_BATCH_ASSESSMENT {
     """
     #!/usr/bin/env bash
     set -euo pipefail
-    WORK_DIR="\${PWD}"
-    UVR_ROOT="\${WORK_DIR}/.uvr-workspace"
-    trap 'rm -rf "\${UVR_ROOT}"' EXIT
-    mkdir -p "\${UVR_ROOT}"
-    cd "\${UVR_ROOT}"
-    uvr init --here
-    uvr add Seurat jsonlite
-    uvr sync
-    ln -sf "\${WORK_DIR}/${batch_metrics_utils}" "\${UVR_ROOT}/batch_metrics_utils.R"
-    ln -sf "\${WORK_DIR}/${prep_script}" "\${UVR_ROOT}/${prep_script}"
-    export RDS_PATH="\${WORK_DIR}/${rds}"
+    export RDS_PATH="${rds}"
     export BATCH_COLUMN='${meta.batch_column}'
     export INTEGRATION_ASSESSMENT_METHODS='${methodsShell}'
     export MIN_CELLS_PER_BATCH='${params.batch_assessment_min_cells_per_batch}'
     export SAMPLE_ID='${meta.id}'
-    export PREP_JSON="\${WORK_DIR}/${meta.id}_prep.json"
-    uvr run ${prep_script}
+    export PREP_JSON="${meta.id}_prep.json"
+    # System-installed packages (Seurat, jsonlite) are in /usr/local/lib/R/site-library.
+    export R_LIBS="/usr/local/lib/R/site-library"
+    Rscript "${prep_script}"
     """
 
     stub:

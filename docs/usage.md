@@ -160,7 +160,7 @@ NXF_HOME="/gscratch/mylab/.nextflow"
 | `tcr_mil` | Ingest → quantify TCRs → BertTCR MIL | GPU (`-profile slurm`) |
 | `tcr_epitope` | Ingest → quantify TCRs → ESM-2 embed → epitope binding | GPU (`-profile slurm`) |
 | `make_tcr_vector_database` | Ingest → extract TRA/TRB → ESM-2 embed → per-`cDNA_ID` vector DB | GPU (`-profile slurm`) |
-| `batch_effect_assessments` | Ingest → LISI / CiLISI / ASW / optional kBET (GoodWorkflows base + uvr) | HPC CPU (`-profile slurm`) |
+| `batch_effect_assessments` | Ingest → LISI / CiLISI / ASW / optional kBET (GoodWorkflows base) | HPC CPU (`-profile slurm`) |
 
 ### PIPELINE_ROOT auto-detection
 

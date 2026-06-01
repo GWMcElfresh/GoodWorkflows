@@ -182,3 +182,49 @@ New branch added `Dockerfile` and `docker-publish.yml` for a shared base image. 
 - Module containers (`rdiscvr`, `cellmembrane`, `scmodal`) = production Nextflow runtimes.
 - Base image + `uv` / `uvr` = evolve spikes and ad-hoc installs; promote to containers when deps become workflow requirements.
 - In Dockerfiles, avoid `add-apt-repository` for third-party PPAs; prefer explicit signed-by keyrings.
+
+## 2026-06-01 — batch_effect_assessments real-tier fixes + retrospective
+
+### Problem
+The `batch_effect_assessments` workflow failed on real-tier runs with 3 distinct failure modes:
+
+1. **Container memory ceiling** — `base.config` requested 32 GB per process; the local workstation only had 31.2 GB. `local-gpu.config` had no overrides for the batch-effect processes, so they hit OOM immediately.
+2. **`uvr run` masks R library** — all 5 metric modules used `uvr init/uvr add/uvr sync/uvr run` which overwrites `R_LIBS`, hiding the system-installed Seurat. uvr also creates broken `.so` symlinks when mixing with system-site packages. Additionally, uvr re-downloads 142+ packages on every task (30+ seconds per module).
+3. **Seurat v5 API drift** — templates used `obj[['meta.data']]` which is invalid in Seurat v5.
+
+### Fixes per module
+
+| Module | Change |
+|---|---|
+| All 6 batch_effect modules | Replaced uvr boilerplate with direct `Rscript` calls + `export R_LIBS="/usr/local/lib/R/site-library"` |
+| ASSESS_* modules | Added `remotes::install_github` fallback into `$PWD/.r-lib` for GitHub-only packages (scIntegrationMetrics, kBET) |
+| All 7 R templates | `obj[['meta.data']]` → `obj[[]]` (Seurat v5) |
+| `local-gpu.config` | Added `withName` memory overrides (24 GB) + `goodworkflows_container` pointing to local image |
+| `collect_batch_assessment.R` | Added `tryCatch` rbind fallback that pads missing columns with `NA` |
+| Dockerfile | Reverted `remotes` + GitHub package install (doesn't need them at build time); removed stale `remotes` from pkgs list |
+
+### Higher-scope systemic issues (retrospective)
+
+| Issue | Impact | Recommended change |
+|---|---|---|
+| **`uvr` unsuitable for module runtime** | Masks `R_LIBS`, breaks `.so` loading, 30s+ per-task overhead | Use direct `Rscript` + `R_LIBS` in all modules. uvr is prototyping-only. |
+| **Config memory validation gap** | `base.config` requests exceed profile ceilings silently; each new workflow needs per-process `withName` overrides in every profile | Use label-based ceiling overrides (not `withName`). Add a validation workflow that checks process requirements vs host capacity. |
+| **Docker image verification hole** | `:latest` shipped without Seurat — install failed in CI but wasn't caught | Add `Rscript -e 'library(Seurat)'` to Docker build verification. Run image verification in CI after publish. |
+| **No unified R dep strategy** | Three competing patterns (system install, uvr, remotes::install_github) with conflicting `R_LIBS` | Standardize on: system site-library for CRAN packages, writable temp dir for GitHub-only, `Rscript` direct calls. |
+| **Seurat API drift between image and templates** | Templates used v4 API (`[['meta.data']]`) against v5 Seurat | Add template rules about Seurat v5 API. Consider pinning Seurat version in Dockerfile. |
+| **`check_workflows.sh` false-positive grep** | `curl` error messages in nextflow.log triggered `grep -qi "error"` even on successful runs | Add `grep` exclusion for known false positives (curl 403), or check exit code + grep instead of grep alone. |
+
+### Files changed
+- `configs/local-gpu.config` — memory overrides + local image ref
+- `modules/local/batch_effect_assessments/{prep,assess_ilisi,assess_cilisi,assess_asw,assess_kbet,collect}/main.nf` — uvr removal, R_LIBS, temp-dir install
+- `modules/local/batch_effect_assessments/templates/{prep_batch_assessment,assess_ilisi,assess_cilisi,assess_asw,assess_kbet,batch_metrics_utils,collect_batch_assessment}.R` — Seurat v5 `[[]]` fix, rbind padding
+- `Dockerfile` — removed stale `remotes` from pkgs
+- `memory-bank/tech-stack.md`, `memory-bank/workflows.md` — uvr → Rscript
+- `docs/workflows/batch-effect-assessments.md` — uvr → Rscript
+- `.cursor/rules/template-runtime.mdc` — Seurat v5, R_LIBS, uvr deprecation guidance
+- `.cursor/skills/16-evolve/SKILL.md` — uvr module-runtime hot take
+
+### Remaining issues
+- **`check_workflows.sh` grep false-positive** — curl 403 errors in nextflow.log still trigger `grep -qi "error"` on healthy stub runs (low priority, the exit code 0 is the real signal).
+- **`18-host-test` skill** — needs Bazzite-specific references updated.
+- **kBET and scIntegrationMetrics not in `:latest`** — image ships without them; each ASSESS_* task installs them at runtime via `remotes::install_github`. Pre-installing in the Dockerfile would save ~60s per task.

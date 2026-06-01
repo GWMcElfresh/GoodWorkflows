@@ -15,23 +15,19 @@ process ASSESS_ASW {
     """
     #!/usr/bin/env bash
     set -euo pipefail
-    WORK_DIR="\${PWD}"
-    UVR_ROOT="\${WORK_DIR}/.uvr-workspace"
-    trap 'rm -rf "\${UVR_ROOT}"' EXIT
-    mkdir -p "\${UVR_ROOT}"
-    cd "\${UVR_ROOT}"
-    uvr init --here
-    uvr add Seurat jsonlite
-    uvr add --git https://github.com/carmonalab/scIntegrationMetrics || \\
-        Rscript -e "if (!requireNamespace('remotes', quietly=TRUE)) install.packages('remotes', repos='https://cloud.r-project.org'); remotes::install_github('carmonalab/scIntegrationMetrics', upgrade='never')"
-    uvr sync
-    ln -sf "\${WORK_DIR}/${batch_metrics_utils}" "\${UVR_ROOT}/batch_metrics_utils.R"
-    ln -sf "\${WORK_DIR}/${metric_script}" "\${UVR_ROOT}/${metric_script}"
-    export RDS_PATH="\${WORK_DIR}/${rds}"
-    export PREP_JSON="\${WORK_DIR}/${prep_json}"
+    export RDS_PATH="${rds}"
+    export PREP_JSON="${prep_json}"
     export REDUCTION='${reduction}'
-    export OUT_CSV="\${WORK_DIR}/${outCsv}"
-    uvr run ${metric_script}
+    export OUT_CSV="${outCsv}"
+    export R_LIBS="/usr/local/lib/R/site-library"
+    if ! Rscript -e "suppressPackageStartupMessages(library(scIntegrationMetrics))" 2>/dev/null; then
+        R_LIB_TMP="\${PWD}/.r-lib"
+        mkdir -p "\${R_LIB_TMP}"
+        Rscript -e "install.packages('remotes', repos='https://cloud.r-project.org')"
+        Rscript -e "remotes::install_github('carmonalab/scIntegrationMetrics', upgrade='never', lib='\${R_LIB_TMP}')"
+        export R_LIBS="/usr/local/lib/R/site-library:\${R_LIB_TMP}"
+    fi
+    Rscript "${metric_script}"
     """
 
     stub:
