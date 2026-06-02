@@ -135,6 +135,39 @@ bash run.sh --workflow tcr_mil
 bash run.sh --workflow tcr_epitope --binding_model_path /path/to/binding_models
 ```
 
+## Multi-host testing
+
+GoodWorkflows supports different test depths per machine. Profiles are defined in `test-hosts.yaml`; auto-detection picks WSL, macOS, or Bazzite (Linux + Podman + NVIDIA).
+
+**Single entrypoint (from repo root):**
+
+```bash
+bash scripts/test/run_host_tests.sh              # auto host + default tier
+bash scripts/test/run_host_tests.sh --affected     # light + git-diff workflows
+bash scripts/test/run_host_tests.sh --tier stub    # full serial stub-run
+```
+
+| Host | Default tier | Real Podman | Notes |
+|------|--------------|-------------|-------|
+| WSL | light | No | Opt in to `--tier stub` for full serial stub |
+| macOS | stub | CPU workflows only | `run.sh --profile local`; GPU workflows stub/skip on `--tier real` |
+| Bazzite | stub | All (GPU) | `run.sh --profile local_gpu` (default) |
+
+**Override auto-detection** — create gitignored `template/gw/.test-host`:
+
+```bash
+export GW_TEST_HOST=bazzite
+```
+
+**Launcher profiles:**
+
+```bash
+bash run.sh --profile local --workflow ingest_export      # macOS / CPU
+bash run.sh --profile local_gpu --workflow integration    # Bazzite / GPU (default)
+```
+
+See [Testing on multiple hosts](../../docs/testing-hosts.md) for full tier and Cursor integration details.
+
 ## Troubleshooting
 
 ### GPU passthrough fails

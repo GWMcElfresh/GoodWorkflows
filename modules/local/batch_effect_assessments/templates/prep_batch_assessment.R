@@ -20,7 +20,8 @@ methods <- parse_methods(methods_raw)
 obj <- readRDS(rds_path)
 obj <- normalize_immune_aliases(obj)
 
-if (!(batch_col %in% colnames(obj[['meta.data']]))) {
+md <- obj[[]]
+if (!(batch_col %in% colnames(md))) {
     stop('Batch column not present in meta.data: ', batch_col)
 }
 
@@ -39,7 +40,7 @@ prep <- list(
     methods = methods,
     reductions = reductions,
     n_cells = ncol(obj),
-    n_batches = length(unique(as.character(obj[['meta.data']][[batch_col]])))
+    n_batches = length(unique(as.character(md[[batch_col]])))
 )
 
 write(toJSON(prep, auto_unbox = TRUE, pretty = TRUE), out_json)

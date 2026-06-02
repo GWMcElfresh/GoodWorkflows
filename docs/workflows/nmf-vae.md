@@ -60,4 +60,4 @@ Uses the `local_gpu` profile (Podman + GPU passthrough). For stub validation:
 nextflow run main.nf -stub-run -profile test --workflow nmf_vae --input /tmp/nmf_vae_samplesheet.csv
 ```
 
-For the generated code-level reference, see [API Reference → Workflows](../api/workflows.md#nmf-vae-pipeline).
+For the generated code-level reference, see [API Reference → Workflows](../api/generated/workflows.md#nmf-vae-pipeline).

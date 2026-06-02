@@ -73,6 +73,8 @@ uvr run analysis.R
 - CI-style reproducibility: `uvr sync --frozen`
 - Linux system libs: `uvr doctor` and `uvr sync` surface missing apt packages; the base `Dockerfile` already includes common R build deps (harfbuzz, freetype, libxml2, etc.).
 
+> **Hot take 2026-06-01:** `uvr run` masks `R_LIBS` and breaks `.so` loading when the system site-library has pre-installed packages. **Do not use `uvr` for production module runtime.** For module processes that need R packages, call `Rscript` directly with `export R_LIBS="/usr/local/lib/R/site-library"`. Install GitHub-only packages via `remotes::install_github(..., lib = tempdir)` into a writable dir. This pattern is already deployed in all `batch_effect_assessments` modules.
+
 ### When to Escalate Beyond Ad-Hoc
 
 - **Stay on base image + uv/uvr** — dependency probing, template drafts, docs examples, evolve-cycle spikes.

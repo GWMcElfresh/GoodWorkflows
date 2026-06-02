@@ -29,7 +29,17 @@ if (length(parts) == 0) {
     stop('No metric CSVs provided for collection')
 }
 
-merged <- do.call(rbind, parts)
+merged <- tryCatch(
+    do.call(rbind, parts),
+    error = function(e) {
+        all_cols <- unique(unlist(lapply(parts, colnames)))
+        parts_padded <- lapply(parts, function(df) {
+            for (col in setdiff(all_cols, colnames(df))) df[[col]] <- NA
+            df[, all_cols]
+        })
+        do.call(rbind, parts_padded)
+    }
+)
 merged$batch_column <- prep$batch_column
 merged$methods_run <- paste(prep$methods, collapse = ',')
 write.csv(merged, summary_out, row.names = FALSE)

@@ -50,7 +50,7 @@ if (is.null(celltype_col) || is.na(celltype_col) || !nzchar(celltype_col)) {
 obj <- readRDS(rds_path)
 batch_col <- prep$batch_column
 emb <- Embeddings(obj, reduction = reduction)
-md <- obj[['meta.data']]
+md <- obj[[]]
 batches <- as.character(md[[batch_col]])
 celltypes <- as.character(md[[celltype_col]])
 

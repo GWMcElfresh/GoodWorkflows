@@ -9,12 +9,13 @@ Start with evidence, not guesses.
 
 ## Debug Path
 
-1. Identify the first root cause in `nextflow.log`, CI output, or generated `.command.sh`.
-2. Classify the surface: DSL2, config, template runtime, launcher, docs/schema, CI, or data fixture.
-3. Load the matching domain skill.
-4. Make the smallest fix that addresses the root cause.
-5. Add or update a targeted regression check where practical.
-6. Run focused verification.
+1. For GitHub Actions PR failures, load `debug-github-actions-pr` first (resolve PR, pull failed logs, extract errors with context) before guessing.
+2. Identify the first root cause in `nextflow.log`, CI output, or generated `.command.sh`.
+3. Classify the surface: DSL2, config, template runtime, launcher, docs/schema, CI, or data fixture.
+4. Load the matching domain skill.
+5. Make the smallest fix that addresses the root cause.
+6. Add or update a targeted regression check where practical.
+7. Run focused verification.
 
 ## Common GoodWorkflows Hotfix Areas
 

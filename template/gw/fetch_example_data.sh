@@ -53,8 +53,10 @@ NC='\033[0m'
 N_GENES="${1:-500}"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PIPELINE_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 DATA_DIR="${SCRIPT_DIR}/data"
 SAMPLESHEET="${SCRIPT_DIR}/samplesheet.csv"
+export DATA_DIR SCRIPT_DIR PIPELINE_ROOT
 
 mkdir -p "${DATA_DIR}"
 
@@ -527,7 +529,11 @@ python3 - <<'PYEOF'
 import os, sys, random
 from pathlib import Path
 
-data_dir = Path(os.environ.get("DATA_DIR", "template/gw/data"))
+data_dir_raw = os.environ.get("DATA_DIR")
+if not data_dir_raw:
+    print("ERROR: DATA_DIR is not set (fetch_example_data.sh must export it)", file=sys.stderr)
+    sys.exit(1)
+data_dir = Path(data_dir_raw)
 out_dir = data_dir / "tcr_epitope"
 out_dir.mkdir(parents=True, exist_ok=True)
 rng = random.Random(42)
@@ -612,7 +618,7 @@ if not has_tdc:
 if os.environ.get("FETCH_TRAIN_MODEL") == "true":
     print("[FETCH] FETCH_TRAIN_MODEL=true — training binding model...")
     import subprocess, shutil
-    script = Path(os.environ.get("SCRIPT_DIR",".")).parent / "scripts" / "train_tcr_epitope_binding.py"
+    script = Path(os.environ.get("PIPELINE_ROOT", "")) / "scripts" / "train_tcr_epitope_binding.py"
     out_models = Path(data_dir.parent) / "tcr_epitope_models"
     if script.exists():
         r = subprocess.run([

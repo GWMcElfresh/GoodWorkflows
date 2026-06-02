@@ -145,7 +145,7 @@ outputs/
 
 ### Purpose
 
-Post-integration batch-mixing QC on ingested Seurat objects: iLISI, CiLISI, batch/celltype ASW, optional kBET. Ingest uses Rdiscvr; metrics use `ghcr.io/gwmcelfresh/goodworkflows:latest` with per-task **uvr** installs (workspace removed on exit).
+Post-integration batch-mixing QC on ingested Seurat objects: iLISI, CiLISI, batch/celltype ASW, optional kBET. Ingest uses Rdiscvr; metrics use `ghcr.io/gwmcelfresh/goodworkflows:latest` with direct `Rscript` calls against system site-library. GitHub-only packages install into a writable temp dir on first use.
 
 ### Input
 

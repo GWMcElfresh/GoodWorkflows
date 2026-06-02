@@ -204,8 +204,7 @@ The published vignette and example plots are driven by the seeded synthetic fixt
 
 The repository publishes a multi-runtime base image to GHCR at
 `ghcr.io/gwmcelfresh/goodworkflows:latest` with **Python** (managed by
-[`uv`](https://github.com/astral-sh/uv)), **R** (plus
-[`uvr`](https://github.com/nbafrank/uvr)), and **Rust** pre-installed.
+[`uv`](https://github.com/astral-sh/uv)), **R**, and **Rust** pre-installed.
 
 The image is built via [GWMcElfresh/dockerDependencies](https://github.com/GWMcElfresh/dockerDependencies)
 reusable workflows (same pattern as [MIL-ton CI](https://github.com/GWMcElfresh/MIL-ton/blob/main/.github/workflows/ci.yml)):
@@ -240,11 +239,7 @@ docker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \
 
 # Install R packages on the fly
 docker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \
-  Rscript -e "install.packages('jsonlite', repos='https://cloud.r-project.org'); library(jsonlite); cat('OK\n')"
-
-# Verify uvr is available
-docker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \
-  uvr --version
+  Rscript -e "library(Seurat); library(jsonlite); cat('OK\n')"
 ```
 
 ### Extending the image

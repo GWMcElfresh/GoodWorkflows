@@ -58,6 +58,7 @@ Checklist:
 - [ ] Add templates and stubs for all new processes.
 - [ ] `template/gw/run.sh`: `VALID_WORKFLOWS` + usage echo string.
 - [ ] `template/gw/check_workflows.sh`: `register` if non-default samplesheet; verify path resolution.
+- [ ] After editing launcher `.sh` files: `shellcheck -S warning` per `goodworkflows-verify` (CI uses the same glob).
 - [ ] `template/gw/fetch_example_data.sh` **or** committed `test-data/<workflow>/` + generator script.
 - [ ] `template/gw/README.md` workflow table + `setup.sh` next-steps echo.
 - [ ] `template/cluster/run.sh` header comment lists workflow.

@@ -62,4 +62,4 @@ bash template/gw/run.sh --workflow tcr_epitope --input tcr_epitope_samplesheet.c
 
 Requires a pre-trained binding model. The sample-specific `epitope_file` column in the samplesheet defines which peptide pool each sample was stimulated with.
 
-For the generated code-level reference, see [API Reference → Workflows](../api/workflows.md#tcr-epitope-pipeline).
+For the generated code-level reference, see [API Reference → Workflows](../api/generated/workflows.md#tcr-epitope-pipeline).

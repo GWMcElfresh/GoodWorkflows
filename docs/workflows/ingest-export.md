@@ -115,7 +115,7 @@ The docs and CI use a seeded fixture bundle in `tests/fixtures/synthetic_trial_d
 
 This is the same file shape produced by `EXPORT_COUNTS`: `matrix.mtx`, `features.tsv`, `barcodes.tsv`, and `obs_meta.csv`.
 
-For the generated code-level reference, see [API Reference → Workflows](../api/workflows.md#ingest-export-pipeline).
+For the generated code-level reference, see [API Reference → Workflows](../api/generated/workflows.md#ingest-export-pipeline).
 
 ---
 
@@ -170,7 +170,7 @@ bash slurm_nextflow.sh \
   --labkey_folder /My/Project/Folder
 ```
 
-> **Container prerequisites:** When running on SLURM, Apptainer must be configured before your first run. See [Container image pre-pull and SIF cache](../usage.md#6-container-image-pre-pull-and-sif-cache) in the usage guide for graphroot setup, storage details, and all `NXF_APPTAINER_*` environment variables.
+> **Container prerequisites:** When running on SLURM, Apptainer must be configured before your first run. See [Container image pre-pull and SIF cache](../usage.md#7-container-image-pre-pull-and-sif-cache) in the usage guide for graphroot setup, storage details, and all `NXF_APPTAINER_*` environment variables.
 
 ---
 

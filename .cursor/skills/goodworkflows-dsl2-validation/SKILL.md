@@ -33,6 +33,7 @@ Nextflow templates are Groovy-rendered before R, Python, or shell runs.
 - Wrap local file inputs for processes declared as `tuple val(meta), path(file)`.
 - Keep `params` defaults in `configs/base.config`; profile configs should override resources, executors, and runtimes.
 - Every process label used in modules should have resources in relevant profiles.
+- When a samplesheet column can contain commas (e.g. comma-separated tokens), **quote the CSV cell** and pass `quote: '"'` to `.splitCsv(...)`. Without `quote`, Nextflow splits on every comma and silently truncates the field (e.g. `integration_assessment_methods` becomes `LISI` instead of `LISI,CiLISI,ASW,CELLTYPE_ASW`).
 
 ## Verification
 

@@ -76,7 +76,30 @@ jobs:
             pymdown-extensions \
             uv
 
+      - name: Resolve Nextflow language server release
+        id: nf_lsp_release
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          tag="$(bash scripts/docs/ensure_language_server.sh --print-release-tag)"
+          echo "tag=${tag}" >> "${GITHUB_OUTPUT}"
+
+      - name: Cache Nextflow language server for nf-docs
+        id: nf_lsp_cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/nf-docs/language-server-all.jar
+          key: nf-docs-lsp-${{ runner.os }}-${{ steps.nf_lsp_release.outputs.tag }}
+
+      - name: Download Nextflow language server
+        if: steps.nf_lsp_cache.outputs.cache-hit != 'true'
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: bash scripts/docs/ensure_language_server.sh
+
       - name: Generate nf-docs API reference
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: bash scripts/docs/generate_api_docs.sh
 
       - name: Generate synthetic example plots

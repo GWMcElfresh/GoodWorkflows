@@ -12,7 +12,7 @@ Load `goodworkflows-verify` and choose the narrowest checks that cover changed f
 - Module: `nextflow run tests/modules/<module>.nf -profile test -stub-run`.
 - Workflow: verification **trio** below when a saved workflow changed.
 - Config: `nextflow config -profile test` or representative stub-run.
-- Shell: ShellCheck or `bash -n`.
+- Shell: CI-parity `shellcheck -S warning` on the glob in `goodworkflows-verify` (not only `bash -n`).
 - Docs: docs generation/build if docs surfaces changed.
 - Parity: `bash scripts/ci/check_workflow_parity.sh` when `main.nf` or `template/gw/run.sh` changed.
 

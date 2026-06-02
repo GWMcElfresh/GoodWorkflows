@@ -17,7 +17,8 @@
 #   - Does NOT require .netrc or LabKey credentials (URL-based samplesheets)
 #   - Passes through all extra arguments to Nextflow
 #
-# Profile: local_gpu (Podman, --gpus all, --privileged, maxForks=1)
+# Profile: local_gpu (default on Bazzite) or local (CPU Podman, e.g. macOS)
+#   bash run.sh --profile local --workflow ingest_export
 
 set -euo pipefail
 
@@ -35,9 +36,10 @@ if [[ ! -f "${PIPELINE_ROOT}/main.nf" ]]; then
     exit 1
 fi
 
-# --- Parse --workflow and --input from args ---
+# --- Parse --workflow, --input, --profile from args ---
 WORKFLOW=""
 INPUT=""
+PROFILE="${GW_RUN_PROFILE:-local_gpu}"
 REMAINING_ARGS=()
 
 while [[ $# -gt 0 ]]; do
@@ -58,12 +60,34 @@ while [[ $# -gt 0 ]]; do
             INPUT="${1#*=}"
             shift
             ;;
+        --profile)
+            PROFILE="$2"
+            shift 2
+            ;;
+        --profile=*)
+            PROFILE="${1#*=}"
+            shift
+            ;;
         *)
             REMAINING_ARGS+=("$1")
             shift
             ;;
     esac
 done
+
+case "${PROFILE}" in
+    local|local_gpu) ;;
+    *)
+        echo -e "${RED}ERROR: Invalid profile '${PROFILE}'. Use local or local_gpu.${NC}"
+        exit 1
+        ;;
+esac
+
+if [[ "$(uname -s)" == "Darwin" && "${PROFILE}" == "local_gpu" ]]; then
+    echo -e "${RED}ERROR: local_gpu is not supported on macOS.${NC}"
+    echo "Use --profile local for CPU workflows, or stub-run via check_workflows.sh."
+    exit 1
+fi
 
 # --- Validate workflow ---
 if [[ -z "${WORKFLOW}" ]]; then
@@ -83,6 +107,17 @@ if [[ ! " ${VALID_WORKFLOWS[*]} " =~ " ${WORKFLOW} " ]]; then
     exit 1
 fi
 
+GPU_WORKFLOWS=(integration nmf_vae gex_mil tcr_mil tcr_epitope make_tcr_vector_database)
+if [[ "${PROFILE}" == "local" ]]; then
+    for gpu_wf in "${GPU_WORKFLOWS[@]}"; do
+        if [[ "${WORKFLOW}" == "${gpu_wf}" ]]; then
+            echo -e "${RED}ERROR: Workflow '${WORKFLOW}' requires a GPU profile (local_gpu).${NC}"
+            echo "On macOS, run CPU workflows only, or use stub-run for GPU workflows."
+            exit 1
+        fi
+    done
+fi
+
 # --- Default input ---
 if [[ -z "${INPUT}" ]]; then
     INPUT="${SCRIPT_DIR}/samplesheet.csv"
@@ -95,6 +130,17 @@ if [[ ! -f "${INPUT}" ]]; then
 fi
 
 # --- Pre-flight: verify any path-mode or metadata_path-mode rows reference files that exist ---
+resolve_samplesheet_file_path() {
+    local rel="$1"
+    if [[ "${rel}" == /* ]]; then
+        echo "${rel}"
+    elif [[ "${rel}" == test-data/* ]]; then
+        echo "${PIPELINE_ROOT}/${rel}"
+    else
+        echo "${rel}"
+    fi
+}
+
 if command -v awk &>/dev/null; then
     _path_col_idx=$(head -1 "${INPUT}" | tr ',' '\n' | grep -n '^path$' | cut -d: -f1 || true)
     _metadata_col_idx=$(head -1 "${INPUT}" | tr ',' '\n' | grep -n '^metadata_path$' | cut -d: -f1 || true)
@@ -104,9 +150,13 @@ if command -v awk &>/dev/null; then
             while IFS=, read -r -a _row; do
                 _val="${_row[$(( _col_idx - 1 ))]}"
                 _val="${_val//\"/}"  # strip any quotes
-                if [[ -n "${_val}" && ! -f "${_val}" ]]; then
-                    echo -e "${RED}ERROR: sample file not found: ${_val}${NC}"
-                    _missing=1
+                if [[ -n "${_val}" ]]; then
+                    _resolved="$(resolve_samplesheet_file_path "${_val}")"
+                    if [[ ! -f "${_resolved}" ]]; then
+                        echo -e "${RED}ERROR: sample file not found: ${_val}${NC}"
+                        [[ "${_resolved}" != "${_val}" ]] && echo "  Resolved path: ${_resolved}"
+                        _missing=1
+                    fi
                 fi
             done < <(tail -n +2 "${INPUT}")
             if [[ "${_missing}" -eq 1 ]]; then
@@ -153,7 +203,7 @@ echo "=========================================="
 echo " GoodWorkflows Run"
 echo "=========================================="
 echo " Workflow       : ${WORKFLOW}"
-echo " Profile        : local_gpu"
+echo " Profile        : ${PROFILE}"
 echo " Pipeline root  : ${PIPELINE_ROOT}"
 echo " Input          : ${INPUT}"
 echo " Run directory  : ${RUN_DIR}"
@@ -168,7 +218,7 @@ nextflow -version
 NF_ARGS=(
     -log "${LOG_DIR}/nextflow.log"
     run "${PIPELINE_ROOT}/main.nf"
-    -profile local_gpu
+    -profile "${PROFILE}"
     -work-dir "${WORK_DIR}"
     -resume
     --workflow "${WORKFLOW}"

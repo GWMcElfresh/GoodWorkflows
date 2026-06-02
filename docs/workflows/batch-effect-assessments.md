@@ -2,16 +2,16 @@
 
 `--workflow batch_effect_assessments`
 
-Post-integration assessment of batch mixing in Seurat objects using iLISI, CiLISI, batch/celltype ASW, and optional kBET. Metric processes run in the **GoodWorkflows base image** (`ghcr.io/gwmcelfresh/goodworkflows:latest`) and install R dependencies on the fly with **uvr** (transient project per task, removed on exit).
+Post-integration assessment of batch mixing in Seurat objects using iLISI, CiLISI, batch/celltype ASW, and optional kBET. Metric processes run in the **GoodWorkflows base image** (`ghcr.io/gwmcelfresh/goodworkflows:latest`). R packages are pre-installed in the system site-library; GitHub-only packages (`scIntegrationMetrics`, `kBET`) install into a writable temp dir on first use.
 
 ## Stage-by-stage dataflow
 
 | Stage | Module | Input | Output | Compute |
 |---|---|---|---|---|
 | INGEST | `rdiscvr/ingest_*` | LabKey / URL / local file | `{sample_id}.rds` | CPU (Rdiscvr image) |
-| PREP | `batch_effect_assessments/prep` | Seurat RDS | `{sample_id}_prep.json` | CPU (GoodWorkflows + uvr) |
+| PREP | `batch_effect_assessments/prep` | Seurat RDS | `{sample_id}_prep.json` | CPU (GoodWorkflows image) |
 | ASSESS_ILISI / CILISI / ASW / KBET | separate processes per metric | RDS + prep + reduction | per-metric CSV | CPU; kBET uses `process_kbet` |
-| COLLECT | `batch_effect_assessments/collect` | metric CSVs | `{sample_id}_summary.csv`, plot | CPU (GoodWorkflows + uvr) |
+| COLLECT | `batch_effect_assessments/collect` | metric CSVs | `{sample_id}_summary.csv`, plot | CPU (GoodWorkflows image) |
 
 Each discovered embedding (typically `pca`, plus any other reductions on the object) is assessed in **parallel SLURM tasks** (one task boundary per metric × reduction).
 
@@ -23,7 +23,7 @@ Required columns per row:
 |---|---|---|
 | `sample_id` | yes | Sample identifier |
 | `batch_column` | yes | `meta.data` column holding experimental batch labels |
-| `integration_assessment_methods` | no | Comma-separated: `LISI`, `CiLISI`, `ASW`, `CELLTYPE_ASW`, `kBET`. Default when empty: `LISI,CiLISI,ASW,CELLTYPE_ASW` (kBET opt-in per row) |
+| `integration_assessment_methods` | no | Comma-separated: `LISI`, `CiLISI`, `ASW`, `CELLTYPE_ASW`, `kBET`. Default when empty: `LISI,CiLISI,ASW,CELLTYPE_ASW` (kBET opt-in per row). **Quote the cell in CSV** when it contains commas (e.g. `"LISI,CiLISI,ASW,CELLTYPE_ASW"`). |
 | tri-mode ingest | yes | Exactly one of `output_file_id`, `url`, or `path` |
 | `species` | optional | Used by `INGEST_FILE` |
 
@@ -51,17 +51,6 @@ Published under `outputs/batch_effect_assessments/`:
 
 | Param | Default | Description |
 |---|---|---|
-| `goodworkflows_container` | `ghcr.io/gwmcelfresh/goodworkflows:latest` | Base image for assessment processes |
-| `batch_assessment_default_methods` | `LISI,CiLISI,ASW,CELLTYPE_ASW` | Samplesheet default |
-| `batch_assessment_min_cells_per_batch` | `20` | Minimum cells per batch |
-| `batch_assessment_kbet_cells_per_batch` | `1000` | kBET downsample target |
-
-## Verification
-
-```bash
-nextflow run main.nf -profile test -stub-run \
-  --workflow batch_effect_assessments \
-  --input test-data/batch_effect_assessments/samplesheet.csv
-```
-
-Local scaffold: `bash template/gw/check_workflows.sh --workflow batch_effect_assessments`
+| `--batch_assessment_default_methods` | `LISI,CiLISI,ASW,CELLTYPE_ASW` | Default methods when row column is empty |
+| `--batch_assessment_min_cells_per_batch` | `20` | Minimum cells required per batch |
+| `--batch_assessment_kbet_cells_per_batch` | `1000` | Cells per batch after kBET downsampling |

@@ -1,0 +1,74 @@
+# GoodWorkflows test-host profiles — source of truth for local multi-machine testing.
+# Override auto-detection: create template/gw/.test-host with: export GW_TEST_HOST=bazzite
+#
+# Tiers: light (syntax + affected stub), stub (serial -stub-run), real (Podman containers)
+
+hosts:
+  wsl:
+    description: Windows WSL — light tests by default; no real Podman runs
+    default_tier: light
+    real_allowed: false
+    stub_profile: test
+    gpu_workflows:
+      - integration
+      - nmf_vae
+      - gex_mil
+      - tcr_mil
+      - tcr_epitope
+      - make_tcr_vector_database
+    cpu_workflows:
+      - ingest_export
+      - ingest_tabulate
+      - batch_effect_assessments
+    integration_stub_args:
+      - --scmodal_use_cpu
+      - "true"
+
+  mac:
+    description: macOS — stub all workflows; real Podman for CPU workflows only
+    default_tier: stub
+    real_allowed: true
+    real_profile: local
+    stub_profile: test
+    requires:
+      - nextflow
+      - podman
+    gpu_workflows:
+      - integration
+      - nmf_vae
+      - gex_mil
+      - tcr_mil
+      - tcr_epitope
+      - make_tcr_vector_database
+    cpu_workflows:
+      - ingest_export
+      - ingest_tabulate
+      - batch_effect_assessments
+    integration_stub_args:
+      - --scmodal_use_cpu
+      - "true"
+
+  bazzite:
+    description: Linux GPU workstation (Bazzite/Fedora) — full stub and real GPU runs
+    default_tier: stub
+    real_allowed: true
+    real_profile: local_gpu
+    stub_profile: test
+    requires:
+      - nextflow
+      - podman
+      - nvidia_gpu
+    gpu_workflows:
+      - integration
+      - nmf_vae
+      - gex_mil
+      - tcr_mil
+      - tcr_epitope
+      - make_tcr_vector_database
+    cpu_workflows:
+      - ingest_export
+      - ingest_tabulate
+      - batch_effect_assessments
+    integration_stub_args:
+      - --scmodal_use_cpu
+      - "true"

@@ -2,7 +2,7 @@
 # GoodWorkflows base / dependency image (dockerDependencies multi-stage)
 # =============================================================================
 # Stages:
-#   foundation — heavy runtimes (Ubuntu 3.10, uv, R, uvr, Rust)
+#   foundation — heavy runtimes (Ubuntu 3.10, uv, R, Rust)
 #   deps       — cached dependency layer (monthly base-deps + incremental hash)
 #   runtime    — published ghcr.io/gwmcelfresh/goodworkflows:latest on main
 #
@@ -17,7 +17,7 @@ ARG BASE_IMAGE=foundation
 FROM ubuntu:22.04 AS foundation
 
 LABEL org.opencontainers.image.source="https://github.com/GWMcElfresh/GoodWorkflows"
-LABEL org.opencontainers.image.description="Base image with R, Python (uv), uvr, and Rust for quick reproducible workflows"
+LABEL org.opencontainers.image.description="Base image with R, Python (uv), and Rust for quick reproducible workflows"
 
 ARG PYTHON_VERSION=3.12
 ARG R_VERSION=""
@@ -29,11 +29,18 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential \
         ca-certificates \
+        cmake \
         curl \
+        gfortran \
         git \
         gnupg \
         libcurl4-openssl-dev \
+        libcairo2-dev \
+        libgdal-dev \
+        libgeos-dev \
+        libproj-dev \
         libssl-dev \
+        libudunits2-dev \
         libxml2-dev \
         libfontconfig1-dev \
         libharfbuzz-dev \
@@ -42,6 +49,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         libtiff5-dev \
         libjpeg-dev \
         libpng-dev \
+        libhdf5-dev \
+        libnetcdf-dev \
+        libgsl-dev \
+        libgit2-dev \
+        libglpk-dev \
+        libuv1-dev \
+        pandoc \
         pkg-config \
         wget \
     && rm -rf /var/lib/apt/lists/*
@@ -74,13 +88,6 @@ RUN install -d -m 0755 /etc/apt/keyrings \
     fi \
     && rm -rf /var/lib/apt/lists/*
 
-# ---- uvr (R package manager CLI) ---------------------------------------------
-ARG TARGETARCH
-RUN if [ "${TARGETARCH}" = "arm64" ]; then UVR_ARCH="aarch64-unknown-linux-gnu"; else UVR_ARCH="x86_64-unknown-linux-gnu"; fi \
-    && curl -fsSL "https://github.com/nbafrank/uvr/releases/latest/download/uvr-${UVR_ARCH}.tar.gz" \
-        | tar -xz -C /usr/local/bin uvr \
-    && chmod +x /usr/local/bin/uvr
-
 # ---- Rust via rustup ---------------------------------------------------------
 ENV CARGO_HOME=/usr/local/cargo \
     RUSTUP_HOME=/usr/local/rustup \
@@ -107,10 +114,42 @@ RUN if [ "${SKIP_BASE_DEPS}" = "true" ]; then \
     && python3 --version \
     && uv --version \
     && uv python find "${PYTHON_VERSION}" \
-    && uvr --version \
     && R --version | head -n1 \
     && rustc --version \
     && cargo --version
+
+# ---- pre-install R packages (batch_effect_assessments) ------
+ENV R_LIBS_SITE=/usr/local/lib/R/site-library
+
+RUN mkdir -p "${R_LIBS_SITE}" \
+    && R --quiet -e " \
+        options(repos = c(CRAN = 'https://cloud.r-project.org')); \
+        pkgs <- c('Rcpp', 'jsonlite', 'tidyverse', 'Seurat', 'remotes'); \
+        install.packages( \
+            pkgs, \
+            lib = Sys.getenv('R_LIBS_SITE'), \
+            Ncpus = max(1L, parallel::detectCores() - 1L), \
+            dependencies = TRUE \
+        ); \
+        missing <- pkgs[!vapply(pkgs, requireNamespace, logical(1), quietly = TRUE)]; \
+        if (length(missing)) stop('Missing R packages: ', paste(missing, collapse = ', ')); \
+        cat('R site-library OK\n') \
+    " \
+    && R --quiet -e " \
+        library(remotes); \
+        install_github('carmonalab/scIntegrationMetrics', lib = Sys.getenv('R_LIBS_SITE'), upgrade = 'never'); \
+        cat('scIntegrationMetrics OK\n') \
+    " \
+    && curl -fsSL https://github.com/theislab/kBET/archive/refs/heads/master.tar.gz -o /tmp/kBET.tar.gz \
+    && R CMD INSTALL /tmp/kBET.tar.gz --library="${R_LIBS_SITE}" \
+    && R --quiet -e " \
+        extra <- c('scIntegrationMetrics', 'kBET'); \
+        missing_extra <- extra[!vapply(extra, requireNamespace, logical(1), quietly = TRUE)]; \
+        if (length(missing_extra)) stop('Missing GitHub packages: ', paste(missing_extra, collapse = ', ')); \
+        cat('All packages OK\n') \
+    "
+
+ENV R_LIBS="${R_LIBS_SITE}"
 
 # ---- runtime (published :latest on main) -------------------------------------
 FROM deps AS runtime

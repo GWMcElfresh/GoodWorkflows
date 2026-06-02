@@ -36,7 +36,7 @@ obj <- readRDS(rds_path)
 batch_col <- prep$batch_column
 celltype_col <- prep$celltype_column
 emb <- Embeddings(obj, reduction = reduction)
-md <- obj[['meta.data']]
+md <- obj[[]]
 
 batch_asw <- NA_real_
 celltype_asw <- NA_real_

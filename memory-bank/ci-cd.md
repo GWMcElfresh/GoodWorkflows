@@ -48,7 +48,7 @@ The repository uses GitHub Actions for four layers of validation:
 
 **PR behavior:** Smoke tests run inside the locally built/pulled **deps image** (not an unpushed GHCR tag).
 
-**Test command:** Verifies `python3`, `uv`, `uv python find 3.12`, `uvr`, `R`, `rustc`, and `cargo`.
+**Test command:** Verifies `python3`, `uv`, `uv python find 3.12`, `R`, pre-installed `tidyverse` and `Seurat`, `rustc`, and `cargo`.
 
 Use this image for ad-hoc dependency spikes during evolve cycles; promote deps to module containers when they become production Nextflow requirements.
 
@@ -57,11 +57,12 @@ Use this image for ad-hoc dependency spikes during evolve cycles; promote deps t
 **Trigger:** PRs and pushes that touch workflows, docs, schema, or docs tooling.
 
 **Steps:**
-1. Regenerate `nf-docs` API reference: `bash scripts/docs/generate_api_docs.sh`
-2. Regenerate synthetic example plots: `uvx --with matplotlib python scripts/docs/generate_example_plots.py`
-3. Build docs with strict mode: `mkdocs build --strict`
+1. Resolve and cache the Nextflow language server JAR (`scripts/docs/ensure_language_server.sh`) using authenticated `GITHUB_TOKEN` API calls and `actions/cache` (avoids unauthenticated GitHub API rate limits on shared runners)
+2. Regenerate `nf-docs` API reference: `bash scripts/docs/generate_api_docs.sh`
+3. Regenerate synthetic example plots: `uvx --with matplotlib python scripts/docs/generate_example_plots.py`
+4. Build docs with strict mode: `mkdocs build --strict`
 
-**Deploy:** On pushes to `main`, the site is deployed to GitHub Pages at `gwmcelfresh.github.io/GoodWorkflows/`.
+**Deploy:** On pushes to `main`, the site is deployed to GitHub Pages at `gwmcelfresh.github.io/GoodWorkflows/` via `mkdocs gh-deploy` to the `gh_pages` branch. The `site/` directory is build output only (gitignored on `main`; do not commit HTML or nf-docs-generated pages).
 
 ## Container Caching for CI
 
@@ -85,6 +86,23 @@ Seeded synthetic fixture bundle used for:
 - Docs example plots (immune composition, subject table heatmap, count matrix heatmap)
 - Vignette walkthrough
 - Does not depend on sensitive or machine-local files
+
+## Local multi-host testing
+
+CI uses `-profile test -stub-run` on GitHub Actions runners. Local development uses host profiles in `template/gw/test-hosts.yaml`:
+
+| Layer | Command | Scope |
+|-------|---------|-------|
+| **Entrypoint** | `bash scripts/test/run_host_tests.sh` | Auto host + default tier |
+| **Light (WSL default)** | `--tier light` or `--affected` | Config, `bash -n`, CI smoke for touched workflows |
+| **Stub** | `--tier stub` | Serial `check_workflows.sh` stub-run |
+| **Real** | `--tier real` | Podman; Mac CPU-only; Bazzite all workflows |
+
+Cursor skill `18-host-test` and hook `verification_hint.py` suggest the entrypoint after edits.
+
+## Debugging CI
+
+For red PR checks, use the Cursor skill `debug-github-actions-pr` (`.cursor/skills/debug-github-actions-pr/`): resolve the PR with `gh`, fetch `--log-failed` only, extract error lines with context, then map to local repro commands in `reference.md`.
 
 ## CI Design Principles
 

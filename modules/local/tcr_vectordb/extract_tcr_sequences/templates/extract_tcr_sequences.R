@@ -134,17 +134,17 @@ out_rows <- list()
 k <- 0
 
 for (i in seq_len(nrow(df))) {
-    cDNA_ID   <- clean_field(df$cDNA_ID[[i]])
-    SubjectId <- clean_field(df$SubjectId[[i]])
-    barcode   <- clean_field(df$barcode[[i]])
+    cDNA_ID   <- clean_field(df[["cDNA_ID"]][[i]])
+    SubjectId <- clean_field(df[["SubjectId"]][[i]])
+    barcode   <- clean_field(df[["barcode"]][[i]])
 
     # Skip empty ids: prevents malformed downstream joins.
     if (!nzchar(cDNA_ID) || !nzchar(SubjectId) || !nzchar(barcode)) next
 
     # TRA
-    tra_split_v <- split_aligned(df$TRA[[i]], df$TRA_V[[i]])
-    tra_split_j <- split_aligned(df$TRA[[i]], df$TRA_J[[i]])
-    tra_seqs <- tra_split_v$seqs
+    tra_split_v <- split_aligned(df[["TRA"]][[i]], df[["TRA_V"]][[i]])
+    tra_split_j <- split_aligned(df[["TRA"]][[i]], df[["TRA_J"]][[i]])
+    tra_seqs <- tra_split_v[["seqs"]]
     if (length(tra_seqs) > 0) {
         for (seq_i in seq_along(tra_seqs)) {
             k <- k + 1
@@ -155,17 +155,17 @@ for (i in seq_len(nrow(df))) {
                 chain = "TRA",
                 sequence = tra_seqs[[seq_i]],
                 sequence_index = as.integer(seq_i - 1),  # 0-based index
-                v_gene = tra_split_v$genes[[seq_i]],
-                j_gene = tra_split_j$genes[[seq_i]],
+                v_gene = tra_split_v[["genes"]][[seq_i]],
+                j_gene = tra_split_j[["genes"]][[seq_i]],
                 stringsAsFactors = FALSE
             )
         }
     }
 
     # TRB
-    trb_split_v <- split_aligned(df$TRB[[i]], df$TRB_V[[i]])
-    trb_split_j <- split_aligned(df$TRB[[i]], df$TRB_J[[i]])
-    trb_seqs <- trb_split_v$seqs
+    trb_split_v <- split_aligned(df[["TRB"]][[i]], df[["TRB_V"]][[i]])
+    trb_split_j <- split_aligned(df[["TRB"]][[i]], df[["TRB_J"]][[i]])
+    trb_seqs <- trb_split_v[["seqs"]]
     if (length(trb_seqs) > 0) {
         for (seq_i in seq_along(trb_seqs)) {
             k <- k + 1
@@ -176,8 +176,8 @@ for (i in seq_len(nrow(df))) {
                 chain = "TRB",
                 sequence = trb_seqs[[seq_i]],
                 sequence_index = as.integer(seq_i - 1),  # 0-based index
-                v_gene = trb_split_v$genes[[seq_i]],
-                j_gene = trb_split_j$genes[[seq_i]],
+                v_gene = trb_split_v[["genes"]][[seq_i]],
+                j_gene = trb_split_j[["genes"]][[seq_i]],
                 stringsAsFactors = FALSE
             )
         }

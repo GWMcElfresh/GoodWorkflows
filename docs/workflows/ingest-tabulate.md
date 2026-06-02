@@ -139,7 +139,7 @@ The docs and smoke tests use seeded metadata to generate a safe `subjectTable_TB
 
 Each row is one subject/sample identity record and each numeric column is a proportion derived from the cell-level metadata.
 
-See the full [Synthetic Tabulation Walkthrough](../vignettes/synthetic-tabulation.md) and the generated [API Reference → Workflows](../api/workflows.md#ingest-tabulate-pipeline).
+See the full [Synthetic Tabulation Walkthrough](../vignettes/synthetic-tabulation.md) and the generated [API Reference → Workflows](../api/generated/workflows.md#ingest-tabulate-pipeline).
 
 ---
 
@@ -194,7 +194,7 @@ bash slurm_nextflow.sh \
   --labkey_folder /My/Project/Folder
 ```
 
-> **Container prerequisites:** When running on SLURM, Apptainer must be configured before your first run. See [Container image pre-pull and SIF cache](../usage.md#6-container-image-pre-pull-and-sif-cache) in the usage guide for graphroot setup, storage details, and all `NXF_APPTAINER_*` environment variables.
+> **Container prerequisites:** When running on SLURM, Apptainer must be configured before your first run. See [Container image pre-pull and SIF cache](../usage.md#7-container-image-pre-pull-and-sif-cache) in the usage guide for graphroot setup, storage details, and all `NXF_APPTAINER_*` environment variables.
 
 ---
 

@@ -39,7 +39,7 @@ status <- 'ok'
 
 if (requireNamespace('scIntegrationMetrics', quietly = TRUE)) {
     # Package API: compute iLISI on embedding matrix + batch labels.
-    md <- obj[['meta.data']]
+    md <- obj[[]]
     batches <- as.character(md[[batch_col]])
     if (exists('compute_iLISI', where = asNamespace('scIntegrationMetrics'), inherits = FALSE)) {
         ilisi_vals <- scIntegrationMetrics::compute_iLISI(emb, batches)
