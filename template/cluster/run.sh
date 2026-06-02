@@ -2,10 +2,34 @@
 # Per-run Nextflow launcher template for GoodWorkflows.
 #
 # USAGE
-#   1. Copy the template/ directory into runs/<my_run_name>/
-#        cp -r /path/to/GoodWorkflows/template runs/my_run
-#   2. Edit the samplesheet.csv: one row per sample.
+#   1. Copy the template/cluster directory into runs/<my_run_name>/
+#        cp -r /path/to/GoodWorkflows/template/cluster runs/my_run
+#   2. Edit samplesheet.csv (one row per sample), or copy a mode-specific example:
+#        cp samplesheet.example.path.csv samplesheet.csv
 #   3. Fill in the FILL IN section below.
+#
+# Samplesheet columns (union header in samplesheet.csv)
+#   sample_id                          — required (all workflows)
+#   output_file_id | url | path        — tri-mode ingest: exactly ONE non-empty per row
+#   metadata_path                      — ingest_tabulate only (4th mode); mutually exclusive
+#                                        with output_file_id, url, and path
+#   species                            — required for integration, ingest_export, gex_mil, etc.
+#   SubjectId                          — required for gex_mil
+#   batch_column                       — required for batch_effect_assessments (Seurat meta.data name)
+#   integration_assessment_methods     — optional for batch_effect_assessments; quote the cell if
+#                                        it contains commas (e.g. "LISI,CiLISI,ASW,CELLTYPE_ASW")
+#   lambda_graph                       — optional for nmf_vae (falls back to --nmf_vae_lambda_graph)
+#
+# Example sheets (copy one to samplesheet.csv, then edit paths/IDs):
+#   samplesheet.example.labkey.csv
+#   samplesheet.example.url.csv
+#   samplesheet.example.path.csv
+#   samplesheet.example.metadata_path.csv   (ingest_tabulate)
+#   samplesheet.example.gex_mil.csv
+#   samplesheet.example.batch_effect_assessments.csv
+#   samplesheet.example.nmf_vae.csv
+#
+# Override input at launch:  INPUT=/path/to/samplesheet.csv sbatch run.sh
 #   4. Submit on SLURM:  sbatch run.sh
 #      This template performs an inline container image pre-pull in the same
 #      SLURM allocation before launching Nextflow.

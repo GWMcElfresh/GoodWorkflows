@@ -1,2 +1,2 @@
 sample_id,output_file_id,url,path,metadata_path,species,SubjectId,batch_column,integration_assessment_methods,lambda_graph
-SAMPLE_01,100001,,,,human,,,,
+SAMPLE_LABKEY,12345,,,,human,,,,
