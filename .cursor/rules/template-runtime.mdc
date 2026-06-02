@@ -17,3 +17,4 @@ Nextflow renders templates through Groovy before R, Python, or shell sees them.
 - In Seurat v5, `obj[['meta.data']]` is invalid; use `obj[[]]` instead to access the metadata data frame.
 - When calling `Rscript` directly from a Nextflow module (vs `uvr run`), always set `export R_LIBS="/usr/local/lib/R/site-library"` first so system-installed packages are found.
 - `uvr run` masks `R_LIBS` and breaks shared-object loading when mixed with system-site packages. Do not use uvr for production module runtime; use direct `Rscript` with `R_LIBS` set instead.
+- When a template imports a Python/R module that is not available in its container, **flag the gap to the user** rather than inlining fallback implementations. Container dependency gaps should be fixed in the container image, not worked around in templates.
