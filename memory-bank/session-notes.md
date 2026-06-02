@@ -228,3 +228,31 @@ The `batch_effect_assessments` workflow failed on real-tier runs with 3 distinct
 - **`check_workflows.sh` grep false-positive** — curl 403 errors in nextflow.log still trigger `grep -qi "error"` on healthy stub runs (low priority, the exit code 0 is the real signal).
 - **`18-host-test` skill** — needs Bazzite-specific references updated.
 - **kBET and scIntegrationMetrics not in `:latest`** — image ships without them; each ASSESS_* task installs them at runtime via `remotes::install_github`. Pre-installing in the Dockerfile would save ~60s per task.
+
+## 2026-06-01 — Post-commit retrospective (ingest_tabulate + vectordb fixes / missteps)
+
+### Context
+After the main `batch_effect_assessments` fixes were committed and pushed, the user asked to fix two more failing workflows from the full real-tier run: `ingest_tabulate` and `make_tcr_vector_database`.
+
+### What worked
+- **ingest_tabulate TABULATE fix**: The PBMC metadata CSVs lacked RIRA cell-type columns. Added mock data with `RIRA_Immune.cellclass`, `RIRA_TNK_v2.cellclass`, `RIRA_Myeloid_v3.cellclass`. Passed both stub-run and real-tier.
+- **`$` → `[[]]` escaping in `extract_tcr_sequences.R`**: Template had bare `df$cDNA_ID` which Nextflow's Groovy template engine interpreted. Fixed with `df[["cDNA_ID"]]`. Passed stub-run. (Already committed in `15d3ed9`.)
+
+### What went wrong
+- **vectordb embed template parquet→CSV swap**: The `EMBED_TCR_VECTORDATABASE` process failed in the mil-ton container — two issues: (1) `from mil_ton.vectordb.faiss_index` import error (module missing from container), (2) `pyarrow` not installed for parquet output. Tried to work around both by inlining FAISS helpers with numpy fallback and swapping output format to CSV. This was the wrong approach — the container is the user's domain and should be fixed there.
+- **Overreaching scope**: When the template `from mil_ton.vectordb.faiss_index` import failed, should have flagged the missing container dependency rather than rewriting the template to work without it. Numpy fallback for FAISS is technical debt.
+
+### Lessons / guidance updates
+- **Container dependency gaps should be flagged, not worked around in templates.** If a process references a Python/R module that isn't in its container, tell the user rather than inlining fallbacks. Inlined numpy-FAISS is strictly worse than having `faiss-cpu` in the container.
+- **Template `$` escaping is well-documented in `.cursor/rules/template-runtime.mdc`** — the rule existed and was followed for `extract_tcr_sequences.R`. No change needed there.
+- **Test-data scope awareness**: The PBMC metadata CSVs are gitignored (`template/gw/data/` in `.gitignore`), so the mock RIRA columns are a local-only fix. Other machines / CI would still fail if they pull the same test data from scratch. This is acceptable for now since the test-data pipeline generates separate fixtures.
+
+### Files changed this segment
+- `template/gw/data/PBMC_HUMAN_metadata.csv` — added RIRA cell-type columns (gitignored, local only)
+- `template/gw/data/PBMC_MACAQUE_metadata.csv` — same
+- `template/gw/data/PBMC_MOUSE_metadata.csv` — same
+
+### No rule/skill changes needed
+- `template-runtime.mdc` already covers `$` → `[[]]` and direct Rscript patterns
+- `16-evolve` already covers uvr deprecation
+- No new repeating anti-pattern identified
