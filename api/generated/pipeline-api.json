@@ -1,0 +1,1944 @@
+INFO     Extracting documentation from:                                         
+         ~/work/GoodWorkflows/GoodWorkflows/.tmp/nf-docs-workspace              
+INFO     Parsed schema with 23 input parameters                                 
+INFO     Parsed config with 90 parameters                                       
+INFO     Found 39 Nextflow files                                                
+
+
+INFO     Extraction complete: 11 workflows, 29 processes, 9 functions           
+
+
+{
+  "pipeline": {
+    "name": "GoodWorkflows API Reference",
+    "description": "DSL2 Nextflow pipeline for composing reusable single-cell RNA-seq workflows on SLURM + Podman HPC systems.",
+    "repository": "https://github.com/GWMcElfresh/GoodWorkflows",
+    "readme_content": "A DSL2 **Nextflow** repository for composing reusable single-cell workflows from small modules and running them on **SLURM + Apptainer** HPC systems.\n\n📖 **[Full documentation →](https://gwmcelfresh.github.io/GoodWorkflows/)**  \nParameters: [`nextflow_schema.json`](nextflow_schema.json) | Docs source: [`docs/`](docs/)\n\n---\n\n## Repository layout\n\n```text\n.\n├── main.nf                 # Thin launcher for saved workflows\n├── workflows/              # Higher-level reusable workflows\n├── modules/local/          # Single-step DSL2 modules\n├── configs/                # Base + profile-specific config\n├── data/                   # Default repo-local input location\n├── template/               # Copyable per-run launcher scaffold\n├── outputs/                # Default published results (generated)\n├── work/                   # Nextflow work dir (generated)\n├── logs/                   # Reports and SLURM logs (generated)\n├── slurm_nextflow.sh       # Repo-root HPC launcher\n└── slurm_sync_repo.sh      # Fast clone / update job for HPC checkouts\n```\n\n## Saved workflows\n\n| Workflow | Purpose | Compute |\n|---|---|---|\n| `integration` | `INGEST -> EXPORT_COUNTS -> GENE_HARMONIZE -> SCMODAL_INTEGRATE` | GPU |\n| `ingest_export` | Download Seurat objects and export 10x-like counts only | CPU |\n| `ingest_tabulate` | Download metadata only and build `subjectIdTable.csv` | CPU |\n| `nmf_vae` | Ingest, export counts, merge, train NMF-VAE | GPU |\n| `gex_mil` | Ingest, export counts, merge, train scVI + attention-MIL | GPU |\n| `tcr_mil` | Ingest, quantify TCRs via tcrClustR, train BertTCR MIL | GPU |\n| `tcr_epitope` | Ingest, quantify TCRs, embed clones with ESM-2, predict epitope binding | GPU |\n\nSelect one with `--workflow`.\n\n---\n\n## Defaults\n\nThe repo now uses local, predictable defaults:\n\n- **Input samplesheet:** `./data/samplesheet.csv`\n- **Published outputs:** `./outputs`\n- **Work directory:** `./work`\n- **Reports/logs:** `./logs`\n\nThese can still be overridden on the CLI.\n\n---\n\n## Running locally\n\nCPU-friendly workflows can be run directly on macOS or Linux without SLURM:\n\n```bash\nnextflow run main.nf \\\n  --workflow ingest_tabulate \\\n  --labkey_base_url https://labkey.example.org \\\n  --labkey_folder /My/Folder\n```\n\n```bash\nnextflow run main.nf \\\n  --workflow ingest_export \\\n  --labkey_base_url https://labkey.example.org \\\n  --labkey_folder /My/Folder\n```\n\nThe `integration` workflow is intentionally blocked on local CPU execution outside GitHub Actions smoke tests because `SCMODAL_INTEGRATE` needs a GPU-backed SLURM environment.\n\nIf needed, you can still force behavior explicitly with `-profile local` or `-profile slurm`.\n\nFor a light structural check without running the heavy science stack:\n\n```bash\nnextflow run main.nf -profile test -stub-run \\\n  --workflow ingest_export \\\n  --labkey_base_url https://labkey.example.org \\\n  --labkey_folder /My/Folder\n```\n\n---\n\n## Running on HPC\n\n### 1. Sync or clone the repo\n\nRecommended: **do this outside the pipeline**, not as a Nextflow module. A pipeline should not mutate its own checkout while it is running.\n\n```bash\nsbatch slurm_sync_repo.sh\n```\n\nOr target a specific scratch location:\n\n```bash\nsbatch --export=ALL,SYNC_TARGET_DIR=/gscratch/mygroup/GoodWorkflows slurm_sync_repo.sh\n```\n\n### 2. Choose an HPC entrypoint\n\nFor SLURM-based runs, the simplest path is usually to copy the template and fill out `run.sh`. The repo-root wrapper is still available when you want repo-relative outputs or a separate pre-pull job.\n\n| Entry point | Best for | Pre-pull behavior |\n|---|---|---|\n| `runs/<name>/run.sh` | Recommended routine SLURM runs with a dedicated run directory and checked-in samplesheet template | Runs **inline** inside the same SLURM allocation before `nextflow run` |\n| `bash slurm_nextflow.sh ...` | Repo-root launches, automation, or cases where you want image pre-pull isolated first | Submits a **standalone pre-pull job** before the orchestrator |\n\n#### 2A. Recommended: copy the template and submit `run.sh`\n\n```bash\ncp -r template runs/my_run_name\ncd runs/my_run_name\n\n# edit samplesheet.csv and the FILL IN section in run.sh\nsbatch run.sh\n```\n\n`run.sh` does perform a container image pre-pull on SLURM, but it does so **inline in the same allocation** before Nextflow starts. For CPU-only local workflows, `bash run.sh` skips SLURM pre-pull entirely.\n\n#### 2B. Alternative: launch from the repository root\n\n```bash\nbash slurm_nextflow.sh \\\n  --workflow integration \\\n  --labkey_base_url https://labkey.example.org \\\n  --labkey_folder /My/Folder\n```\n\nPreferred launch mode: run `bash slurm_nextflow.sh ...` from a login node. In that mode the wrapper submits a standalone Apptainer SIF pre-pull job first, then submits the orchestrator with `--dependency=afterok:<PREPULL_JOB_ID>`. Pre-pull is therefore a hard prerequisite for orchestration.\n\nIf you instead use `sbatch slurm_nextflow.sh ...`, the same pre-pull runs inline inside the orchestrator allocation before Nextflow launches. `template/run.sh` also uses inline pre-pull.\n\nGoodWorkflows pre-pulls every required docker image as an Apptainer SIF file into `${PIPELINE_ROOT}/apptainer-sif/` (or `$NXF_SINGULARITY_CACHEDIR` if set). The standalone pre-pull job populates this shared cache before any tasks start; each task finds the SIF there directly with no conversion overhead.\n\n#### Apptainer SIF cache\n\nThe pipeline converts each docker image to a SIF file once and stores it in `${PIPELINE_ROOT}/apptainer-sif/` (shared NFS). Override with:\n\n```bash\nexport NXF_SINGULARITY_CACHEDIR=/home/exacloud/gscratch/<lab>/singularity-sifs\nbash slurm_nextflow.sh --workflow ingest_tabulate ...\n```\n\n`APPTAINER_CACHEDIR` (the OCI blob/layer cache, typically set in `~/.bashrc`) is passed through to compute nodes automatically and speeds up repeated pulls of the same image layers.\n\nOptional: fast-forward the checkout immediately before launch:\n\n```bash\nSYNC_REPO_BEFORE_RUN=true bash slurm_nextflow.sh \\\n  --workflow integration \\\n  --labkey_base_url https://labkey.example.org \\\n  --labkey_folder /My/Folder\n```\n\n---\n\n## Notes on repo sync strategy\n\nA lightweight **git sync job** is the best fit here:\n\n- ✅ simple and transparent\n- ✅ works well on HPC scratch filesystems\n- ✅ keeps the pipeline code versioned in Git\n- ❌ safer than a self-updating Nextflow process inside the running workflow\n\nSo the implemented pattern is:\n\n1. `git clone` once on HPC\n2. use `slurm_sync_repo.sh` or `scripts/sync_repo.sh` to fast-forward to the latest `main`\n3. launch `run.sh` for routine named runs, or `slurm_nextflow.sh` for repo-root launches\n\n---\n\n## CI testing strategy\n\nGitHub Actions validates the repository in two layers:\n\n1. **Workflow smoke tests** — runs `main.nf` with `-profile test -stub-run` for `integration`, `ingest_export`, and `ingest_tabulate`. The `integration` workflow smoke test additionally passes `--scmodal_use_cpu true` to bypass the local-executor GPU guard; `SCMODAL_INTEGRATE` runs its stub block, which validates DSL2 wiring without requiring a GPU.\n2. **Module smoke tests** — runs each module wrapper under `tests/modules/` so every module is exercised independently.\n\nThe `test` profile disables containers and uses the local executor so CI can validate DSL2 wiring quickly without requiring HPC infrastructure.\n\nFor container-dependent validation, the repo also includes `scripts/ci/cache_container_images.sh`, which can pre-pull and cache the module images into `.ci/docker-cache/` during GitHub Actions runs.\n\n3. **Docs validation and deploy** — on pull requests and pushes that touch workflows, docs, schema, or docs tooling, GitHub Actions regenerates the `nf-docs` API reference, regenerates synthetic example plots, and runs `mkdocs build --strict`. Pushes to `main` also deploy the site to GitHub Pages.\n\n## Regenerating docs locally\n\n```bash\nbash scripts/docs/generate_api_docs.sh\nuvx --with matplotlib python scripts/docs/generate_example_plots.py\nmkdocs build --strict\n```\n\nThe published vignette and example plots are driven by the seeded synthetic fixture bundle in `tests/fixtures/synthetic_trial_data/`, so docs and CI do not depend on sensitive or machine-local files.\n\n## Base Docker image\n\nThe repository publishes a multi-runtime base image to GHCR at\n`ghcr.io/gwmcelfresh/goodworkflows:latest` with **Python** (managed by\n[`uv`](https://github.com/astral-sh/uv)), **R**, and **Rust** pre-installed.\n\nThe image is built via [GWMcElfresh/dockerDependencies](https://github.com/GWMcElfresh/dockerDependencies)\nreusable workflows (same pattern as [MIL-ton CI](https://github.com/GWMcElfresh/MIL-ton/blob/main/.github/workflows/ci.yml)):\n\n- `base-deps:YYYY-MM` — monthly foundation layer\n- `deps:<hash-YYYY-MM>` — incremental dependency cache\n- `:latest` — runtime image published on pushes to `main`\n\n### Build args\n\n| Arg | Default | Description |\n|-----|---------|-------------|\n| `PYTHON_VERSION` | `3.12` | uv-managed Python to pre-cache (system default stays Ubuntu 3.10) |\n| `R_VERSION` | latest | Pin a specific R version |\n| `RUST_VERSION` | `stable` | Rust toolchain channel |\n| `BASE_IMAGE` | `foundation` | Set by docker-cache when reusing monthly `base-deps` |\n| `SKIP_BASE_DEPS` | `false` | Set by docker-cache when building incrementally on `base-deps` |\n\n### Quick start\n\n```bash\n# Pull the latest base image\ndocker pull ghcr.io/gwmcelfresh/goodworkflows:latest\n\n# Spin up a quick Python venv\ndocker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \\\n  sh -c 'uv venv /tmp/venv && . /tmp/venv/bin/activate && uv pip install pandas && python -c \"import pandas; print(pandas.__version__)\"'\n\n# Use a newer Python via uv (system default is Ubuntu 3.10)\ndocker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \\\n  sh -c 'uv venv --python 3.12 /tmp/venv && . /tmp/venv/bin/activate && python --version'\n\n# Install R packages on the fly\ndocker run --rm -it ghcr.io/gwmcelfresh/goodworkflows:latest \\\n  Rscript -e \"library(Seurat); library(jsonlite); cat('OK\\n')\"\n```\n\n### Extending the image\n\n```dockerfile\nFROM ghcr.io/gwmcelfresh/goodworkflows:latest\n\n# Python deps\nRUN uv pip install --system scanpy anndata\n\n# R deps\nRUN Rscript -e \"install.packages('Seurat', repos='https://cloud.r-project.org')\"\n\n# Rust crate (binary)\nRUN cargo install ripgrep\n```\n\n## License\n\nMIT – see `LICENSE`.\n"
+  },
+  "inputs": [
+    {
+      "name": "workflow",
+      "type": "string",
+      "description": "Named workflow to execute.",
+      "required": false,
+      "help_text": "Select one of the supported saved workflows. Some require GPU/SLURM; others run locally (CPU).",
+      "default": "integration",
+      "enum": [
+        "integration",
+        "ingest_export",
+        "ingest_tabulate",
+        "nmf_vae",
+        "gex_mil",
+        "tcr_mil",
+        "tcr_epitope",
+        "make_tcr_vector_database",
+        "batch_effect_assessments"
+      ],
+      "group": "Input / output options"
+    },
+    {
+      "name": "input",
+      "type": "string",
+      "description": "Path to the samplesheet CSV file. Must contain columns sample_id, output_file_id, and species.",
+      "required": false,
+      "default": "${projectDir}/data/samplesheet.csv",
+      "format": "file-path",
+      "pattern": "^\\S+\\.csv$",
+      "group": "Input / output options"
+    },
+    {
+      "name": "outdir",
+      "type": "string",
+      "description": "Directory where published results are written.",
+      "required": false,
+      "default": "${projectDir}/outputs",
+      "format": "directory-path",
+      "group": "Input / output options"
+    },
+    {
+      "name": "labkey_base_url",
+      "type": "string",
+      "description": "Base URL of the LabKey server (e.g. https://labkey.example.org).",
+      "required": true,
+      "group": "LabKey / Prime-seq options"
+    },
+    {
+      "name": "labkey_folder",
+      "type": "string",
+      "description": "LabKey folder path (e.g. /My/Project/Folder).",
+      "required": true,
+      "group": "LabKey / Prime-seq options"
+    },
+    {
+      "name": "species_order",
+      "type": "string",
+      "description": "Comma-separated list of species. Controls the order used during cross-species harmonization and scMODAL integration.",
+      "required": false,
+      "help_text": "Each entry must match the 'species' column values in the samplesheet. Only species present in both the samplesheet and this list are integrated.",
+      "default": "human,macaque,mouse",
+      "group": "Species options"
+    },
+    {
+      "name": "export_assay",
+      "type": "string",
+      "description": "Seurat assay name to export as 10x-like count matrix in EXPORT_COUNTS.",
+      "required": false,
+      "default": "RNA",
+      "group": "Species options"
+    },
+    {
+      "name": "tabulate_id_cols",
+      "type": "string",
+      "description": "Comma-separated list of subject-level identity columns to carry through to subjectIdTable.csv. cDNA_ID is always included.",
+      "required": false,
+      "default": "cDNA_ID,SubjectId,Vaccine,Timepoint,Tissue",
+      "group": "Tabulation options"
+    },
+    {
+      "name": "tabulate_celltype_cols",
+      "type": "string",
+      "description": "Extra cell-type columns to tabulate in addition to the standard RIRA columns (RIRA_Immune.cellclass, RIRA_TNK_v2.cellclass, RIRA_Myeloid_v3.cellclass), which are always processed when present.",
+      "required": false,
+      "default": "",
+      "group": "Tabulation options"
+    },
+    {
+      "name": "tabulate_parent_col",
+      "type": "string",
+      "description": "Parent column used to subset child cell-type columns. Defaults to RIRA_Immune.cellclass when empty.",
+      "required": false,
+      "default": "",
+      "group": "Tabulation options"
+    },
+    {
+      "name": "tabulate_celltype_parent_map",
+      "type": "string",
+      "description": "Comma-separated celltype_col:parentValue pairs that extend or override the built-in hierarchy (e.g. RIRA_TNK_v2.cellclass:TNK,RIRA_Myeloid_v3.cellclass:Myeloid).",
+      "required": false,
+      "default": "",
+      "group": "Tabulation options"
+    },
+    {
+      "name": "scmodal_container",
+      "type": "string",
+      "description": "Container image used for GENE_HARMONIZE and SCMODAL_INTEGRATE. Must include scmodal, torch, scanpy, and anndata.",
+      "required": false,
+      "default": "ghcr.io/gwmcelfresh/scmodal-cuda:latest",
+      "group": "scMODAL integration options"
+    },
+    {
+      "name": "scmodal_latent",
+      "type": "integer",
+      "description": "Dimensionality of the latent embedding produced by scMODAL.",
+      "required": false,
+      "default": 20,
+      "group": "scMODAL integration options"
+    },
+    {
+      "name": "scmodal_training_steps",
+      "type": "integer",
+      "description": "Number of training steps for the scMODAL VAE.",
+      "required": false,
+      "default": 10000,
+      "group": "scMODAL integration options"
+    },
+    {
+      "name": "scmodal_batch_size",
+      "type": "integer",
+      "description": "Mini-batch size during scMODAL training.",
+      "required": false,
+      "default": 500,
+      "group": "scMODAL integration options"
+    },
+    {
+      "name": "scmodal_neighbors",
+      "type": "integer",
+      "description": "Number of nearest neighbours used when building the KNN graph after integration.",
+      "required": false,
+      "default": 30,
+      "group": "scMODAL integration options"
+    },
+    {
+      "name": "leiden_resolution",
+      "type": "number",
+      "description": "Leiden clustering resolution applied to the scMODAL latent graph.",
+      "required": false,
+      "default": 0.5,
+      "group": "scMODAL integration options"
+    },
+    {
+      "name": "scmodal_use_cpu",
+      "type": "boolean",
+      "description": "CI-only flag. Bypasses the local-executor GPU guard and runs SCMODAL_INTEGRATE as a stub. Intended for GitHub Actions smoke tests only. Produces no scientifically valid output.",
+      "required": false,
+      "default": false,
+      "group": "scMODAL integration options",
+      "hidden": true
+    },
+    {
+      "name": "goodworkflows_container",
+      "type": "string",
+      "description": "Base image with uv, uvr, R, and Rust. Assessment processes install scIntegrationMetrics and kBET into a transient uvr project per task.",
+      "required": false,
+      "default": "ghcr.io/gwmcelfresh/goodworkflows:latest",
+      "group": "Batch effect assessment options"
+    },
+    {
+      "name": "batch_assessment_default_methods",
+      "type": "string",
+      "description": "Default integration_assessment_methods when the samplesheet column is empty. kBET is opt-in per row.",
+      "required": false,
+      "default": "LISI,CiLISI,ASW,CELLTYPE_ASW",
+      "group": "Batch effect assessment options"
+    },
+    {
+      "name": "batch_assessment_min_cells_per_batch",
+      "type": "integer",
+      "description": "Minimum cells required in every batch label before assessment proceeds.",
+      "required": false,
+      "default": 20,
+      "group": "Batch effect assessment options"
+    },
+    {
+      "name": "batch_assessment_kbet_cells_per_batch",
+      "type": "integer",
+      "description": "Stratified downsample target per batch before kBET (re-PCA on downsampled object).",
+      "required": false,
+      "default": 1000,
+      "group": "Batch effect assessment options"
+    },
+    {
+      "name": "help",
+      "type": "boolean",
+      "description": "Display help text and exit.",
+      "required": false,
+      "default": false,
+      "group": "Generic options",
+      "hidden": true
+    }
+  ],
+  "config_params": [
+    {
+      "name": "local_gpu",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "nmfvae_container",
+      "type": "string",
+      "default": "ghcr.io/gwmcelfresh/nmf-vae:latest"
+    },
+    {
+      "name": "nmf_vae_latent_dim",
+      "type": "integer",
+      "default": 50
+    },
+    {
+      "name": "nmf_vae_epochs",
+      "type": "integer",
+      "default": 200
+    },
+    {
+      "name": "nmf_vae_batch_size",
+      "type": "integer",
+      "default": 512
+    },
+    {
+      "name": "nmf_vae_lr",
+      "type": "number",
+      "default": 0.001
+    },
+    {
+      "name": "nmf_vae_lambda_graph",
+      "type": "string",
+      "default": "moderate"
+    },
+    {
+      "name": "nmf_vae_archs4_cache",
+      "type": "string",
+      "default": "/home/runner/work/GoodWorkflows/GoodWorkflows/.tmp/nf-docs-workspace/.archs4"
+    },
+    {
+      "name": "nmf_vae_archs4_pkl",
+      "type": "string",
+      "default": "/home/runner/work/GoodWorkflows/GoodWorkflows/.tmp/nf-docs-workspace/.archs4/human_correlation_v2.4.pkl"
+    },
+    {
+      "name": "nmf_vae_species_id",
+      "type": "integer",
+      "default": 9606
+    },
+    {
+      "name": "repo_sync_url",
+      "type": "string",
+      "default": "https://github.com/GWMcElfresh/GoodWorkflows.git"
+    },
+    {
+      "name": "repo_sync_branch",
+      "type": "string",
+      "default": "main"
+    },
+    {
+      "name": "milton_container",
+      "type": "string",
+      "default": "ghcr.io/gwmcelfresh/mil-ton:latest"
+    },
+    {
+      "name": "scvi_latent",
+      "type": "integer",
+      "default": 50
+    },
+    {
+      "name": "scvi_epochs",
+      "type": "integer",
+      "default": 200
+    },
+    {
+      "name": "mil_lr",
+      "type": "number",
+      "default": 0.001
+    },
+    {
+      "name": "mil_epochs",
+      "type": "integer",
+      "default": 100
+    },
+    {
+      "name": "mil_heads",
+      "type": "integer",
+      "default": 5
+    },
+    {
+      "name": "mil_embed_dim",
+      "type": "integer",
+      "default": 128
+    },
+    {
+      "name": "mil_dropout",
+      "type": "number",
+      "default": 0.2
+    },
+    {
+      "name": "mil_train_fraction",
+      "type": "number",
+      "default": 0.7
+    },
+    {
+      "name": "milton_donor_col",
+      "type": "string",
+      "default": "SubjectId"
+    },
+    {
+      "name": "milton_label_col",
+      "type": "string",
+      "default": "disease_status"
+    },
+    {
+      "name": "milton_cells_per_donor",
+      "type": "integer",
+      "default": 2000
+    },
+    {
+      "name": "milton_n_latent",
+      "type": "integer",
+      "default": 50
+    },
+    {
+      "name": "milton_batch_key",
+      "type": "string",
+      "default": ""
+    },
+    {
+      "name": "milton_encoder_dims",
+      "type": "string",
+      "default": "128,64"
+    },
+    {
+      "name": "milton_attention_dim",
+      "type": "integer",
+      "default": 64
+    },
+    {
+      "name": "milton_epochs",
+      "type": "integer",
+      "default": 100
+    },
+    {
+      "name": "milton_seed",
+      "type": "integer",
+      "default": 42
+    },
+    {
+      "name": "milton_dropout",
+      "type": "number",
+      "default": 0.2
+    },
+    {
+      "name": "tcrClustR_container",
+      "type": "string",
+      "default": "ghcr.io/bimberlabinternal/tcrclustr:latest"
+    },
+    {
+      "name": "bert_model",
+      "type": "string",
+      "default": "Rostlab/prot_bert"
+    },
+    {
+      "name": "tcr_top_n",
+      "type": "integer",
+      "default": 100
+    },
+    {
+      "name": "tcr_chain",
+      "type": "string",
+      "default": "TRB"
+    },
+    {
+      "name": "tcr_region",
+      "type": "string",
+      "default": "cdr3"
+    },
+    {
+      "name": "milton_tcr_container",
+      "type": "string",
+      "default": "ghcr.io/gwmcelfresh/mil-ton:latest"
+    },
+    {
+      "name": "tcr_epochs",
+      "type": "integer",
+      "default": 100
+    },
+    {
+      "name": "tcr_lr",
+      "type": "number",
+      "default": 3e-05
+    },
+    {
+      "name": "tcr_warmup_steps",
+      "type": "integer",
+      "default": 50
+    },
+    {
+      "name": "tcrOrganism",
+      "type": "string",
+      "default": "human"
+    },
+    {
+      "name": "tcrChains",
+      "type": "string",
+      "default": "TRA,TRB"
+    },
+    {
+      "name": "tcrMinimumCloneSize",
+      "type": "integer",
+      "default": 2
+    },
+    {
+      "name": "tcrRunDirichlet",
+      "type": "boolean",
+      "default": false
+    },
+    {
+      "name": "tcrDirichletMaxSamples",
+      "type": "integer",
+      "default": 100
+    },
+    {
+      "name": "tcrDirichletIterations",
+      "type": "integer",
+      "default": 1000
+    },
+    {
+      "name": "tcrMilNTcrs",
+      "type": "integer",
+      "default": 100
+    },
+    {
+      "name": "tcrMilMaxTcrLen",
+      "type": "integer",
+      "default": 24
+    },
+    {
+      "name": "tcrMilBertModel",
+      "type": "string",
+      "default": "Rostlab/prot_bert"
+    },
+    {
+      "name": "tcrMilBertHidden",
+      "type": "integer",
+      "default": 768
+    },
+    {
+      "name": "tcrMilNClasses",
+      "type": "integer",
+      "default": 2
+    },
+    {
+      "name": "tcrMilNEnsemble",
+      "type": "integer",
+      "default": 5
+    },
+    {
+      "name": "tcrMilEpochs",
+      "type": "integer",
+      "default": 100
+    },
+    {
+      "name": "tcrMilLR",
+      "type": "number",
+      "default": 3e-05
+    },
+    {
+      "name": "tcrMilWeightDecay",
+      "type": "number",
+      "default": 0.001
+    },
+    {
+      "name": "tcrMilSeed",
+      "type": "integer",
+      "default": 42
+    },
+    {
+      "name": "tcrMilLabelCol",
+      "type": "string",
+      "default": "disease_status"
+    },
+    {
+      "name": "esm2_model_name",
+      "type": "string",
+      "default": "facebook/esm2_t6_8M_UR50D"
+    },
+    {
+      "name": "epitope_fasta",
+      "type": "string",
+      "default": "/home/runner/work/GoodWorkflows/GoodWorkflows/.tmp/nf-docs-workspace/epitopes.fa"
+    },
+    {
+      "name": "binding_model_path",
+      "type": "string",
+      "default": "/home/runner/work/GoodWorkflows/GoodWorkflows/.tmp/nf-docs-workspace/tcr_epitope_models"
+    },
+    {
+      "name": "tcr_umap_resolution",
+      "type": "number",
+      "default": 1.0
+    },
+    {
+      "name": "tcr_embedding_dim",
+      "type": "integer",
+      "default": 320
+    },
+    {
+      "name": "tdc_cache_dir",
+      "type": "string",
+      "default": "/tmp/tdc_cache/"
+    },
+    {
+      "name": "tcr_vectordb_esm2_model_name",
+      "type": "string",
+      "default": "facebook/esm2_t6_8M_UR50D"
+    },
+    {
+      "name": "tcr_vectordb_max_length",
+      "type": "integer",
+      "default": 128
+    },
+    {
+      "name": "tcr_vectordb_batch_size",
+      "type": "integer",
+      "default": 8
+    },
+    {
+      "name": "tcr_vectordb_knn_k",
+      "type": "integer",
+      "default": 10
+    },
+    {
+      "name": "tcr_vectordb_hf_cache_dir",
+      "type": "string",
+      "default": "/home/runner/work/GoodWorkflows/GoodWorkflows/.tmp/nf-docs-workspace/.hf_cache"
+    }
+  ],
+  "workflows": [
+    {
+      "name": "run_pipeline",
+      "docstring": "",
+      "file": "main.nf",
+      "line": 22,
+      "end_line": 120,
+      "inputs": [
+        {
+          "name": "<none>",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "<none>",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "calls": [],
+      "is_entry": false,
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/main.nf#L22-L120"
+    },
+    {
+      "name": "",
+      "docstring": "",
+      "file": "main.nf",
+      "line": 125,
+      "end_line": 144,
+      "inputs": [],
+      "outputs": [],
+      "calls": [],
+      "is_entry": true,
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/main.nf#L125-L144"
+    },
+    {
+      "name": "TCR_EPITOPE_PIPELINE",
+      "docstring": "",
+      "file": "workflows/tcr_epitope_pipeline.nf",
+      "line": 55,
+      "end_line": 168,
+      "inputs": [
+        {
+          "name": "samplesheet",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "rds",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "tcr_rds",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "tcr_metadata",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "merged_tcr_meta",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "clone_embeddings",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "binding_scores",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "cell_binding_scores",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "clone_metadata",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "annotated_rds",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "calls": [],
+      "is_entry": false,
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/tcr_epitope_pipeline.nf#L55-L168"
+    },
+    {
+      "name": "NMF_VAE_PIPELINE",
+      "docstring": "NMF-VAE pipeline entrypoint.\nDownloads Seurat objects, exports raw counts, merges them into a joint\n.h5ad matrix, and trains an NMF-VAE with signed graph Laplacian\nregularization (ARCHS4 correlation) to produce shared gene programs.\nThis workflow runs on CPU or GPU depending on the executor profile.",
+      "file": "workflows/nmf_vae.nf",
+      "line": 76,
+      "end_line": 132,
+      "inputs": [
+        {
+          "name": "samplesheet",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "counts",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "merged_h5ad",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "genes_file",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "latent_z",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "decoder_w",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "loss_history",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "loss_plot",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "model_checkpoint",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "calls": [],
+      "is_entry": false,
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/nmf_vae.nf#L76-L132"
+    },
+    {
+      "name": "BATCH_EFFECT_ASSESSMENTS_PIPELINE",
+      "docstring": "",
+      "file": "workflows/batch_effect_assessments_pipeline.nf",
+      "line": 74,
+      "end_line": 164,
+      "inputs": [
+        {
+          "name": "samplesheet",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "prep",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "summaries",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "run_summary",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "ingested",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "calls": [],
+      "is_entry": false,
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/batch_effect_assessments_pipeline.nf#L74-L164"
+    },
+    {
+      "name": "INGEST_EXPORT_PIPELINE",
+      "docstring": "Download Seurat objects and export them as 10x-like count directories.\nThis workflow is intended for fast local or CI validation when users want\ncount matrices without running cross-species harmonization or scMODAL.",
+      "file": "workflows/ingest_export.nf",
+      "line": 69,
+      "end_line": 91,
+      "inputs": [
+        {
+          "name": "samplesheet",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "rds",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "counts",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "calls": [],
+      "is_entry": false,
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/ingest_export.nf#L69-L91"
+    },
+    {
+      "name": "TCR_MIL_PIPELINE",
+      "docstring": "",
+      "file": "workflows/tcr_mil_pipeline.nf",
+      "line": 98,
+      "end_line": 138,
+      "inputs": [
+        {
+          "name": "samplesheet",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "rds",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "tcr_rds",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "tcr_metadata",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "merged_tcr_meta",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "tcr_model",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "tcr_history",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "tcr_predictions",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "tcr_importance",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "calls": [],
+      "is_entry": false,
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/tcr_mil_pipeline.nf#L98-L138"
+    },
+    {
+      "name": "MAKE_TCR_VECTOR_DATABASE_PIPELINE",
+      "docstring": "",
+      "file": "workflows/make_tcr_vector_database_pipeline.nf",
+      "line": 68,
+      "end_line": 94,
+      "inputs": [
+        {
+          "name": "samplesheet",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "vectordb",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "calls": [],
+      "is_entry": false,
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/make_tcr_vector_database_pipeline.nf#L68-L94"
+    },
+    {
+      "name": "INGEST_TABULATE_PIPELINE",
+      "docstring": "Metadata-only workflow entrypoint.\nDownloads cell-level metadata tables and aggregates them into a\nsubject-level summary table suitable for cohort QC and downstream analysis.\nSupports LabKey (output_file_id), URL-based (public RDS), local-file mode,\nand direct metadata CSV mode (metadata_path).",
+      "file": "workflows/ingest_tabulate.nf",
+      "line": 77,
+      "end_line": 121,
+      "inputs": [
+        {
+          "name": "samplesheet",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "metadata",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "subject_table",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "calls": [],
+      "is_entry": false,
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/ingest_tabulate.nf#L77-L121"
+    },
+    {
+      "name": "INTEGRATION_PIPELINE",
+      "docstring": "Integration pipeline entrypoint.\nDownloads Seurat objects, exports raw counts, harmonizes genes\nacross species, and trains scMODAL to create a shared latent embedding.\nThis workflow is GPU-backed and intended for SLURM execution.",
+      "file": "workflows/integration_pipeline.nf",
+      "line": 72,
+      "end_line": 120,
+      "inputs": [
+        {
+          "name": "samplesheet",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "rds",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "counts",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "harmonized",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "model",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "calls": [],
+      "is_entry": false,
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/integration_pipeline.nf#L72-L120"
+    },
+    {
+      "name": "GEX_MIL_PIPELINE",
+      "docstring": "",
+      "file": "workflows/gex_mil_pipeline.nf",
+      "line": 87,
+      "end_line": 139,
+      "inputs": [
+        {
+          "name": "samplesheet",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "rds",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "counts",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "merged_gex",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "cell_meta",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "scvi_model",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "mil_model",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "config",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "metrics",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "predictions",
+          "type": "",
+          "description": ""
+        },
+        {
+          "name": "attention",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "calls": [],
+      "is_entry": false,
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/gex_mil_pipeline.nf#L87-L139"
+    }
+  ],
+  "processes": [
+    {
+      "name": "GENE_HARMONIZE",
+      "docstring": "",
+      "file": "modules/local/gene_harmonize/main.nf",
+      "line": 9,
+      "end_line": 36,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "harmonized_outputs",
+          "type": "path",
+          "description": "",
+          "emit": "harmonized"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/gene_harmonize/main.nf#L9-L36"
+    },
+    {
+      "name": "TRAIN_TCR_MIL",
+      "docstring": "",
+      "file": "modules/local/mil_ton/train_tcr_mil/main.nf",
+      "line": 13,
+      "end_line": 40,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "tcr_model.pt",
+          "type": "path",
+          "description": "",
+          "emit": "tcr_model"
+        },
+        {
+          "name": "tcr_history.json",
+          "type": "path",
+          "description": "",
+          "emit": "tcr_history"
+        },
+        {
+          "name": "tcr_predictions.csv",
+          "type": "path",
+          "description": "",
+          "emit": "tcr_predictions"
+        },
+        {
+          "name": "tcr_importance.csv",
+          "type": "path",
+          "description": "",
+          "emit": "tcr_importance"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/mil_ton/train_tcr_mil/main.nf#L13-L40"
+    },
+    {
+      "name": "QUANTIFY_TCR",
+      "docstring": "",
+      "file": "modules/local/mil_ton/quantify_tcr/main.nf",
+      "line": 19,
+      "end_line": 42,
+      "inputs": [
+        {
+          "name": "val(meta), path(rds)",
+          "type": "tuple",
+          "description": "",
+          "qualifier": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "val(meta), path(\"${meta.id}_tcr.rds\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "tcr_rds"
+        },
+        {
+          "name": "val(meta), path(\"${meta.id}_tcr_metadata.csv\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "tcr_metadata"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/mil_ton/quantify_tcr/main.nf#L19-L42"
+    },
+    {
+      "name": "GEX_MERGE_COUNTS",
+      "docstring": "",
+      "file": "modules/local/mil_ton/gex_merge/main.nf",
+      "line": 11,
+      "end_line": 34,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "merged_gex.h5ad",
+          "type": "path",
+          "description": "",
+          "emit": "merged_h5ad"
+        },
+        {
+          "name": "cell_metadata.csv",
+          "type": "path",
+          "description": "",
+          "emit": "cell_metadata"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/mil_ton/gex_merge/main.nf#L11-L34"
+    },
+    {
+      "name": "TRAIN_GEX_MIL",
+      "docstring": "",
+      "file": "modules/local/mil_ton/train_gex_mil/main.nf",
+      "line": 13,
+      "end_line": 46,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "scvi_model/",
+          "type": "path",
+          "description": "",
+          "emit": "scvi_model"
+        },
+        {
+          "name": "model.pt",
+          "type": "path",
+          "description": "",
+          "emit": "mil_model"
+        },
+        {
+          "name": "config.yaml",
+          "type": "path",
+          "description": "",
+          "emit": "config"
+        },
+        {
+          "name": "metrics.json",
+          "type": "path",
+          "description": "",
+          "emit": "metrics"
+        },
+        {
+          "name": "predictions.csv",
+          "type": "path",
+          "description": "",
+          "emit": "predictions"
+        },
+        {
+          "name": "attention_weights.csv",
+          "type": "path",
+          "description": "",
+          "emit": "attention"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/mil_ton/train_gex_mil/main.nf#L13-L46"
+    },
+    {
+      "name": "MERGE_TCR_METADATA",
+      "docstring": "",
+      "file": "modules/local/mil_ton/merge_tcr_metadata/main.nf",
+      "line": 8,
+      "end_line": 35,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "merged_tcr_metadata.csv",
+          "type": "path",
+          "description": "",
+          "emit": "merged_csv"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/mil_ton/merge_tcr_metadata/main.nf#L8-L35"
+    },
+    {
+      "name": "EXPORT_COUNTS",
+      "docstring": "",
+      "file": "modules/local/cellmembrane/seurat/main.nf",
+      "line": 8,
+      "end_line": 33,
+      "inputs": [
+        {
+          "name": "val(meta), path(rds)",
+          "type": "tuple",
+          "description": "",
+          "qualifier": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "val(meta), path(\"${meta.id}_counts\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "counts_dir"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/cellmembrane/seurat/main.nf#L8-L33"
+    },
+    {
+      "name": "ASSESS_ASW",
+      "docstring": "",
+      "file": "modules/local/batch_effect_assessments/assess_asw/main.nf",
+      "line": 1,
+      "end_line": 38,
+      "inputs": [
+        {
+          "name": "val(meta), path(rds), path(prep_json), val(reduction), path(batch_metrics_utils), path(metric_script)",
+          "type": "tuple",
+          "description": "",
+          "qualifier": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "val(meta), val(reduction), path(\"${meta.id}_${reduction}_asw.csv\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "metrics"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/batch_effect_assessments/assess_asw/main.nf#L1-L38"
+    },
+    {
+      "name": "ASSESS_KBET",
+      "docstring": "",
+      "file": "modules/local/batch_effect_assessments/assess_kbet/main.nf",
+      "line": 1,
+      "end_line": 39,
+      "inputs": [
+        {
+          "name": "val(meta), path(rds), path(prep_json), val(reduction), path(batch_metrics_utils), path(metric_script)",
+          "type": "tuple",
+          "description": "",
+          "qualifier": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "val(meta), val(reduction), path(\"${meta.id}_${reduction}_kbet.csv\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "metrics"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/batch_effect_assessments/assess_kbet/main.nf#L1-L39"
+    },
+    {
+      "name": "ASSESS_ILISI",
+      "docstring": "",
+      "file": "modules/local/batch_effect_assessments/assess_ilisi/main.nf",
+      "line": 1,
+      "end_line": 38,
+      "inputs": [
+        {
+          "name": "val(meta), path(rds), path(prep_json), val(reduction), path(batch_metrics_utils), path(metric_script)",
+          "type": "tuple",
+          "description": "",
+          "qualifier": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "val(meta), val(reduction), path(\"${meta.id}_${reduction}_ilisi.csv\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "metrics"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/batch_effect_assessments/assess_ilisi/main.nf#L1-L38"
+    },
+    {
+      "name": "ASSESS_CILISI",
+      "docstring": "",
+      "file": "modules/local/batch_effect_assessments/assess_cilisi/main.nf",
+      "line": 1,
+      "end_line": 38,
+      "inputs": [
+        {
+          "name": "val(meta), path(rds), path(prep_json), val(reduction), path(batch_metrics_utils), path(metric_script)",
+          "type": "tuple",
+          "description": "",
+          "qualifier": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "val(meta), val(reduction), path(\"${meta.id}_${reduction}_cilisi.csv\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "metrics"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/batch_effect_assessments/assess_cilisi/main.nf#L1-L38"
+    },
+    {
+      "name": "PREP_BATCH_ASSESSMENT",
+      "docstring": "",
+      "file": "modules/local/batch_effect_assessments/prep/main.nf",
+      "line": 6,
+      "end_line": 41,
+      "inputs": [
+        {
+          "name": "val(meta), path(rds), path(batch_metrics_utils), path(prep_script)",
+          "type": "tuple",
+          "description": "",
+          "qualifier": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "val(meta), path(\"${meta.id}_prep.json\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "prep"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/batch_effect_assessments/prep/main.nf#L6-L41"
+    },
+    {
+      "name": "COLLECT_BATCH_ASSESSMENT",
+      "docstring": "",
+      "file": "modules/local/batch_effect_assessments/collect/main.nf",
+      "line": 1,
+      "end_line": 39,
+      "inputs": [
+        {
+          "name": "val(meta), path(prep_json), path(ilisi_csv), path(cilisi_csv), path(asw_csv), path(kbet_csv), path(collect_script)",
+          "type": "tuple",
+          "description": "",
+          "qualifier": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "${meta.id}_summary.csv",
+          "type": "path",
+          "description": "",
+          "emit": "summary"
+        },
+        {
+          "name": "${meta.id}_metrics.png",
+          "type": "path",
+          "description": "",
+          "emit": "plot"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/batch_effect_assessments/collect/main.nf#L1-L39"
+    },
+    {
+      "name": "EMBED_TCR_VECTORDATABASE",
+      "docstring": "",
+      "file": "modules/local/tcr_vectordb/embed_vectordb/main.nf",
+      "line": 11,
+      "end_line": 39,
+      "inputs": [
+        {
+          "name": "val(meta), path(sequences_csv)",
+          "type": "tuple",
+          "description": "",
+          "qualifier": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "vectordb_out",
+          "type": "path",
+          "description": "",
+          "emit": "vectordb_dir"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/tcr_vectordb/embed_vectordb/main.nf#L11-L39"
+    },
+    {
+      "name": "EXTRACT_TCR_SEQUENCES",
+      "docstring": "",
+      "file": "modules/local/tcr_vectordb/extract_tcr_sequences/main.nf",
+      "line": 16,
+      "end_line": 35,
+      "inputs": [
+        {
+          "name": "val(meta), path(rds)",
+          "type": "tuple",
+          "description": "",
+          "qualifier": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "val(meta), path(\"${meta.id}_tcr_sequences.csv\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "sequences_csv"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/tcr_vectordb/extract_tcr_sequences/main.nf#L16-L35"
+    },
+    {
+      "name": "INGEST_FILE",
+      "docstring": "",
+      "file": "modules/local/rdiscvr/ingest_file/main.nf",
+      "line": 14,
+      "end_line": 37,
+      "inputs": [
+        {
+          "name": "val(meta), path(source_file)",
+          "type": "tuple",
+          "description": "",
+          "qualifier": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "val(meta), path(\"${meta.id}.rds\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "rds"
+        },
+        {
+          "name": "val(meta), path(\"${meta.id}_metadata.csv\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "metadata"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/rdiscvr/ingest_file/main.nf#L14-L37"
+    },
+    {
+      "name": "INGEST_METADATA",
+      "docstring": "",
+      "file": "modules/local/rdiscvr/ingest_metadata/main.nf",
+      "line": 10,
+      "end_line": 31,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "val(meta), path(\"${meta.id}_metadata.csv\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "metadata"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/rdiscvr/ingest_metadata/main.nf#L10-L31"
+    },
+    {
+      "name": "INGEST_METADATA_FILE",
+      "docstring": "",
+      "file": "modules/local/rdiscvr/ingest_metadata_file/main.nf",
+      "line": 18,
+      "end_line": 39,
+      "inputs": [
+        {
+          "name": "val(meta), path(metadata_file)",
+          "type": "tuple",
+          "description": "",
+          "qualifier": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "val(meta), path(\"${meta.id}_metadata.csv\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "metadata"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/rdiscvr/ingest_metadata_file/main.nf#L18-L39"
+    },
+    {
+      "name": "INGEST_URL",
+      "docstring": "",
+      "file": "modules/local/rdiscvr/ingest_url/main.nf",
+      "line": 16,
+      "end_line": 39,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "val(meta), path(\"${meta.id}.rds\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "rds"
+        },
+        {
+          "name": "val(meta), path(\"${meta.id}_metadata.csv\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "metadata"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/rdiscvr/ingest_url/main.nf#L16-L39"
+    },
+    {
+      "name": "INGEST_LABKEY",
+      "docstring": "",
+      "file": "modules/local/rdiscvr/ingest_labkey/main.nf",
+      "line": 12,
+      "end_line": 35,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "val(meta), path(\"${meta.id}.rds\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "rds"
+        },
+        {
+          "name": "val(meta), path(\"${meta.id}_metadata.csv\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "metadata"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/rdiscvr/ingest_labkey/main.nf#L12-L35"
+    },
+    {
+      "name": "TABULATE",
+      "docstring": "",
+      "file": "modules/local/rdiscvr/tabulate/main.nf",
+      "line": 16,
+      "end_line": 41,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "subjectIdTable.csv",
+          "type": "path",
+          "description": "",
+          "emit": "subject_table"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/rdiscvr/tabulate/main.nf#L16-L41"
+    },
+    {
+      "name": "SCMODAL_INTEGRATE",
+      "docstring": "",
+      "file": "modules/local/scModal/gpu/main.nf",
+      "line": 8,
+      "end_line": 33,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "model_outputs/",
+          "type": "path",
+          "description": "",
+          "emit": "model"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/scModal/gpu/main.nf#L8-L33"
+    },
+    {
+      "name": "EMBED_CLONES",
+      "docstring": "",
+      "file": "modules/local/tcr_epitope/embed/main.nf",
+      "line": 17,
+      "end_line": 40,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "clone_embeddings.parquet",
+          "type": "path",
+          "description": "",
+          "emit": "clone_embeddings_umap"
+        },
+        {
+          "name": "clone_embeddings.parquet",
+          "type": "path",
+          "description": "",
+          "emit": "clone_embeddings_pred"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/tcr_epitope/embed/main.nf#L17-L40"
+    },
+    {
+      "name": "TCR_UMAP",
+      "docstring": "",
+      "file": "modules/local/tcr_epitope/tcr_umap/main.nf",
+      "line": 24,
+      "end_line": 46,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "clone_metadata.parquet",
+          "type": "path",
+          "description": "",
+          "emit": "clone_metadata"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/tcr_epitope/tcr_umap/main.nf#L24-L46"
+    },
+    {
+      "name": "JOIN_SEURAT",
+      "docstring": "",
+      "file": "modules/local/tcr_epitope/join_seurat/main.nf",
+      "line": 25,
+      "end_line": 46,
+      "inputs": [
+        {
+          "name": "val(meta), path(seurat_rds), path(clone_metadata), path(binding_scores)",
+          "type": "tuple",
+          "description": "",
+          "qualifier": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "val(meta), path(\"${meta.id}_annotated.rds\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "seurat_annotated"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/tcr_epitope/join_seurat/main.nf#L25-L46"
+    },
+    {
+      "name": "TRAIN_TCR_EPITOPE",
+      "docstring": "",
+      "file": "modules/local/tcr_epitope/train_binding/main.nf",
+      "line": 19,
+      "end_line": 48,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "xgboost_model.pkl",
+          "type": "path",
+          "description": "",
+          "emit": "xgb_model"
+        },
+        {
+          "name": "scaler.pkl",
+          "type": "path",
+          "description": "",
+          "emit": "scaler"
+        },
+        {
+          "name": "epitopes.fasta",
+          "type": "path",
+          "description": "",
+          "emit": "epitopes_fasta"
+        },
+        {
+          "name": "training_history.json",
+          "type": "path",
+          "description": "",
+          "emit": "history"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/tcr_epitope/train_binding/main.nf#L19-L48"
+    },
+    {
+      "name": "PREDICT_BINDING",
+      "docstring": "",
+      "file": "modules/local/tcr_epitope/predict_binding/main.nf",
+      "line": 23,
+      "end_line": 46,
+      "inputs": [
+        {
+          "name": "val(meta), path(clone_embeddings_parquet), path(epitope_fasta), path(binding_model_dir)",
+          "type": "tuple",
+          "description": "",
+          "qualifier": ""
+        }
+      ],
+      "outputs": [
+        {
+          "name": "val(meta), path(\"${meta.id}_binding_scores.parquet\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "binding_scores"
+        },
+        {
+          "name": "val(meta), path(\"${meta.id}_cell_binding_scores.parquet\")",
+          "type": "tuple",
+          "description": "",
+          "emit": "cell_binding_scores"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/tcr_epitope/predict_binding/main.nf#L23-L46"
+    },
+    {
+      "name": "NMF_VAE_MERGE_COUNTS",
+      "docstring": "",
+      "file": "modules/local/nmf_vae/merge_counts/main.nf",
+      "line": 8,
+      "end_line": 31,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "merged_counts.h5ad",
+          "type": "path",
+          "description": "",
+          "emit": "merged_h5ad"
+        },
+        {
+          "name": "genes.txt",
+          "type": "path",
+          "description": "",
+          "emit": "genes_file"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/nmf_vae/merge_counts/main.nf#L8-L31"
+    },
+    {
+      "name": "NMF_VAE_FACTORIZE",
+      "docstring": "",
+      "file": "modules/local/nmf_vae/factorize/main.nf",
+      "line": 8,
+      "end_line": 41,
+      "inputs": [],
+      "outputs": [
+        {
+          "name": "latent_Z.csv",
+          "type": "path",
+          "description": "",
+          "emit": "latent_z"
+        },
+        {
+          "name": "decoder_W.csv",
+          "type": "path",
+          "description": "",
+          "emit": "decoder_w"
+        },
+        {
+          "name": "loss_history.csv",
+          "type": "path",
+          "description": "",
+          "emit": "loss_history"
+        },
+        {
+          "name": "loss.png",
+          "type": "path",
+          "description": "",
+          "emit": "loss_plot"
+        },
+        {
+          "name": "model_checkpoint.pt",
+          "type": "path",
+          "description": "",
+          "emit": "model_checkpoint"
+        },
+        {
+          "name": "*_laplacian.npy",
+          "type": "path",
+          "description": "",
+          "emit": "laplacian"
+        }
+      ],
+      "directives": {},
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/modules/local/nmf_vae/factorize/main.nf#L8-L41"
+    }
+  ],
+  "functions": [
+    {
+      "name": "parseTcrEpitopeSamplesheet",
+      "docstring": "",
+      "file": "workflows/tcr_epitope_pipeline.nf",
+      "line": 28,
+      "end_line": 53,
+      "params": [
+        {
+          "name": "samplesheetPath",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "return_type": "",
+      "return_description": "",
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/tcr_epitope_pipeline.nf#L28-L53"
+    },
+    {
+      "name": "buildNmfVaeSamplesChannel",
+      "docstring": "Build the metadata channel consumed by the NMF-VAE workflow.\nThe samplesheet must define one row per sample with the columns\n`sample_id`, `species`, `lambda_graph`, and one of `output_file_id`\n(LabKey mode), `url` (public download mode), or `path` (local-file mode).",
+      "file": "workflows/nmf_vae.nf",
+      "line": 20,
+      "end_line": 66,
+      "params": [
+        {
+          "name": "samplesheetPath",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "return_type": "",
+      "return_description": "",
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/nmf_vae.nf#L20-L66"
+    },
+    {
+      "name": "buildBatchEffectAssessmentsSamplesChannel",
+      "docstring": "",
+      "file": "workflows/batch_effect_assessments_pipeline.nf",
+      "line": 20,
+      "end_line": 72,
+      "params": [
+        {
+          "name": "samplesheetPath",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "return_type": "",
+      "return_description": "",
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/batch_effect_assessments_pipeline.nf#L20-L72"
+    },
+    {
+      "name": "buildIngestExportSamplesChannel",
+      "docstring": "Build the samplesheet-derived metadata channel for the ingest/export workflow.\nThe samplesheet must define one row per sample with the columns\n`sample_id`, `species`, and one of `output_file_id` (LabKey mode), `url`\n(public download mode), or `path` (local-file mode).",
+      "file": "workflows/ingest_export.nf",
+      "line": 18,
+      "end_line": 61,
+      "params": [
+        {
+          "name": "samplesheetPath",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "return_type": "",
+      "return_description": "",
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/ingest_export.nf#L18-L61"
+    },
+    {
+      "name": "buildTcrMilSamplesChannel",
+      "docstring": "",
+      "file": "workflows/tcr_mil_pipeline.nf",
+      "line": 22,
+      "end_line": 65,
+      "params": [
+        {
+          "name": "samplesheetPath",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "return_type": "",
+      "return_description": "",
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/tcr_mil_pipeline.nf#L22-L65"
+    },
+    {
+      "name": "buildMakeTcrVectorDatabaseSamplesChannel",
+      "docstring": "",
+      "file": "workflows/make_tcr_vector_database_pipeline.nf",
+      "line": 23,
+      "end_line": 66,
+      "params": [
+        {
+          "name": "samplesheetPath",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "return_type": "",
+      "return_description": "",
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/make_tcr_vector_database_pipeline.nf#L23-L66"
+    },
+    {
+      "name": "buildIngestTabulateSamplesChannel",
+      "docstring": "Build the samplesheet-derived metadata channel for the metadata-only path.\nThe samplesheet must define one row per sample with the columns\n`sample_id`, `species`, and one of `output_file_id` (LabKey mode), `url`\n(public download mode), `path` (local-file mode), or `metadata_path` (metadata CSV mode).",
+      "file": "workflows/ingest_tabulate.nf",
+      "line": 19,
+      "end_line": 67,
+      "params": [
+        {
+          "name": "samplesheetPath",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "return_type": "",
+      "return_description": "",
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/ingest_tabulate.nf#L19-L67"
+    },
+    {
+      "name": "buildIntegrationPipelineSamplesChannel",
+      "docstring": "Build the metadata channel consumed by the integration multi-species workflow.\nThe samplesheet must define one row per sample with the columns\n`sample_id`, `species`, and one of `output_file_id` (LabKey mode), `url`\n(public download mode), or `path` (local-file mode).",
+      "file": "workflows/integration_pipeline.nf",
+      "line": 20,
+      "end_line": 63,
+      "params": [
+        {
+          "name": "samplesheetPath",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "return_type": "",
+      "return_description": "",
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/integration_pipeline.nf#L20-L63"
+    },
+    {
+      "name": "buildGexMilSamplesChannel",
+      "docstring": "",
+      "file": "workflows/gex_mil_pipeline.nf",
+      "line": 23,
+      "end_line": 67,
+      "params": [
+        {
+          "name": "samplesheetPath",
+          "type": "",
+          "description": ""
+        }
+      ],
+      "return_type": "",
+      "return_description": "",
+      "source_url": "https://github.com/GWMcElfresh/GoodWorkflows/blob/8ce766c917f8afcfb951ab8a3d69b763822e87ec/workflows/gex_mil_pipeline.nf#L23-L67"
+    }
+  ],
+  "generated_by": {
+    "nf_docs_version": "0.4.0",
+    "generated_at": "2026-06-02T00:45:13.697638+00:00",
+    "nextflow_url": "https://nextflow.io",
+    "nf_docs_url": "https://github.com/ewels/nf-docs"
+  }
+}

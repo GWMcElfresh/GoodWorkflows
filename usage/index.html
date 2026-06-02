@@ -1,0 +1,2370 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+        <meta name="description" content="DSL2 Nextflow pipeline for single-cell RNA-seq processing on SLURM + Podman HPC systems.">
+      
+      
+      
+        <link rel="canonical" href="https://gwmcelfresh.github.io/GoodWorkflows/usage/">
+      
+      
+        <link rel="prev" href="..">
+      
+      
+        <link rel="next" href="../testing-hosts/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Usage - GoodWorkflows</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="cyan">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#usage" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+    
+      
+
+<header class="md-header" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="GoodWorkflows" class="md-header__button md-logo" aria-label="GoodWorkflows" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            GoodWorkflows
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Usage
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="cyan"  aria-label="Switch to dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="Switch to dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="cyan"  aria-label="Switch to light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="Switch to light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+        <div class="md-search__suggest" data-md-component="search-suggest"></div>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+      <div class="md-header__source">
+        <a href="https://github.com/GWMcElfresh/GoodWorkflows" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GWMcElfresh/GoodWorkflows
+  </div>
+</a>
+      </div>
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+            
+<nav class="md-tabs" aria-label="Tabs" data-md-component="tabs">
+  <div class="md-grid">
+    <ul class="md-tabs__list">
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href=".." class="md-tabs__link">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+    
+  
+  
+    <li class="md-tabs__item md-tabs__item--active">
+      <a href="./" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Usage
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../testing-hosts/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Testing on multiple hosts
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../workflows/integration-pipeline/" class="md-tabs__link">
+          
+  
+  
+  Workflows
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../vignettes/synthetic-tabulation/" class="md-tabs__link">
+          
+  
+  
+  Vignettes
+
+        </a>
+      </li>
+    
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../data-formats/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Data Formats
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    <li class="md-tabs__item">
+      <a href="../parameters/" class="md-tabs__link">
+        
+  
+  
+    
+  
+  Parameters
+
+      </a>
+    </li>
+  
+
+      
+        
+  
+  
+  
+  
+    
+    
+      <li class="md-tabs__item">
+        <a href="../api/" class="md-tabs__link">
+          
+  
+  
+  API Reference
+
+        </a>
+      </li>
+    
+  
+
+      
+    </ul>
+  </div>
+</nav>
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+  
+
+
+<nav class="md-nav md-nav--primary md-nav--lifted" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="GoodWorkflows" class="md-nav__button md-logo" aria-label="GoodWorkflows" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    GoodWorkflows
+  </label>
+  
+    <div class="md-nav__source">
+      <a href="https://github.com/GWMcElfresh/GoodWorkflows" title="Go to repository" class="md-source" data-md-component="source">
+  <div class="md-source__icon md-icon">
+    
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"/></svg>
+  </div>
+  <div class="md-source__repository">
+    GWMcElfresh/GoodWorkflows
+  </div>
+</a>
+    </div>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Usage
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-clone-the-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1 — Clone the repository
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1 — Clone the repository">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#keeping-the-repo-up-to-date-on-hpc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keeping the repo up to date on HPC
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-choose-an-ingest-mode-for-each-sample" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2 — Choose an ingest mode for each sample
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-choose-an-hpc-entrypoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3 — Choose an HPC entrypoint
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3 — Choose an HPC entrypoint">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#template-run-directory-recommended-for-most-slurm-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Template run directory (recommended for most SLURM runs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-edit-the-samplesheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4 — Edit the samplesheet
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4 — Edit the samplesheet">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#required-parameters-labkey-mode-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required parameters (LabKey mode only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-configure-runsh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5 — Configure run.sh
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5 — Configure run.sh">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choosing-a-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pipeline_root-auto-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PIPELINE_ROOT auto-detection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-submit-the-job" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6 — Submit the job
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6 — Submit the job">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#running-locally-cpu-workflows-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running locally (CPU workflows only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-container-image-pre-pull-and-sif-cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7 — Container image pre-pull and SIF cache
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7 — Container image pre-pull and SIF cache">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#apptainer-sif-cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Apptainer SIF cache
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#launch-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Launch modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment variables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#updating-scriptsimage-manifesttxt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Updating scripts/image-manifest.txt
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-monitor-a-running-job" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8 — Monitor a running job
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8 — Monitor a running job">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#live-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Live log
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slurm-job-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SLURM job status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#html-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTML report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-resume-after-failure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9 — Resume after failure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-alternative-repo-root-launcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10 — Alternative repo-root launcher
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../testing-hosts/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Testing on multiple hosts
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_4" >
+        
+          
+          <label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflows
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_4_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_4">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Workflows
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflows/integration-pipeline/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Integration Pipeline
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflows/ingest-export/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ingest + Export
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflows/ingest-tabulate/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Ingest + Tabulate
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflows/nmf-vae/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    NMF-VAE
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflows/gex-mil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    GEX MIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflows/tcr-mil/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TCR MIL
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflows/tcr-epitope/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    TCR Epitope
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflows/make-tcr-vector-database/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Make TCR Vector Database
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../workflows/batch-effect-assessments/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Batch Effect Assessments
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+        
+          
+          <label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Vignettes
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_5">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    Vignettes
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../vignettes/synthetic-tabulation/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Synthetic Tabulation Walkthrough
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../data-formats/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Data Formats
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../parameters/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Parameters
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+      
+      
+        
+      
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_8" >
+        
+          
+          <label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_8_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_8">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/generated/inputs/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Inputs
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/config/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Configuration
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/generated/workflows/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Workflows
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/generated/functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#prerequisites" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Prerequisites
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-clone-the-repository" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1 — Clone the repository
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="1 — Clone the repository">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#keeping-the-repo-up-to-date-on-hpc" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Keeping the repo up to date on HPC
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-choose-an-ingest-mode-for-each-sample" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2 — Choose an ingest mode for each sample
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-choose-an-hpc-entrypoint" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3 — Choose an HPC entrypoint
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="3 — Choose an HPC entrypoint">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#template-run-directory-recommended-for-most-slurm-runs" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Template run directory (recommended for most SLURM runs)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-edit-the-samplesheet" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4 — Edit the samplesheet
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="4 — Edit the samplesheet">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#required-parameters-labkey-mode-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Required parameters (LabKey mode only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-configure-runsh" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5 — Configure run.sh
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="5 — Configure run.sh">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#choosing-a-workflow" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing a workflow
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pipeline_root-auto-detection" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        PIPELINE_ROOT auto-detection
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-submit-the-job" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6 — Submit the job
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="6 — Submit the job">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#running-locally-cpu-workflows-only" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Running locally (CPU workflows only)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-container-image-pre-pull-and-sif-cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        7 — Container image pre-pull and SIF cache
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="7 — Container image pre-pull and SIF cache">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#apptainer-sif-cache" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Apptainer SIF cache
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#launch-modes" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Launch modes
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How it works
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#environment-variables" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Environment variables
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#updating-scriptsimage-manifesttxt" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Updating scripts/image-manifest.txt
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-monitor-a-running-job" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        8 — Monitor a running job
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="8 — Monitor a running job">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#live-log" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Live log
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#slurm-job-status" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        SLURM job status
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#html-report" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        HTML report
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#9-resume-after-failure" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        9 — Resume after failure
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#10-alternative-repo-root-launcher" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        10 — Alternative repo-root launcher
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#see-also" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        See also
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+  
+  
+
+
+<h1 id="usage">Usage<a class="headerlink" href="#usage" title="Permanent link">&para;</a></h1>
+<p>This guide walks through everything needed to set up and run a GoodWorkflows pipeline run on an HPC cluster — from first clone to submitted job — along with local Mac/Linux usage for the CPU workflows.</p>
+<hr />
+<h2 id="prerequisites">Prerequisites<a class="headerlink" href="#prerequisites" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Requirement</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Nextflow ≥ 24.04</strong></td>
+<td><a href="https://www.nextflow.io/docs/latest/getstarted.html">Install guide</a></td>
+</tr>
+<tr>
+<td><strong>SLURM + Apptainer</strong></td>
+<td>Required for <code>-profile slurm_singularity</code> (HPC). Apptainer (≥ 1.0) must be installed or loadable via <code>module load apptainer</code>.</td>
+</tr>
+<tr>
+<td><strong><code>~/.netrc</code></strong></td>
+<td>LabKey/Prime-seq authentication (only needed for LabKey-mode samples). See note below.</td>
+</tr>
+<tr>
+<td><strong>Git</strong></td>
+<td>Needed to clone and sync the repository.</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition note">
+<p class="admonition-title">LabKey credentials</p>
+<p>Samples using <code>output_file_id</code> authenticate to the LabKey / Prime-seq server via <code>~/.netrc</code>. Add an entry like:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>machine labkey.example.org
+<a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a>login your_username
+<a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a>password your_password
+</code></pre></div>
+<p>Replace <code>labkey.example.org</code> with your actual server hostname. The file should be <code>chmod 600</code>. Samples using <code>url</code> or <code>path</code> do <strong>not</strong> require <code>.netrc</code> or LabKey credentials.</p>
+</div>
+<hr />
+<h2 id="1-clone-the-repository">1 — Clone the repository<a class="headerlink" href="#1-clone-the-repository" title="Permanent link">&para;</a></h2>
+<p>On your HPC login node (or locally):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/GWMcElfresh/GoodWorkflows.git
+<a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="nb">cd</span><span class="w"> </span>GoodWorkflows
+</code></pre></div>
+<h3 id="keeping-the-repo-up-to-date-on-hpc">Keeping the repo up to date on HPC<a class="headerlink" href="#keeping-the-repo-up-to-date-on-hpc" title="Permanent link">&para;</a></h3>
+<p>Submit the lightweight sync job before each run to pull the latest changes:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a>sbatch<span class="w"> </span>slurm_sync_repo.sh
+</code></pre></div>
+<p>Or run the sync script directly (requires Git in <code>$PATH</code>):</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a>bash<span class="w"> </span>scripts/sync_repo.sh<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">PWD</span><span class="si">}</span><span class="s2">&quot;</span>
+</code></pre></div>
+<hr />
+<h2 id="2-choose-an-ingest-mode-for-each-sample">2 — Choose an ingest mode for each sample<a class="headerlink" href="#2-choose-an-ingest-mode-for-each-sample" title="Permanent link">&para;</a></h2>
+<p>Every sample row must populate <strong>exactly one</strong> ingest column:</p>
+<table>
+<thead>
+<tr>
+<th>Column</th>
+<th>When to use</th>
+<th>Requires</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>output_file_id</code></td>
+<td>Data lives on a LabKey / Prime-seq server</td>
+<td><code>--labkey_base_url</code>, <code>--labkey_folder</code>, <code>~/.netrc</code></td>
+</tr>
+<tr>
+<td><code>url</code></td>
+<td>Publicly downloadable RDS / h5ad URL</td>
+<td>Only the URL itself</td>
+</tr>
+<tr>
+<td><code>path</code></td>
+<td>Local file already present on disk</td>
+<td>Only the filepath</td>
+</tr>
+</tbody>
+</table>
+<div class="admonition tip">
+<p class="admonition-title">Mixed-sample sheets are supported</p>
+<p>You can mix LabKey, URL, and file samples in the same <code>samplesheet.csv</code>. The pipeline dispatches each row to the correct ingest module automatically.</p>
+</div>
+<p>See <a href="../data-formats/#samplesheet">Data Formats → Samplesheet</a> for the complete column specification.</p>
+<hr />
+<h2 id="3-choose-an-hpc-entrypoint">3 — Choose an HPC entrypoint<a class="headerlink" href="#3-choose-an-hpc-entrypoint" title="Permanent link">&para;</a></h2>
+<p>Two SLURM launch patterns are supported:</p>
+<table>
+<thead>
+<tr>
+<th>Entry point</th>
+<th>Best for</th>
+<th>Where outputs/logs live</th>
+<th>Pre-pull behavior</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>runs/&lt;name&gt;/run.sh</code></td>
+<td>Recommended routine runs with a dedicated run directory and editable per-run config</td>
+<td>Under <code>runs/&lt;name&gt;/</code></td>
+<td><strong>Inline</strong> inside the same SLURM allocation before <code>nextflow run</code></td>
+</tr>
+<tr>
+<td><code>bash slurm_nextflow.sh ...</code></td>
+<td>Repo-root launches, automation, or cases where you want image pre-pull isolated first</td>
+<td>Relative to the repository checkout</td>
+<td><strong>Standalone pre-pull job</strong> submitted before the orchestrator</td>
+</tr>
+</tbody>
+</table>
+<h3 id="template-run-directory-recommended-for-most-slurm-runs">Template run directory (recommended for most SLURM runs)<a class="headerlink" href="#template-run-directory-recommended-for-most-slurm-runs" title="Permanent link">&para;</a></h3>
+<p>Each run lives in its own directory under <code>runs/</code>. The <code>runs/</code> tree is gitignored, so nothing in it is ever committed.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="c1"># From inside the GoodWorkflows checkout:</span>
+<a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a>cp<span class="w"> </span>-r<span class="w"> </span>template<span class="w"> </span>runs/my_run_name
+<a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="nb">cd</span><span class="w"> </span>runs/my_run_name
+</code></pre></div>
+<p>The copied directory contains everything needed for a self-contained run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a>runs/my_run_name/
+<a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a>├── samplesheet.csv   ← edit this
+<a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a>├── run.sh            ← edit the FILL IN section, then sbatch; performs inline pre-pull on SLURM
+</code></pre></div>
+<p>All outputs will land in subdirectories of the run directory:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a>runs/my_run_name/
+<a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a>├── outputs/          ← published results (RDS, counts, tables, models)
+<a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a>├── work/             ← Nextflow intermediate files (can be deleted after success)
+<a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a>└── logs/             ← nextflow.log + SLURM job logs
+</code></pre></div>
+<hr />
+<h2 id="4-edit-the-samplesheet">4 — Edit the samplesheet<a class="headerlink" href="#4-edit-the-samplesheet" title="Permanent link">&para;</a></h2>
+<p>Open <code>samplesheet.csv</code> and add one row per sample. Required columns: <code>sample_id</code>, <code>species</code>, plus exactly one of <code>output_file_id</code>, <code>url</code>, or <code>path</code>.</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>sample_id,output_file_id,url,path,species
+<a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>SAMPLE_LABKEY,100001,,,human
+<a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>SAMPLE_URL,,https://example.org/data.rds,,macaque
+<a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>SAMPLE_FILE,,,/home/user/data/mydata.h5ad,mouse
+</code></pre></div>
+<h3 id="required-parameters-labkey-mode-only">Required parameters (LabKey mode only)<a class="headerlink" href="#required-parameters-labkey-mode-only" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Parameter</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>--labkey_base_url</code></td>
+<td>LabKey server base URL (e.g. <code>https://labkey.example.org</code>)</td>
+</tr>
+<tr>
+<td><code>--labkey_folder</code></td>
+<td>LabKey folder path (e.g. <code>/My/Project/Folder</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>These parameters are <strong>only required</strong> for rows using <code>output_file_id</code>. URL and file mode rows do not need them.</p>
+<hr />
+<h2 id="5-configure-runsh">5 — Configure <code>run.sh</code><a class="headerlink" href="#5-configure-runsh" title="Permanent link">&para;</a></h2>
+<p>Open <code>run.sh</code> and fill in the <code># FILL IN</code> section near the top:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="c1"># 1. Choose the workflow</span>
+<a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="nv">WORKFLOW</span><span class="o">=</span><span class="s2">&quot;ingest_tabulate&quot;</span><span class="w">   </span><span class="c1"># or: integration, ingest_export, nmf_vae, gex_mil, tcr_mil, tcr_epitope, make_tcr_vector_database, batch_effect_assessments</span>
+<a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a>
+<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a><span class="c1"># 2. Set your LabKey coordinates (only needed for LabKey-mode samples)</span>
+<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="nv">LABKEY_BASE_URL</span><span class="o">=</span><span class="s2">&quot;https://labkey.example.org&quot;</span>
+<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="nv">LABKEY_FOLDER</span><span class="o">=</span><span class="s2">&quot;/My/Project/Folder&quot;</span>
+<a id="__codelineno-8-7" name="__codelineno-8-7" href="#__codelineno-8-7"></a>
+<a id="__codelineno-8-8" name="__codelineno-8-8" href="#__codelineno-8-8"></a><span class="c1"># 3. Point to your Nextflow binary and home directory</span>
+<a id="__codelineno-8-9" name="__codelineno-8-9" href="#__codelineno-8-9"></a><span class="nv">NEXTFLOW_BIN</span><span class="o">=</span><span class="s2">&quot;/gscratch/mylab/nextflow&quot;</span>
+<a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="nv">NXF_HOME</span><span class="o">=</span><span class="s2">&quot;/gscratch/mylab/.nextflow&quot;</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">LabKey-free runs</p>
+<p>If all your samples use <code>url</code> or <code>path</code>, set <code>LABKEY_BASE_URL=""</code> and <code>LABKEY_FOLDER=""</code> in <code>run.sh</code>. The pipeline will skip LabKey authentication entirely.</p>
+</div>
+<h3 id="choosing-a-workflow">Choosing a workflow<a class="headerlink" href="#choosing-a-workflow" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Workflow</th>
+<th>What it does</th>
+<th>Where to run</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>integration</code></td>
+<td>Ingest → export counts → harmonize → scMODAL</td>
+<td>HPC + GPU (<code>-profile slurm</code>)</td>
+</tr>
+<tr>
+<td><code>ingest_export</code></td>
+<td>Download/load Seurat RDS + export 10x-like counts</td>
+<td>Local Mac or HPC (CPU)</td>
+</tr>
+<tr>
+<td><code>ingest_tabulate</code></td>
+<td>Download/load cell metadata → build <code>subjectIdTable.csv</code></td>
+<td>Local Mac or HPC (CPU)</td>
+</tr>
+<tr>
+<td><code>nmf_vae</code></td>
+<td>Ingest → export → merge → NMF-VAE factorize</td>
+<td>GPU (<code>-profile slurm</code>)</td>
+</tr>
+<tr>
+<td><code>gex_mil</code></td>
+<td>Ingest → export → merge → scVI + attention-MIL</td>
+<td>GPU (<code>-profile slurm</code>)</td>
+</tr>
+<tr>
+<td><code>tcr_mil</code></td>
+<td>Ingest → quantify TCRs → BertTCR MIL</td>
+<td>GPU (<code>-profile slurm</code>)</td>
+</tr>
+<tr>
+<td><code>tcr_epitope</code></td>
+<td>Ingest → quantify TCRs → ESM-2 embed → epitope binding</td>
+<td>GPU (<code>-profile slurm</code>)</td>
+</tr>
+<tr>
+<td><code>make_tcr_vector_database</code></td>
+<td>Ingest → extract TRA/TRB → ESM-2 embed → per-<code>cDNA_ID</code> vector DB</td>
+<td>GPU (<code>-profile slurm</code>)</td>
+</tr>
+<tr>
+<td><code>batch_effect_assessments</code></td>
+<td>Ingest → LISI / CiLISI / ASW / optional kBET (GoodWorkflows base)</td>
+<td>HPC CPU (<code>-profile slurm</code>)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="pipeline_root-auto-detection">PIPELINE_ROOT auto-detection<a class="headerlink" href="#pipeline_root-auto-detection" title="Permanent link">&para;</a></h3>
+<p><code>run.sh</code> automatically locates the GoodWorkflows checkout by walking up the directory tree from the run directory looking for <code>main.nf</code>. As long as <code>runs/</code> is a direct subdirectory of the checkout, no configuration is needed. To override:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="nv">PIPELINE_ROOT</span><span class="o">=</span>/explicit/path/to/GoodWorkflows<span class="w"> </span>sbatch<span class="w"> </span>run.sh
+</code></pre></div>
+<hr />
+<h2 id="6-submit-the-job">6 — Submit the job<a class="headerlink" href="#6-submit-the-job" title="Permanent link">&para;</a></h2>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-10-1" name="__codelineno-10-1" href="#__codelineno-10-1"></a><span class="c1"># From inside runs/my_run_name/:</span>
+<a id="__codelineno-10-2" name="__codelineno-10-2" href="#__codelineno-10-2"></a>sbatch<span class="w"> </span>run.sh
+</code></pre></div>
+<p>For template-based SLURM runs, <code>run.sh</code> does perform a container image pre-pull, but it happens <strong>inline in the same allocation</strong> before <code>nextflow run</code>. It does not submit a separate pre-pull job.</p>
+<p>Pass extra Nextflow parameters as positional arguments to <code>sbatch</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-11-1" name="__codelineno-11-1" href="#__codelineno-11-1"></a><span class="c1"># Override species order for this run</span>
+<a id="__codelineno-11-2" name="__codelineno-11-2" href="#__codelineno-11-2"></a>sbatch<span class="w"> </span>run.sh<span class="w"> </span>--species_order<span class="w"> </span>human,macaque
+<a id="__codelineno-11-3" name="__codelineno-11-3" href="#__codelineno-11-3"></a>
+<a id="__codelineno-11-4" name="__codelineno-11-4" href="#__codelineno-11-4"></a><span class="c1"># Override the work directory</span>
+<a id="__codelineno-11-5" name="__codelineno-11-5" href="#__codelineno-11-5"></a><span class="nv">NXF_WORK</span><span class="o">=</span>/scratch/mylab/work<span class="w"> </span>sbatch<span class="w"> </span>run.sh
+</code></pre></div>
+<h3 id="running-locally-cpu-workflows-only">Running locally (CPU workflows only)<a class="headerlink" href="#running-locally-cpu-workflows-only" title="Permanent link">&para;</a></h3>
+<p>For <code>ingest_export</code> and <code>ingest_tabulate</code> you can run without SLURM:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="c1"># From inside runs/my_run_name/:</span>
+<a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a>bash<span class="w"> </span>run.sh
+</code></pre></div>
+<p>Local <code>bash run.sh</code> runs do not use SLURM and therefore do not perform the SLURM pre-pull step.</p>
+<p>Or run Nextflow directly from the repo root:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-13-1" name="__codelineno-13-1" href="#__codelineno-13-1"></a><span class="c1"># LabKey mode</span>
+<a id="__codelineno-13-2" name="__codelineno-13-2" href="#__codelineno-13-2"></a>nextflow<span class="w"> </span>run<span class="w"> </span>main.nf<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-3" name="__codelineno-13-3" href="#__codelineno-13-3"></a><span class="w">  </span>--workflow<span class="w"> </span>ingest_tabulate<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-4" name="__codelineno-13-4" href="#__codelineno-13-4"></a><span class="w">  </span>--labkey_base_url<span class="w"> </span>https://labkey.example.org<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-5" name="__codelineno-13-5" href="#__codelineno-13-5"></a><span class="w">  </span>--labkey_folder<span class="w"> </span>/My/Project/Folder
+<a id="__codelineno-13-6" name="__codelineno-13-6" href="#__codelineno-13-6"></a>
+<a id="__codelineno-13-7" name="__codelineno-13-7" href="#__codelineno-13-7"></a><span class="c1"># URL mode (no LabKey required)</span>
+<a id="__codelineno-13-8" name="__codelineno-13-8" href="#__codelineno-13-8"></a>nextflow<span class="w"> </span>run<span class="w"> </span>main.nf<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-9" name="__codelineno-13-9" href="#__codelineno-13-9"></a><span class="w">  </span>--workflow<span class="w"> </span>ingest_tabulate<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-10" name="__codelineno-13-10" href="#__codelineno-13-10"></a><span class="w">  </span>--input<span class="w"> </span>data/samplesheet_url.csv
+<a id="__codelineno-13-11" name="__codelineno-13-11" href="#__codelineno-13-11"></a>
+<a id="__codelineno-13-12" name="__codelineno-13-12" href="#__codelineno-13-12"></a><span class="c1"># File mode (no LabKey required)</span>
+<a id="__codelineno-13-13" name="__codelineno-13-13" href="#__codelineno-13-13"></a>nextflow<span class="w"> </span>run<span class="w"> </span>main.nf<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-14" name="__codelineno-13-14" href="#__codelineno-13-14"></a><span class="w">  </span>--workflow<span class="w"> </span>ingest_export<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-13-15" name="__codelineno-13-15" href="#__codelineno-13-15"></a><span class="w">  </span>--input<span class="w"> </span>data/samplesheet_file.csv
+</code></pre></div>
+<hr />
+<h2 id="7-container-image-pre-pull-and-sif-cache">7 — Container image pre-pull and SIF cache<a class="headerlink" href="#7-container-image-pre-pull-and-sif-cache" title="Permanent link">&para;</a></h2>
+<p>When running with <code>-profile slurm_singularity</code> (HPC), every workflow task uses an Apptainer SIF container. Without a pre-pull step, Apptainer would attempt to convert each docker image on every compute node simultaneously, hitting registry rate-limits and wasting time. GoodWorkflows solves this with a mandatory pre-pull that converts all required docker images to SIF files once, storing them in a shared directory (<code>NXF_SINGULARITY_CACHEDIR</code>) before any task starts.</p>
+<table>
+<thead>
+<tr>
+<th>Context</th>
+<th>What happens</th>
+<th>SIF location</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><strong>Pre-pull job</strong></td>
+<td><code>apptainer pull docker://&lt;image&gt;</code> writes a <code>.img</code> SIF file; existing SIFs are skipped</td>
+<td><code>NXF_SINGULARITY_CACHEDIR</code> (shared NFS)</td>
+</tr>
+<tr>
+<td><strong>Task execution</strong></td>
+<td>Nextflow passes the pre-built SIF to <code>apptainer exec</code>; no conversion needed</td>
+<td>Same shared directory</td>
+</tr>
+</tbody>
+</table>
+<h3 id="apptainer-sif-cache">Apptainer SIF cache<a class="headerlink" href="#apptainer-sif-cache" title="Permanent link">&para;</a></h3>
+<p>SIF files land in <code>${PIPELINE_ROOT}/apptainer-sif/</code> by default. This directory must be on a shared filesystem visible to all compute nodes (gscratch is fine). Override with:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-14-1" name="__codelineno-14-1" href="#__codelineno-14-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">NXF_SINGULARITY_CACHEDIR</span><span class="o">=</span>/home/exacloud/gscratch/mylab/singularity-sifs
+<a id="__codelineno-14-2" name="__codelineno-14-2" href="#__codelineno-14-2"></a>bash<span class="w"> </span>slurm_nextflow.sh<span class="w"> </span>--workflow<span class="w"> </span>ingest_tabulate<span class="w"> </span>...
+</code></pre></div>
+<p><code>APPTAINER_CACHEDIR</code> (the OCI blob/layer cache set in <code>~/.bashrc</code>) is a separate directory used internally by Apptainer to avoid re-downloading image layers. It is passed through to compute nodes automatically; no extra configuration is needed.</p>
+<h3 id="launch-modes">Launch modes<a class="headerlink" href="#launch-modes" title="Permanent link">&para;</a></h3>
+<p>Recommended for routine named runs:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-15-1" name="__codelineno-15-1" href="#__codelineno-15-1"></a>sbatch<span class="w"> </span>run.sh
+</code></pre></div>
+<p>This performs pre-pull inline inside the same allocation before Nextflow starts.</p>
+<p>When you specifically want pre-pull as a separate job first:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-16-1" name="__codelineno-16-1" href="#__codelineno-16-1"></a>bash<span class="w"> </span>slurm_nextflow.sh<span class="w"> </span>--workflow<span class="w"> </span>integration<span class="w"> </span>...
+</code></pre></div>
+<p>This submits a standalone pre-pull SLURM job first, then submits the orchestrator with <code>--dependency=afterok:&lt;PREPULL_JOB_ID&gt;</code>. Pre-pull is a hard prerequisite for orchestration.</p>
+<p>If you instead run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>sbatch<span class="w"> </span>slurm_nextflow.sh<span class="w"> </span>--workflow<span class="w"> </span>integration<span class="w"> </span>...
+</code></pre></div>
+<p>the pre-pull still happens before Nextflow starts, but it runs <strong>inline inside the orchestrator allocation</strong> rather than as a separate job.</p>
+<h3 id="how-it-works">How it works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h3>
+<ol>
+<li><code>slurm_nextflow.sh</code> resolves <code>NXF_SINGULARITY_CACHEDIR</code> (defaulting to <code>${PIPELINE_ROOT}/apptainer-sif</code>) and exports it.</li>
+<li><code>scripts/slurm_prepull_apptainer.sh</code> (or the inline pre-pull block) runs on a compute node. It converts each docker image to a SIF file via <code>apptainer pull &lt;sif_path&gt;.tmp docker://&lt;image&gt;</code>, then atomically renames the <code>.tmp</code> file on success. Any <code>*.img.tmp</code> partials left by an interrupted pull are removed by an <code>EXIT</code> trap. Existing SIF files are skipped.</li>
+<li>Nextflow's <code>singularity.cacheDir</code> (set to <code>NXF_SINGULARITY_CACHEDIR</code>) tells Nextflow where to look for the pre-built SIF files. Each task launches as <code>apptainer exec &lt;sif_path&gt; ...</code>.</li>
+<li><code>configs/slurm.apptainer-before.sh</code> (sourced by each task's <code>beforeScript</code>) loads the <code>apptainer</code> module and prints diagnostics. There is nothing to clean up per-task; SIF files are persistent shared cache.</li>
+</ol>
+<h3 id="environment-variables">Environment variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Variable</th>
+<th>Default</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>NXF_SINGULARITY_CACHEDIR</code></td>
+<td><code>${PIPELINE_ROOT}/apptainer-sif</code></td>
+<td>Directory where pre-built SIF files are stored. Must be on shared NFS visible to all compute nodes.</td>
+</tr>
+<tr>
+<td><code>APPTAINER_CACHEDIR</code></td>
+<td>set in <code>~/.bashrc</code></td>
+<td>OCI blob/layer cache used by Apptainer internally during <code>apptainer pull</code>. Separate from the SIF output directory.</td>
+</tr>
+<tr>
+<td><code>NXF_APPTAINER_PULL_LOCK_DIR</code></td>
+<td><code>${NXF_WORK}/.apptainer-pull-locks</code></td>
+<td>Lock directory coordinating concurrent pulls in the pre-pull job.</td>
+</tr>
+</tbody>
+</table>
+<h3 id="updating-scriptsimage-manifesttxt">Updating <code>scripts/image-manifest.txt</code><a class="headerlink" href="#updating-scriptsimage-manifesttxt" title="Permanent link">&para;</a></h3>
+<p>The pre-pull script discovers images by parsing the Nextflow config. As a fallback (if dynamic discovery returns zero images), it reads <code>scripts/image-manifest.txt</code>. Keep this file up to date whenever you add or update a container image:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>ghcr.io/bimberlabinternal/cellmembrane:latest
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>ghcr.io/bimberlabinternal/rdiscvr:latest
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a>ghcr.io/gwmcelfresh/scmodal:latest
+</code></pre></div>
+<p>One image URI per line; blank lines and <code>#</code> comments are ignored.</p>
+<hr />
+<h2 id="8-monitor-a-running-job">8 — Monitor a running job<a class="headerlink" href="#8-monitor-a-running-job" title="Permanent link">&para;</a></h2>
+<h3 id="live-log">Live log<a class="headerlink" href="#live-log" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>tail<span class="w"> </span>-f<span class="w"> </span>runs/my_run_name/logs/nextflow.log
+</code></pre></div>
+<h3 id="slurm-job-status">SLURM job status<a class="headerlink" href="#slurm-job-status" title="Permanent link">&para;</a></h3>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a>squeue<span class="w"> </span>-u<span class="w"> </span><span class="s2">&quot;</span><span class="si">${</span><span class="nv">USER</span><span class="si">}</span><span class="s2">&quot;</span>
+</code></pre></div>
+<h3 id="html-report">HTML report<a class="headerlink" href="#html-report" title="Permanent link">&para;</a></h3>
+<p>After the pipeline completes, open <code>logs/report.html</code> in a browser for a full per-process summary (CPU time, memory usage, wall time).</p>
+<hr />
+<h2 id="9-resume-after-failure">9 — Resume after failure<a class="headerlink" href="#9-resume-after-failure" title="Permanent link">&para;</a></h2>
+<p><code>run.sh</code> (and <code>slurm_nextflow.sh</code>) always pass <code>-resume</code> to Nextflow. Simply resubmit the job after fixing any issues:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>sbatch<span class="w"> </span>run.sh
+</code></pre></div>
+<p>Nextflow will skip all already-completed steps and continue from where it left off.</p>
+<div class="admonition tip">
+<p class="admonition-title">When to clear the work directory</p>
+<p><code>work/</code> can be deleted to force a full re-run, or to reclaim disk space after a successful run:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a>rm<span class="w"> </span>-rf<span class="w"> </span>runs/my_run_name/work
+</code></pre></div>
+</div>
+<hr />
+<h2 id="10-alternative-repo-root-launcher">10 — Alternative repo-root launcher<a class="headerlink" href="#10-alternative-repo-root-launcher" title="Permanent link">&para;</a></h2>
+<p><code>slurm_nextflow.sh</code> in the repository root is the alternative launcher that targets the checkout itself as the run context (work dir and logs relative to the repo). Use it when you do not want the <code>runs/</code> pattern, or when you want the pre-pull submitted as its own SLURM job before orchestration starts:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># From the GoodWorkflows checkout root:</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>bash<span class="w"> </span>slurm_nextflow.sh<span class="w"> </span>--workflow<span class="w"> </span>integration<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span>--labkey_base_url<span class="w"> </span>https://labkey.example.org<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a><span class="w">  </span>--labkey_folder<span class="w"> </span>/My/Project/Folder
+</code></pre></div>
+<p>If you use <code>sbatch slurm_nextflow.sh ...</code>, it is still valid, but the pre-pull runs inline inside the orchestrator allocation instead of as a separate job.</p>
+<p>It can also be launched from a different directory since it resolves <code>PIPELINE_ROOT</code> from its own file path.</p>
+<hr />
+<h2 id="see-also">See also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
+<ul>
+<li><a href="../workflows/integration-pipeline/">Workflow details — Integration Pipeline</a></li>
+<li><a href="../workflows/ingest-export/">Workflow details — Ingest + Export</a></li>
+<li><a href="../workflows/ingest-tabulate/">Workflow details — Ingest + Tabulate</a></li>
+<li><a href="../workflows/nmf-vae/">Workflow details — NMF-VAE</a></li>
+<li><a href="../workflows/gex-mil/">Workflow details — GEX MIL</a></li>
+<li><a href="../workflows/tcr-mil/">Workflow details — TCR MIL</a></li>
+<li><a href="../workflows/tcr-epitope/">Workflow details — TCR Epitope</a></li>
+<li><a href="../workflows/make-tcr-vector-database/">Workflow details — make TCR Vector Database</a></li>
+<li><a href="../parameters/">Parameter reference</a></li>
+<li><a href="../data-formats/">Data formats and schemas</a></li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+          <button type="button" class="md-top md-icon" data-md-component="top" hidden>
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"/></svg>
+  Back to top
+</button>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": ["navigation.tabs", "navigation.sections", "navigation.top", "search.suggest", "content.code.copy", "content.code.annotate"], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
