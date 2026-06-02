@@ -5,7 +5,7 @@
 #   1. Copy the template/cluster directory into runs/<my_run_name>/
 #        cp -r /path/to/GoodWorkflows/template/cluster runs/my_run
 #   2. Edit samplesheet.csv (one row per sample), or copy a mode-specific example:
-#        cp samplesheet.example.path.csv samplesheet.csv
+#        cp examples/path.csv samplesheet.csv
 #   3. Fill in the FILL IN section below.
 #
 # Samplesheet columns (union header in samplesheet.csv)
@@ -20,14 +20,14 @@
 #                                        it contains commas (e.g. "LISI,CiLISI,ASW,CELLTYPE_ASW")
 #   lambda_graph                       — optional for nmf_vae (falls back to --nmf_vae_lambda_graph)
 #
-# Example sheets (copy one to samplesheet.csv, then edit paths/IDs):
-#   samplesheet.example.labkey.csv
-#   samplesheet.example.url.csv
-#   samplesheet.example.path.csv
-#   samplesheet.example.metadata_path.csv   (ingest_tabulate)
-#   samplesheet.example.gex_mil.csv
-#   samplesheet.example.batch_effect_assessments.csv
-#   samplesheet.example.nmf_vae.csv
+# Example sheets under examples/ (copy one to samplesheet.csv, then edit paths/IDs):
+#   examples/labkey.csv
+#   examples/url.csv
+#   examples/path.csv
+#   examples/metadata_path.csv   (ingest_tabulate)
+#   examples/gex_mil.csv
+#   examples/batch_effect_assessments.csv
+#   examples/nmf_vae.csv
 #
 # Override input at launch:  INPUT=/path/to/samplesheet.csv sbatch run.sh
 #   4. Submit on SLURM:  sbatch run.sh
