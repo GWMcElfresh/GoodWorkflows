@@ -1,0 +1,9 @@
+# Minimal deps for notebooks/templates/nextflow-work-debug.ipynb
+# Install inside notebooks/.venv — see notebooks/README.md
+
+ipykernel>=6.29
+jupyter>=1.0
+pandas>=2.0
+
+# Optional: uncomment for the optional .h5ad peek cell in the debug notebook
+# anndata>=0.10

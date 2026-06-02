@@ -1,0 +1,96 @@
+---
+title: "GoodWorkflows exploratory analysis"
+output: html_document
+params:
+  run_dir: "../template/gw/runs/latest"
+  labkey_base_url: ""
+  labkey_folder: ""
+date: "`r format(Sys.Date())`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = TRUE)
+
+run_dir <- normalizePath(params$run_dir, mustWork = FALSE, winslash = "/")
+if (!dir.exists(run_dir)) {
+  stop(
+    "run_dir does not exist: ", run_dir,
+    "\nSet params$run_dir to template/gw/runs/latest or your run folder."
+  )
+}
+
+work_dir <- file.path(run_dir, "work")
+outputs_dir <- file.path(run_dir, "outputs")
+log_file <- file.path(run_dir, "logs", "nextflow.log")
+
+cat("Run dir:    ", run_dir, "\n")
+cat("Work dir:   ", work_dir, "\n")
+cat("Outputs:    ", outputs_dir, "\n")
+cat("Nextflow log:", log_file, "\n")
+```
+
+## Nextflow task debugging
+
+For failed processes, inspect `.command.sh` and `.command.err` under `work/<hash>/`.
+Use the Python template [`nextflow-work-debug.ipynb`](nextflow-work-debug.ipynb) (see [`../README.md`](../README.md) for venv + kernel setup).
+
+```{r list-work-dirs, eval=FALSE}
+# Uncomment to list recent work hash directories (newest first)
+# work_dirs <- list.dirs(work_dir, full.names = TRUE, recursive = FALSE)
+# work_dirs <- work_dirs[order(file.info(work_dirs)$mtime, decreasing = TRUE)]
+# head(work_dirs, 10)
+```
+
+---
+
+## LabKey / metadata (optional)
+
+```{r labkey-setup, eval=FALSE}
+# library(Rlabkey)
+# library(Rdiscvr)
+# if (nzchar(params$labkey_base_url) && nzchar(params$labkey_folder)) {
+#   Rdiscvr::SetLabKeyDefaults(
+#     baseUrl = params$labkey_base_url,
+#     defaultFolder = params$labkey_folder
+#   )
+# }
+```
+
+```{r labkey-query, eval=FALSE}
+# TODO: labkey.selectRows(...) for your study tables
+```
+
+---
+
+## Load published outputs
+
+```{r load-outputs, eval=FALSE}
+# Examples depend on workflow — adjust paths under outputs_dir:
+#
+# ingest_export / integration ingest stage:
+#   rds_path <- file.path(outputs_dir, "ingest", "SAMPLE_ID.rds")
+#   seuratObj <- readRDS(rds_path)
+#
+# ingest_tabulate:
+#   tab <- read.csv(file.path(outputs_dir, "tabulate", "subjectIdTable.csv"))
+```
+
+---
+
+## Analysis (fill in)
+
+```{r pseudobulk, eval=FALSE}
+# TODO: PseudobulkSeurat or project-specific aggregation
+```
+
+```{r de-analysis, eval=FALSE}
+# TODO: edgeR / DESeq2 / etc.
+```
+
+---
+
+## Session info
+
+```{r session-info}
+sessionInfo()
+```

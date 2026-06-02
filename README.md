@@ -17,6 +17,7 @@ Parameters: [`nextflow_schema.json`](nextflow_schema.json) | Docs source: [`docs
 ├── configs/                # Base + profile-specific config
 ├── data/                   # Default repo-local input location
 ├── template/               # Copyable per-run launcher scaffold
+├── notebooks/              # Jupyter/R templates for work-dir debug and exploration
 ├── outputs/                # Default published results (generated)
 ├── work/                   # Nextflow work dir (generated)
 ├── logs/                   # Reports and SLURM logs (generated)

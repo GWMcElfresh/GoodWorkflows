@@ -11,6 +11,7 @@ Skills are not shell commands. In **Agent** chat, Cursor loads them when your re
 - “Add a new saved workflow …” → `pipeline`, `16-evolve`, or `goodworkflows-workflow-manager`
 - “Review this `.nf` for DSL2” → `goodworkflows-dsl2-validation`
 - “Fix template / `.command.sh` error” → `goodworkflows-template-runtime`
+- “Inspect a local failed run / work directory” → `notebooks/` ([`nextflow-work-debug.ipynb`](../notebooks/templates/nextflow-work-debug.ipynb), [`notebooks/README.md`](../notebooks/README.md#skills-and-debugging-conventions-audit))
 - “Sync gw and cluster launchers” → `goodworkflows-template-parity`
 - “What should I verify before a PR?” → `goodworkflows-verify`
 - “Debug red GitHub Actions on a PR” → `debug-github-actions-pr`
@@ -100,7 +101,7 @@ Use `grill-me` during `01-requirements` to capture questions and answers in `req
 | --- | --- |
 | Add a new saved workflow | `pipeline` -> `16-evolve` -> `00-context` through `13-real-run-smoke` as needed |
 | Add a module to an existing workflow | `04-tech-plan` -> `07-build` -> `08-verify-build` |
-| Fix a failing Nextflow run | `14-hotfix` with `goodworkflows-dsl2-validation` or `goodworkflows-template-runtime` |
+| Fix a failing Nextflow run | `14-hotfix` with `goodworkflows-dsl2-validation` or `goodworkflows-template-runtime`; gather evidence in [`notebooks/`](../notebooks/README.md) when debugging from disk |
 | Debug red GitHub Actions on a PR | `debug-github-actions-pr` → `14-hotfix` / `goodworkflows-verify` |
 | Audit workflow/docs/CI drift | `15-workflow-health` |
 | Improve the Cursor workflow itself | `17-retrospective` |
