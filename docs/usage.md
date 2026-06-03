@@ -338,11 +338,11 @@ Nextflow will skip all already-completed steps and continue from where it left o
 
 ### Interactive debugging (notebooks)
 
-For local runs under `template/gw/`, `runs/latest` points at the most recent run. Use the notebooks under [`notebooks/`](../notebooks/README.md):
+For local runs under `template/gw/`, `runs/latest` points at the most recent run. Use the notebooks under [`notebooks/`](https://github.com/GWMcElfresh/GoodWorkflows/blob/main/notebooks/README.md):
 
-1. Create the Python venv and register the Jupyter kernel (see **Local Python environment and kernel** in [`notebooks/README.md`](../notebooks/README.md)).
-2. Copy [`notebooks/templates/nextflow-work-debug.ipynb`](../notebooks/templates/nextflow-work-debug.ipynb) into `notebooks/examples/`, set `RUN_DIR` if needed, and run cells to list failed `work/<hash>/` tasks and inspect `.command.sh` / `.command.err`.
-3. For R-centric exploration of published RDS outputs, use [`notebooks/templates/exploratory-analysis.Rmd`](../notebooks/templates/exploratory-analysis.Rmd) with the R kernel described in the same README.
+1. Create the Python venv and register the Jupyter kernel (see **Local Python environment and kernel** in [`notebooks/README.md`](https://github.com/GWMcElfresh/GoodWorkflows/blob/main/notebooks/README.md)).
+2. Copy [`notebooks/templates/nextflow-work-debug.ipynb`](https://github.com/GWMcElfresh/GoodWorkflows/blob/main/notebooks/templates/nextflow-work-debug.ipynb) into `notebooks/examples/`, set `RUN_DIR` if needed, and run cells to list failed `work/<hash>/` tasks and inspect `.command.sh` / `.command.err`.
+3. For R-centric exploration of published RDS outputs, use [`notebooks/templates/exploratory-analysis.Rmd`](https://github.com/GWMcElfresh/GoodWorkflows/blob/main/notebooks/templates/exploratory-analysis.Rmd) with the R kernel described in the same README.
 
 ---
 
