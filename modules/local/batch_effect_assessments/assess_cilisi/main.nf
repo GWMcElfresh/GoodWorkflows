@@ -9,9 +9,11 @@ process ASSESS_CILISI {
 
     output:
     tuple val(meta), val(reduction), path("${meta.id}_${reduction}_cilisi.csv"), emit: metrics
+    tuple val(meta), val(reduction), path("${meta.id}_${reduction}_cilisi_cells.csv"), emit: cells
 
     script:
     def outCsv = "${meta.id}_${reduction}_cilisi.csv"
+    def cellsCsv = "${meta.id}_${reduction}_cilisi_cells.csv"
     """
     #!/usr/bin/env bash
     set -euo pipefail
@@ -19,6 +21,7 @@ process ASSESS_CILISI {
     export PREP_JSON="${prep_json}"
     export REDUCTION='${reduction}'
     export OUT_CSV="${outCsv}"
+    export CILISI_CELLS_CSV="${cellsCsv}"
     export R_LIBS="/usr/local/lib/R/site-library"
     if ! Rscript -e "suppressPackageStartupMessages(library(scIntegrationMetrics))" 2>/dev/null; then
         R_LIB_TMP="\${PWD}/.r-lib"
@@ -34,5 +37,7 @@ process ASSESS_CILISI {
     """
     echo 'sample_id,reduction,metric,status' > ${meta.id}_${reduction}_cilisi.csv
     echo '${meta.id},${reduction},cilisi,stub' >> ${meta.id}_${reduction}_cilisi.csv
+    echo 'cell_barcode,cilisi_value,celltype,batch' > ${meta.id}_${reduction}_cilisi_cells.csv
+    echo 'stub_cell,1.0,stub_ct,stub_batch' >> ${meta.id}_${reduction}_cilisi_cells.csv
     """
 }

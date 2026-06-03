@@ -135,7 +135,11 @@ workflow BATCH_EFFECT_ASSESSMENTS_PIPELINE {
         .map { meta, reduction, csv -> tuple("${meta.id}::${reduction}", csv) }
     def ch_cilisi = ASSESS_CILISI.out.metrics
         .map { meta, reduction, csv -> tuple("${meta.id}::${reduction}", csv) }
+    def ch_cilisi_cells = ASSESS_CILISI.out.cells
+        .map { meta, reduction, csv -> tuple("${meta.id}::${reduction}", csv) }
     def ch_asw = ASSESS_ASW.out.metrics
+        .map { meta, reduction, csv -> tuple("${meta.id}::${reduction}", csv) }
+    def ch_asw_cells = ASSESS_ASW.out.cells
         .map { meta, reduction, csv -> tuple("${meta.id}::${reduction}", csv) }
     def ch_kbet = ASSESS_KBET.out.metrics
         .map { meta, reduction, csv -> tuple("${meta.id}::${reduction}", csv) }
@@ -145,8 +149,10 @@ workflow BATCH_EFFECT_ASSESSMENTS_PIPELINE {
         .join(ch_cilisi)
         .join(ch_asw)
         .join(ch_kbet)
-        .map { key, meta, prep_json, reduction, ilisi, cilisi, asw, kbet ->
-            tuple(meta, prep_json, reduction, ilisi, cilisi, asw, kbet, tpl_collect)
+        .join(ch_cilisi_cells)
+        .join(ch_asw_cells)
+        .map { key, meta, prep_json, reduction, ilisi, cilisi, asw, kbet, cilisi_cells, asw_cells ->
+            tuple(meta, prep_json, reduction, ilisi, cilisi, asw, kbet, cilisi_cells, asw_cells, tpl_collect)
         }
 
     COLLECT_BATCH_ASSESSMENT(ch_collect_in)

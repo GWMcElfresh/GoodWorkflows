@@ -158,8 +158,9 @@ Post-integration batch-mixing QC on ingested Seurat objects: iLISI, CiLISI, batc
 |---|---|---|
 | 1 | INGEST_* | `{sample_id}.rds` |
 | 2 | PREP_BATCH_ASSESSMENT | `{sample_id}_prep.json` (reductions, inferred celltype) |
-| 3 | ASSESS_* (per reduction) | Separate SLURM tasks per metric |
-| 4 | COLLECT_BATCH_ASSESSMENT | Summary CSV + plot; `run_summary.csv` via `collectFile` |
+| 3 | ASSESS_CILISI | Per-cell CiLISI CSV (`{sample}_{reduction}_cilisi_cells.csv`) emitted for downstream distribution plots |
+| 3 | ASSESS_ASW | Per-cell ASW CSV (`{sample}_{reduction}_asw_cells.csv`) emitted; auto-downsamples at >50K cells to avoid R dist() long-vector limit |
+| 4 | COLLECT_BATCH_ASSESSMENT | Summary CSV + iLISI bar plot; celltype assessment stacked histogram (`{sample}_{reduction}_celltype_assessment.png`) with good/bad region shading |
 
 ### Compute
 
@@ -171,7 +172,10 @@ Post-integration batch-mixing QC on ingested Seurat objects: iLISI, CiLISI, batc
 ```
 outputs/batch_effect_assessments/
 ├── {sample_id}_prep.json
+├── {sample_id}_{reduction}_cilisi_cells.csv       # per-cell CiLISI values
+├── {sample_id}_{reduction}_asw_cells.csv            # per-cell ASW values
 ├── {sample_id}_{reduction}_summary.csv
 ├── {sample_id}_{reduction}_metrics.png
+├── {sample_id}_{reduction}_celltype_assessment.png  # stacked histogram with good/bad shading
 └── run_summary.csv
 ```

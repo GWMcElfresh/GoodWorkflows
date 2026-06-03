@@ -110,7 +110,8 @@ SAMPLESHEET_EOF
                 ;;
             batch_effect_assessments)
                 test -f "${TEST_ROOT}/outputs/batch_effect_assessments/SMOKE_01_prep.json"
-                test -f "${TEST_ROOT}/outputs/batch_effect_assessments/SMOKE_01_summary.csv"
+                test -f "${TEST_ROOT}/outputs/batch_effect_assessments/SMOKE_01_pca_summary.csv"
+                test -f "${TEST_ROOT}/outputs/batch_effect_assessments/SMOKE_01_pca_metrics.png"
                 ;;
             make_tcr_vector_database)
                 # make_tcr_vector_database outputs: per-cDNA parquet + persisted ANN index

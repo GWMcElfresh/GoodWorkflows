@@ -10,6 +10,7 @@ rds_path <- Sys.getenv('RDS_PATH')
 prep_path <- Sys.getenv('PREP_JSON')
 reduction <- Sys.getenv('REDUCTION')
 out_csv <- Sys.getenv('OUT_CSV')
+cells_csv <- Sys.getenv('ASW_CELLS_CSV', unset = NA_character_)
 
 prep <- fromJSON(prep_path)
 methods <- prep$methods
@@ -29,6 +30,14 @@ if (!run_batch && !run_celltype) {
         out_csv,
         row.names = FALSE
     )
+    if (!is.na(cells_csv) && nzchar(cells_csv)) {
+        write.csv(
+            data.frame(cell_barcode = character(0), batch_asw = numeric(0),
+                       celltype_asw = numeric(0), batch = character(0),
+                       stringsAsFactors = FALSE),
+            cells_csv, row.names = FALSE
+        )
+    }
     quit(save = 'no', status = 0)
 }
 
@@ -42,17 +51,22 @@ invisible(gc())
 
 batch_asw <- NA_real_
 celltype_asw <- NA_real_
+cell_barcodes <- NULL
 msg <- c()
 status <- 'ok'
 
 n_cells <- nrow(emb)
-if (n_cells > 50000) {
-    msg_oom <- sprintf(
-        'WARNING: %d cells detected. Silhouette builds an O(n^2) distance matrix (~%.0f GB for n=%d).',
-        n_cells, round(n_cells^2 * 8 / 1e9), n_cells
-    )
-    message(msg_oom)
-    msg <- c(msg, gsub('^WARNING: ', '', msg_oom))
+
+# Downsample if silhouette would O(n^2) with >50K cells (avoids R .C long-vectors limit)
+if (n_cells > 50000 && (run_batch || run_celltype)) {
+    ds_label <- if (run_batch) batch_col else celltype_col
+    ds <- stratified_downsample(emb, md, ds_label)
+    emb <- ds$emb
+    md <- ds$md
+    msg <- c(msg, sprintf(
+        'downsampled from %d to %d cells (stratified by %s)',
+        n_cells, nrow(emb), ds_label
+    ))
 }
 
 if (requireNamespace('scIntegrationMetrics', quietly = TRUE)) {
@@ -66,6 +80,7 @@ if (requireNamespace('scIntegrationMetrics', quietly = TRUE)) {
             msg <- c(msg, conditionMessage(batch_vals))
         } else {
             batch_asw <- mean(batch_vals, na.rm = TRUE)
+            cell_barcodes <- names(batch_vals)
         }
     }
     if (run_celltype && !is.null(celltype_col) && !is.na(celltype_col) && nzchar(celltype_col)) {
@@ -78,6 +93,7 @@ if (requireNamespace('scIntegrationMetrics', quietly = TRUE)) {
             msg <- c(msg, conditionMessage(celltype_vals))
         } else {
             celltype_asw <- mean(celltype_vals, na.rm = TRUE)
+            if (is.null(cell_barcodes)) cell_barcodes <- names(celltype_vals)
         }
     } else if (run_celltype) {
         msg <- c(msg, 'celltype_ASW skipped (no inferable celltype column)')
@@ -85,6 +101,32 @@ if (requireNamespace('scIntegrationMetrics', quietly = TRUE)) {
 } else {
     status <- 'na'
     msg <- c(msg, 'scIntegrationMetrics not available')
+}
+
+# Write per-cell CSV for downstream histogram visualization
+if (!is.na(cells_csv) && nzchar(cells_csv)) {
+    if (!is.null(cell_barcodes) && !is.null(cell_barcodes) && length(cell_barcodes) > 0 &&
+        ((exists('batch_vals') && !inherits(batch_vals, 'error') && !is.null(batch_vals)) ||
+         (exists('celltype_vals') && !inherits(celltype_vals, 'error') && !is.null(celltype_vals)))) {
+        cell_df <- data.frame(
+            cell_barcode = cell_barcodes,
+            batch_asw = if (exists('batch_vals') && !inherits(batch_vals, 'error')) as.numeric(batch_vals) else NA_real_,
+            celltype_asw = if (exists('celltype_vals') && !inherits(celltype_vals, 'error')) as.numeric(celltype_vals) else NA_real_,
+            batch = as.character(md[cell_barcodes, batch_col]),
+            stringsAsFactors = FALSE
+        )
+        if (!is.na(celltype_col)) {
+            cell_df$celltype <- as.character(md[cell_barcodes, celltype_col])
+        }
+        write.csv(cell_df, cells_csv, row.names = FALSE)
+    } else {
+        write.csv(
+            data.frame(cell_barcode = character(0), batch_asw = numeric(0),
+                       celltype_asw = numeric(0), batch = character(0),
+                       stringsAsFactors = FALSE),
+            cells_csv, row.names = FALSE
+        )
+    }
 }
 
 write.csv(

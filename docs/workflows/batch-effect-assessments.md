@@ -43,8 +43,11 @@ Published under `outputs/batch_effect_assessments/`:
 
 - `{sample_id}_prep.json` — reductions, methods, batch/celltype columns
 - `{sample_id}_{reduction}_*.csv` — per-metric tables
+- `{sample_id}_{reduction}_cilisi_cells.csv` — per-cell CiLISI values (cell_barcode, cilisi_value, celltype, batch)
+- `{sample_id}_{reduction}_asw_cells.csv` — per-cell ASW values (cell_barcode, batch_asw, celltype_asw, batch)
 - `{sample_id}_{reduction}_summary.csv` — merged metrics per reduction (one per embedding)
 - `{sample_id}_{reduction}_metrics.png` — reference bar plot (iLISI good/bad/observed when ggplot2 is available; one per embedding)
+- `{sample_id}_{reduction}_celltype_assessment.png` — stacked histogram of per-cell CiLISI, batch ASW mixing score, and celltype ASW with good/bad region shading
 - `run_summary.csv` — collected summaries across samples (via `collectFile`)
 
 ## Parameters
@@ -132,6 +135,10 @@ Treats batch labels as the grouping variable. Positive values mean cells are clo
 
 The `batch_mixing_score` column (converted to 0–2 scale as `1 − batch_asw`) is a convenience alias: > 0.5 suggests good mixing, < 0.5 suggests poor mixing.
 
+#### ASW downsampling (large objects)
+
+Silhouette width builds an O(n^2) distance matrix. When the object has more than 50,000 cells, the ASW module automatically down-samples using **stratified sampling** (by batch for batch ASW, by celltype for celltype ASW) to stay within R's vector length limit. The down-sampling count is reported in the `message` column of the summary CSV. Note that the per-cell `asw_cells.csv` reflects only the down-sampled cells when down-sampling occurs.
+
 #### Celltype ASW (`celltype_asw`)
 
 Treats cell-type labels as the grouping variable. Used as a biological preservation check.
@@ -182,5 +189,47 @@ Use this rubric to summarize integration quality from a `{sample_id}_{reduction}
 | batch ASW mixing score | ≥ 0.5 | 0.3 – 0.5 | < 0.3 |
 | celltype ASW | ≥ 0.2 | 0 – 0.2 | < 0 (degraded) |
 | kBET acceptance | > 0.9 | 0.6 – 0.9 | < 0.6 |
+
+---
+
+### Celltype Assessment Plot (`{sample_id}_{reduction}_celltype_assessment.png`)
+
+When per-cell data is available, the collect stage generates a **stacked histogram** with up to three panels, each showing the distribution of cell-level scores with shaded good/bad regions.
+
+#### Panel 1: CiLISI Distribution
+
+Shows the distribution of per-cell CiLISI values. The x-axis is the CiLISI score (range 1 to N_batches+).
+
+| Region | Shading | Meaning |
+|--------|---------|---------|
+| \[1, 1.5) | Red (low alpha) | Poor mixing — within each celltype, neighborhoods are dominated by a single batch |
+| \[1.5, ∞) | Green (low alpha) | Good mixing — batches are well-mixed within each celltype |
+
+The dashed vertical line marks the median CiLISI score, annotated with its value.
+
+#### Panel 2: Batch ASW Mixing Score (1 - batch ASW)
+
+The batch ASW is converted to a mixing score (1 - ASW, range 0–2) where higher is better.
+
+| Region | Shading | Meaning |
+|--------|---------|---------|
+| \[0, 0.5) | Red (low alpha) | Poor mixing — cells cluster by batch |
+| \[0.5, 2\] | Green (low alpha) | Good mixing — batches overlap |
+
+The dashed vertical line marks the mean mixing score.
+
+#### Panel 3: Celltype ASW
+
+Shows the distribution of per-cell celltype silhouette widths. Positive = cells near their own celltype cluster.
+
+| Region | Shading | Meaning |
+|--------|---------|---------|
+| \[-1, 0) | Red (low alpha) | Biological structure disrupted — cells closer to wrong celltype |
+| \[0, 0.2) | Yellow (low alpha) | Neutral — celltypes weakly separated or overlapping |
+| \[0.2, 1\] | Green (low alpha) | Biological identity preserved — cells of the same type are tightly clustered |
+
+The dashed vertical line marks the mean celltype ASW.
+
+---
 
 **A note on multiple reductions.** The workflow assesses every embedding found on the Seurat object (PCA, harmony, scmodal, UMAP, t-SNE, in priority order). Compare metrics across reductions: if PCA shows poor mixing but harmony/UMAP show good mixing, the batch correction method worked as intended. If all reductions show poor mixing, the batch effect may be strong enough to resist correction.

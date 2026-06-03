@@ -158,3 +158,27 @@ write_metric_status <- function(path, status, message = '') {
     df <- data.frame(status = status, message = message, stringsAsFactors = FALSE)
     write.csv(df, path, row.names = FALSE)
 }
+
+stratified_downsample <- function(emb, md, label_col, max_cells = 50000, seed = 42) {
+    n_cells <- nrow(emb)
+    if (n_cells <= max_cells) {
+        return(list(emb = emb, md = md, n_kept = n_cells, n_dropped = 0L))
+    }
+    set.seed(seed)
+    label_vals <- as.character(md[[label_col]])
+    groups <- unique(label_vals)
+    per_group <- ceiling(max_cells / length(groups))
+    keep_idx <- unlist(lapply(groups, function(grp) {
+        idx <- which(label_vals == grp)
+        if (length(idx) <= per_group) idx else sample(idx, per_group)
+    }))
+    if (length(keep_idx) > max_cells) {
+        keep_idx <- sort(sample(keep_idx, max_cells))
+    }
+    list(
+        emb = emb[keep_idx, , drop = FALSE],
+        md = md[keep_idx, , drop = FALSE],
+        n_kept = length(keep_idx),
+        n_dropped = n_cells - length(keep_idx)
+    )
+}
