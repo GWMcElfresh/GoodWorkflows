@@ -171,7 +171,7 @@ Post-integration batch-mixing QC on ingested Seurat objects: iLISI, CiLISI, batc
 ```
 outputs/batch_effect_assessments/
 ├── {sample_id}_prep.json
-├── {sample_id}_summary.csv
-├── {sample_id}_metrics.png
+├── {sample_id}_{reduction}_summary.csv
+├── {sample_id}_{reduction}_metrics.png
 └── run_summary.csv
 ```

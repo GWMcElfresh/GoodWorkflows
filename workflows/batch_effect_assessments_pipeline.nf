@@ -129,7 +129,7 @@ workflow BATCH_EFFECT_ASSESSMENTS_PIPELINE {
     })
 
     def ch_key = ch_per_reduction
-        .map { meta, rds, prep_json, reduction -> tuple("${meta.id}::${reduction}", meta, prep_json) }
+        .map { meta, rds, prep_json, reduction -> tuple("${meta.id}::${reduction}", meta, prep_json, reduction) }
 
     def ch_ilisi = ASSESS_ILISI.out.metrics
         .map { meta, reduction, csv -> tuple("${meta.id}::${reduction}", csv) }
@@ -145,8 +145,8 @@ workflow BATCH_EFFECT_ASSESSMENTS_PIPELINE {
         .join(ch_cilisi)
         .join(ch_asw)
         .join(ch_kbet)
-        .map { key, meta, prep_json, ilisi, cilisi, asw, kbet ->
-            tuple(meta, prep_json, ilisi, cilisi, asw, kbet, tpl_collect)
+        .map { key, meta, prep_json, reduction, ilisi, cilisi, asw, kbet ->
+            tuple(meta, prep_json, reduction, ilisi, cilisi, asw, kbet, tpl_collect)
         }
 
     COLLECT_BATCH_ASSESSMENT(ch_collect_in)

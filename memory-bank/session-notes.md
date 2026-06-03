@@ -275,6 +275,11 @@ After the main `batch_effect_assessments` fixes were committed and pushed, the u
 ### Same config bug in sibling processes
 `ASSESS_ILISI` and `ASSESS_CILISI` in `base.config` have the same `withName` + fixed-memory pattern. They have the same escalation-blocking bug on SLURM but were not reported yet.
 
+## 2026-06-03 — Output interpretation guide added to docs
+
+### Change
+Added a comprehensive **Output Interpretation** section to `docs/workflows/batch-effect-assessments.md` covering what each metric means, how to read the values, concrete green/yellow/red decision rubric, metric status codes, and guidance on comparing across multiple reductions.
+
 ### Relevant guidance updates
 - **Config-review checklist item**: When a process uses a label for resource escalation (`process_tabulate` → 64..999 GB), any `withName` block in `base.config` that sets a fixed `memory` blocks escalation on SLURM. Either remove the `memory` line from `withName` or override with a closure in `slurm.config`.
 - **Template O(n^2) awareness**: `stats::dist` → `as.matrix` creates N x N memory. For Seurat embeddings with >50K cells, free the parent object before computation and warn the user.

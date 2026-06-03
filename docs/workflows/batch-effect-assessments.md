@@ -11,7 +11,7 @@ Post-integration assessment of batch mixing in Seurat objects using iLISI, CiLIS
 | INGEST | `rdiscvr/ingest_*` | LabKey / URL / local file | `{sample_id}.rds` | CPU (Rdiscvr image) |
 | PREP | `batch_effect_assessments/prep` | Seurat RDS | `{sample_id}_prep.json` | CPU (GoodWorkflows image) |
 | ASSESS_ILISI / CILISI / ASW / KBET | separate processes per metric | RDS + prep + reduction | per-metric CSV | CPU; kBET uses `process_kbet` |
-| COLLECT | `batch_effect_assessments/collect` | metric CSVs | `{sample_id}_summary.csv`, plot | CPU (GoodWorkflows image) |
+| COLLECT | `batch_effect_assessments/collect` | metric CSVs | `{sample_id}_{reduction}_summary.csv`, plot | CPU (GoodWorkflows image) |
 
 Each discovered embedding (typically `pca`, plus any other reductions on the object) is assessed in **parallel SLURM tasks** (one task boundary per metric × reduction).
 
@@ -43,8 +43,8 @@ Published under `outputs/batch_effect_assessments/`:
 
 - `{sample_id}_prep.json` — reductions, methods, batch/celltype columns
 - `{sample_id}_{reduction}_*.csv` — per-metric tables
-- `{sample_id}_summary.csv` — merged metrics per reduction
-- `{sample_id}_metrics.png` — reference bar plot (iLISI good/bad/observed when ggplot2 is available)
+- `{sample_id}_{reduction}_summary.csv` — merged metrics per reduction (one per embedding)
+- `{sample_id}_{reduction}_metrics.png` — reference bar plot (iLISI good/bad/observed when ggplot2 is available; one per embedding)
 - `run_summary.csv` — collected summaries across samples (via `collectFile`)
 
 ## Parameters
@@ -54,3 +54,133 @@ Published under `outputs/batch_effect_assessments/`:
 | `--batch_assessment_default_methods` | `LISI,CiLISI,ASW,CELLTYPE_ASW` | Default methods when row column is empty |
 | `--batch_assessment_min_cells_per_batch` | `20` | Minimum cells required per batch |
 | `--batch_assessment_kbet_cells_per_batch` | `1000` | Cells per batch after kBET downsampling |
+
+## Output Interpretation
+
+### Metric Status Codes
+
+Every metric CSV row includes a `status` column:
+
+| Status | Meaning |
+|---|---|
+| `ok` | Metric computed successfully — values are real |
+| `skipped` | Metric not requested (absent from `integration_assessment_methods`) |
+| `na` | Computation failed — check the `message` column for the error text |
+| `stub` | CI stub-run placeholder — not real data |
+
+---
+
+### iLISI — Integrated Local Inverse Simpson Index
+
+**What it measures.** For each cell, iLISI computes how many different batch labels are represented among its k-nearest neighbors in the embedding. It reports the median (and mean) LISI score across all cells.
+
+The LISI score ranges from **1** (every neighborhood contains only one batch) to **N** (every neighborhood contains all N batches equally). Higher is better.
+
+| iLISI median | Interpretation |
+|---|---|
+| **≈ N** (e.g. ≈ 2 for two batches) | Neighborhoods contain all batches equally — **excellent mixing** |
+| **> 1, < N** | Partial mixing — higher = better |
+| **≈ 1** | Cells only see their own batch — **batches remain separated** |
+
+The summary plot (`{sample_id}_{reduction}_metrics.png`) shows a three-bar reference chart:
+
+```
+  ^
+  |   ██
+  |   ██  ██
+  |   ██  ██
+  |   ██  ██        ██
+  |   ██  ██        ██
+  +---█████████----------->
+    poor   good  observed
+   (1)   (N_batches)  (ilisi_median)
+```
+
+- **poor_mixing (1)**: Baseline for no mixing
+- **good_mixing (N_batches)**: Target — all batches equally represented
+- **observed (ilisi_median)**: Your result — ideal if near `good_mixing`
+
+---
+
+### CiLISI — Conditional iLISI (by Cell Type)
+
+**What it measures.** Same logic as iLISI but computed *within each cell type* and then aggregated. This controls for the confound that different cell types may naturally come from different batches (e.g., batch 1 has only T cells, batch 2 has only B cells). CiLISI asks: *within the same cell type, how well are batches mixed?*
+
+| CiLISI median | Interpretation |
+|---|---|
+| **> 1** | Within each cell type, batches mix well — **biologically meaningful integration** |
+| **≈ 1** | Within each cell type, cells cluster by batch — could indicate batch-specific technical effects rather than biology |
+
+**Check `status` and `celltype_column`:** If status is `skipped` and message says "No inferable celltype column", the Seurat object has no RIRA cell-type hierarchy columns. Without cell-type labels, CiLISI cannot separate biological from technical variation.
+
+---
+
+### ASW — Average Silhouette Width (Batch and Celltype)
+
+Silhouette width measures how well each cell fits within its assigned group vs. the nearest neighboring group. Range is [-1, 1]. The module computes two variants:
+
+#### Batch ASW (`batch_asw`)
+
+Treats batch labels as the grouping variable. Positive values mean cells are closer to their own batch than to other batches.
+
+| batch_asw | Batch mixing score (1 − batch_asw) | Interpretation |
+|---|---|---|
+| **< 0** | > 1.0 | Cells are closer to *other* batches — very well mixed (may risk over-correction) |
+| **≈ 0** | ≈ 1.0 | Batches overlap randomly — **good mixing** |
+| **> 0** | < 1.0 | Cells stick with their own batch — batch effect present |
+| **≈ 1** | ≈ 0 | Batches are completely separated — **strong batch effect** |
+
+The `batch_mixing_score` column (converted to 0–2 scale as `1 − batch_asw`) is a convenience alias: > 0.5 suggests good mixing, < 0.5 suggests poor mixing.
+
+#### Celltype ASW (`celltype_asw`)
+
+Treats cell-type labels as the grouping variable. Used as a biological preservation check.
+
+| celltype_asw | Interpretation |
+|---|---|
+| **> 0, near 1** | Cells of the same type are tightly clustered — **biological identity preserved** |
+| **≈ 0** | Cell types overlap in the embedding — biological signal may be degraded |
+| **< 0** | Cells are closer to wrong cell types — **biological structure disrupted** |
+
+#### The ASW tension
+
+Good integration requires **batch ASW low** (batches mixed) while **celltype ASW high** (cell types preserved). Reading them together:
+
+| batch_asw | celltype_asw | Likely diagnosis |
+|---|---|---|
+| ≤ 0 | ≥ 0.2 | Good integration — batches mix, biology preserved |
+| > 0 | ≥ 0.2 | Weak correction — batches remain, biology intact |
+| ≤ 0 | < 0 | Over-correction — batches mixed but biological structure lost |
+| > 0 | < 0 | Both batch effect and biological degradation |
+
+---
+
+### kBET — k-Nearest Neighbor Batch Effect Test
+
+*Opt-in.* Uses a chi-squared test on local batch-label distributions. Reports the **rejection rate**: the fraction of neighborhoods where the batch distribution significantly differs from the global.
+
+| kbet_rejection_rate | kbet_acceptance_rate (1 − rejection) | Interpretation |
+|---|---|---|
+| **≈ 0.0 (0%)** | ≈ 1.0 (100%) | No batches detected as different — **excellent mixing** |
+| **0.0 – 0.2** | 0.8 – 1.0 | Good |
+| **0.2 – 0.4** | 0.6 – 0.8 | Moderate |
+| **> 0.4** | < 0.6 | Poor — **strong batch effect** |
+| **≈ 1.0 (100%)** | ≈ 0.0 | Every neighborhood is batch-enriched — complete separation |
+
+Compare `kbet_rejection_rate` to `kbet_expected_rejection_rate` (the null expectation). If observed exceeds expected, mixing is worse than random. If observed is below expected, mixing is better than random.
+
+---
+
+### Decision Framework
+
+Use this rubric to summarize integration quality from a `{sample_id}_{reduction}_summary.csv`:
+
+| Signal | Green (good) | Yellow (inspect) | Red (fix needed) |
+|---|---|---|---|
+| iLISI median | Near N batches | Middle of 1–N | ≈ 1 |
+| CiLISI median | > 1 | = 1 (could be real cell-type-by-batch) | Skipped (no celltype column) |
+| batch ASW mixing score | ≥ 0.5 | 0.3 – 0.5 | < 0.3 |
+| celltype ASW | ≥ 0.2 | 0 – 0.2 | < 0 (degraded) |
+| kBET acceptance | > 0.9 | 0.6 – 0.9 | < 0.6 |
+
+**A note on multiple reductions.** The workflow assesses every embedding found on the Seurat object (PCA, harmony, scmodal, UMAP, t-SNE, in priority order). Compare metrics across reductions: if PCA shows poor mixing but harmony/UMAP show good mixing, the batch correction method worked as intended. If all reductions show poor mixing, the batch effect may be strong enough to resist correction.
