@@ -224,7 +224,17 @@ decisions_log:
   - "EV-002 batch_effect_assessments: requirements grilling started; technical planning blocked until grill accepted."
   - "EV-002 batch_effect_assessments: requirements accepted 2026-05-27; grill file accepted; advancing through 02-verify-plan and 04-tech-plan to 07-build."
   - "EV-002 batch_effect_assessments: default integration_assessment_methods LISI,CiLISI,ASW,CELLTYPE_ASW; kBET opt-in per row."
-issue_log: []
+issue_log:
+  - date: "2026-06-03"
+    id: "ISSUE-003"
+    summary: "ASSESS_ASW exit 137 (OOM) on SLURM cluster"
+    root_cause: "Config layering: base.config withName:ASSESS_ASW set fixed memory='32 GB' which blocked slurm.config's process_tabulate label escalation (64..999 GB). Combined with O(n^2) silhouette distance matrix memory that exceeds 32 GB at ~50K cells."
+    fix:
+      - "Removed memory='32 GB' from base.config withName:ASSESS_ASW to allow label escalation"
+      - "Added rm(obj); gc() in assess_asw.R to free Seurat object before silhouette computation"
+      - "Added >50K cell early-guard warning in assess_asw.R"
+    affects: [ASSESS_ILISI, ASSESS_CILISI]
+    resolution: "Applied; stub-run verified"
 artifacts:
   - path: ".cursor/skills/README.md"
     kind: skill

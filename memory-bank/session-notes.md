@@ -256,3 +256,25 @@ After the main `batch_effect_assessments` fixes were committed and pushed, the u
 - `template-runtime.mdc` already covers `$` → `[[]]` and direct Rscript patterns
 - `16-evolve` already covers uvr deprecation
 - No new repeating anti-pattern identified
+
+## 2026-06-03 — ASSESS_ASW cluster OOM (exit 137)
+
+### Root causes
+
+1. **Config layering blocked memory escalation on SLURM.** `base.config` set `memory = '32 GB'` via `withName: 'ASSESS_ASW'`. Nextflow's `withName` > `withLabel` precedence meant the `process_tabulate` label's escalating closure (64/128/256/512/999 GB across attempts) in `slurm.config` was silently ignored. Each retry got the same 32 GB and kept dying.
+
+2. **Silhouette O(n^2) distance matrix.** `scIntegrationMetrics::compute_silhouette` internally calls `stats::dist()` (lower-triangular O(n^2/2)) then `as.matrix()` (full N x N). At 50K cells the full matrix is ~20 GB; plus the lower-tri ~10 GB; plus the Seurat object ~2-15 GB. Peak exceeds 32 GB at ~50K cells.
+
+### Fixes
+
+| File | Change |
+|---|---|
+| `configs/base.config` | Removed `memory = '32 GB'` from `withName: 'ASSESS_ASW'`. Label escalation now applies on SLURM. |
+| `modules/local/batch_effect_assessments/templates/assess_asw.R` | Added `rm(obj); gc()` after embedding/metadata extraction to free Seurat object (~2-15 GB) before silhouette. Added early-guard warning when `n_cells > 50000` reporting estimated O(n^2) memory cost. |
+
+### Same config bug in sibling processes
+`ASSESS_ILISI` and `ASSESS_CILISI` in `base.config` have the same `withName` + fixed-memory pattern. They have the same escalation-blocking bug on SLURM but were not reported yet.
+
+### Relevant guidance updates
+- **Config-review checklist item**: When a process uses a label for resource escalation (`process_tabulate` → 64..999 GB), any `withName` block in `base.config` that sets a fixed `memory` blocks escalation on SLURM. Either remove the `memory` line from `withName` or override with a closure in `slurm.config`.
+- **Template O(n^2) awareness**: `stats::dist` → `as.matrix` creates N x N memory. For Seurat embeddings with >50K cells, free the parent object before computation and warn the user.

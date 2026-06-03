@@ -37,11 +37,23 @@ batch_col <- prep$batch_column
 celltype_col <- prep$celltype_column
 emb <- Embeddings(obj, reduction = reduction)
 md <- obj[[]]
+rm(obj)
+invisible(gc())
 
 batch_asw <- NA_real_
 celltype_asw <- NA_real_
 msg <- c()
 status <- 'ok'
+
+n_cells <- nrow(emb)
+if (n_cells > 50000) {
+    msg_oom <- sprintf(
+        'WARNING: %d cells detected. Silhouette builds an O(n^2) distance matrix (~%.0f GB for n=%d).',
+        n_cells, round(n_cells^2 * 8 / 1e9), n_cells
+    )
+    message(msg_oom)
+    msg <- c(msg, gsub('^WARNING: ', '', msg_oom))
+}
 
 if (requireNamespace('scIntegrationMetrics', quietly = TRUE)) {
     if (run_batch) {
