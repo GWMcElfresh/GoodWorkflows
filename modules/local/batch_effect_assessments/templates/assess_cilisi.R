@@ -51,21 +51,23 @@ obj <- readRDS(rds_path)
 batch_col <- prep$batch_column
 emb <- Embeddings(obj, reduction = reduction)
 md <- obj[[]]
-batches <- as.character(md[[batch_col]])
-celltypes <- as.character(md[[celltype_col]])
 
 cilisi_vals <- NA_real_
 msg <- ''
 status <- 'ok'
 
 if (requireNamespace('scIntegrationMetrics', quietly = TRUE)) {
-    if (exists('compute_cLISI', where = asNamespace('scIntegrationMetrics'), inherits = FALSE)) {
-        cilisi_vals <- scIntegrationMetrics::compute_cLISI(emb, batches, celltypes)
-    } else if (exists('cLISI', where = asNamespace('scIntegrationMetrics'), inherits = FALSE)) {
-        cilisi_vals <- scIntegrationMetrics::cLISI(emb, batches, celltypes)
-    } else {
+    cilisi_vals <- tryCatch(
+        run_cilisi(emb, md, batch_col, celltype_col),
+        error = function(e) e
+    )
+    if (inherits(cilisi_vals, 'error')) {
         status <- 'na'
-        msg <- 'scIntegrationMetrics installed but cLISI entrypoint not found'
+        msg <- conditionMessage(cilisi_vals)
+        cilisi_vals <- NA_real_
+    } else if (length(cilisi_vals) == 0) {
+        status <- 'na'
+        msg <- 'CiLISI: no cell-type groups passed min cell/batch filters'
     }
 } else {
     status <- 'na'

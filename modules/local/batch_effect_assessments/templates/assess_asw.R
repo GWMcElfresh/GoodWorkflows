@@ -44,19 +44,31 @@ msg <- c()
 status <- 'ok'
 
 if (requireNamespace('scIntegrationMetrics', quietly = TRUE)) {
-    if (run_batch && exists('batch_ASW', where = asNamespace('scIntegrationMetrics'), inherits = FALSE)) {
-        batch_asw <- scIntegrationMetrics::batch_ASW(emb, as.character(md[[batch_col]]))
-    } else if (run_batch) {
-        msg <- c(msg, 'batch_ASW not found in scIntegrationMetrics')
-    }
-    if (run_celltype && !is.null(celltype_col) && !is.na(celltype_col) &&
-        exists('celltype_ASW', where = asNamespace('scIntegrationMetrics'), inherits = FALSE)) {
-        celltype_asw <- scIntegrationMetrics::celltype_ASW(
-            emb,
-            as.character(md[[celltype_col]])
+    if (run_batch) {
+        batch_vals <- tryCatch(
+            run_batch_asw(emb, md, batch_col),
+            error = function(e) e
         )
+        if (inherits(batch_vals, 'error')) {
+            status <- 'na'
+            msg <- c(msg, conditionMessage(batch_vals))
+        } else {
+            batch_asw <- mean(batch_vals, na.rm = TRUE)
+        }
+    }
+    if (run_celltype && !is.null(celltype_col) && !is.na(celltype_col) && nzchar(celltype_col)) {
+        celltype_vals <- tryCatch(
+            run_celltype_asw(emb, md, celltype_col),
+            error = function(e) e
+        )
+        if (inherits(celltype_vals, 'error')) {
+            status <- 'na'
+            msg <- c(msg, conditionMessage(celltype_vals))
+        } else {
+            celltype_asw <- mean(celltype_vals, na.rm = TRUE)
+        }
     } else if (run_celltype) {
-        msg <- c(msg, 'celltype_ASW skipped (missing column or function)')
+        msg <- c(msg, 'celltype_ASW skipped (no inferable celltype column)')
     }
 } else {
     status <- 'na'

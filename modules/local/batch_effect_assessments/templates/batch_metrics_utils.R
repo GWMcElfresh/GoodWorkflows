@@ -64,16 +64,71 @@ infer_celltype_column <- function(obj, parent_col = 'RIRA_Immune.cellclass', par
     }
 
     if (length(candidates) == 0) {
-        # Fall back to finest available RIRA column with variation.
+        # Fall back to finest RIRA column with variation, but skip child columns
+        # for lineages not present in the parent column (e.g. Myeloid on TNK-only).
         for (col in rev(present)) {
+            if (col %in% names(parent_map) && length(parent_vals) > 0L) {
+                if (!(parent_map[[col]] %in% parent_vals)) next
+            }
             vals <- unique(as.character(md[[col]]))
             vals <- vals[!is.na(vals) & nzchar(vals)]
             if (length(vals) > 1L) return(col)
+        }
+        for (col in rev(present)) {
+            if (col %in% names(parent_map) && length(parent_vals) > 0L) {
+                if (!(parent_map[[col]] %in% parent_vals)) next
+            }
+            vals <- unique(as.character(md[[col]]))
+            vals <- vals[!is.na(vals) & nzchar(vals)]
+            if (length(vals) > 0L) return(col)
         }
         return(present[[length(present)]])
     }
 
     candidates[[1]]
+}
+
+run_ilisi <- function(emb, md, batch_col, perplexity = 30L) {
+    res <- scIntegrationMetrics::compute_lisi(
+        X = emb,
+        meta_data = md,
+        label_colnames = batch_col,
+        perplexity = perplexity
+    )
+    as.numeric(res[[batch_col]])
+}
+
+run_cilisi <- function(emb, md, batch_col, celltype_col, perplexity = 30L) {
+    split_res <- scIntegrationMetrics::compute_lisi_splitBy(
+        X = emb,
+        meta_data = md,
+        label_colnames = batch_col,
+        split_by_colname = celltype_col,
+        normalize = TRUE,
+        perplexity = perplexity
+    )
+    if (length(split_res) == 0) {
+        return(numeric(0))
+    }
+    unlist(lapply(split_res, function(x) as.numeric(x[[batch_col]])))
+}
+
+run_batch_asw <- function(emb, md, batch_col) {
+    res <- scIntegrationMetrics::compute_silhouette(
+        X = emb,
+        meta_data = md,
+        label_colnames = batch_col
+    )
+    as.numeric(res[[batch_col]])
+}
+
+run_celltype_asw <- function(emb, md, celltype_col) {
+    res <- scIntegrationMetrics::compute_silhouette(
+        X = emb,
+        meta_data = md,
+        label_colnames = celltype_col
+    )
+    as.numeric(res[[celltype_col]])
 }
 
 discover_reductions <- function(obj, preferred = c('pca', 'harmony', 'scmodal', 'umap', 'tsne')) {

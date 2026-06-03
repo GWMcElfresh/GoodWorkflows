@@ -27,7 +27,6 @@ process COLLECT_BATCH_ASSESSMENT {
     export RUN_SUMMARY_CSV=''
     export R_LIBS="/usr/local/lib/R/site-library"
     Rscript "${collect_script}"
-    touch "${meta.id}_metrics.png" 2>/dev/null || true
     """
 
     stub:

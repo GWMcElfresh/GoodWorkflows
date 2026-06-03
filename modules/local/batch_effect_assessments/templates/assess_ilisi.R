@@ -38,16 +38,15 @@ msg <- ''
 status <- 'ok'
 
 if (requireNamespace('scIntegrationMetrics', quietly = TRUE)) {
-    # Package API: compute iLISI on embedding matrix + batch labels.
     md <- obj[[]]
-    batches <- as.character(md[[batch_col]])
-    if (exists('compute_iLISI', where = asNamespace('scIntegrationMetrics'), inherits = FALSE)) {
-        ilisi_vals <- scIntegrationMetrics::compute_iLISI(emb, batches)
-    } else if (exists('LISI', where = asNamespace('scIntegrationMetrics'), inherits = FALSE)) {
-        ilisi_vals <- scIntegrationMetrics::LISI(emb, batches)
-    } else {
+    ilisi_vals <- tryCatch(
+        run_ilisi(emb, md, batch_col),
+        error = function(e) e
+    )
+    if (inherits(ilisi_vals, 'error')) {
         status <- 'na'
-        msg <- 'scIntegrationMetrics installed but iLISI entrypoint not found'
+        msg <- conditionMessage(ilisi_vals)
+        ilisi_vals <- NA_real_
     }
 } else {
     status <- 'na'

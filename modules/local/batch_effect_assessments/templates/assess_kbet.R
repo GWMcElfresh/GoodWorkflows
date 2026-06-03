@@ -44,6 +44,7 @@ for (b in unique(batches)) {
     cells_keep <- c(cells_keep, sample(idx, n_take))
 }
 obj <- subset(obj, cells = colnames(obj)[cells_keep])
+md <- obj[[]]
 if ('pca' %in% names(obj@reductions)) {
     obj <- Seurat::RunPCA(obj, verbose = FALSE)
 }
