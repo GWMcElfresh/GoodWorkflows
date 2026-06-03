@@ -104,19 +104,21 @@ if (requireNamespace('scIntegrationMetrics', quietly = TRUE)) {
 }
 
 # Write per-cell CSV for downstream histogram visualization
+# Use rownames(emb) for cell barcodes since as.numeric strips scIntegrationMetrics row names.
 if (!is.na(cells_csv) && nzchar(cells_csv)) {
-    if (!is.null(cell_barcodes) && !is.null(cell_barcodes) && length(cell_barcodes) > 0 &&
-        ((exists('batch_vals') && !inherits(batch_vals, 'error') && !is.null(batch_vals)) ||
-         (exists('celltype_vals') && !inherits(celltype_vals, 'error') && !is.null(celltype_vals)))) {
+    has_batch <- (exists('batch_vals') && !inherits(batch_vals, 'error') && length(batch_vals) > 0)
+    has_celltype <- (exists('celltype_vals') && !inherits(celltype_vals, 'error') && length(celltype_vals) > 0)
+    if (has_batch || has_celltype) {
+        n_vals <- if (has_batch) length(batch_vals) else length(celltype_vals)
         cell_df <- data.frame(
-            cell_barcode = cell_barcodes,
-            batch_asw = if (exists('batch_vals') && !inherits(batch_vals, 'error')) as.numeric(batch_vals) else NA_real_,
-            celltype_asw = if (exists('celltype_vals') && !inherits(celltype_vals, 'error')) as.numeric(celltype_vals) else NA_real_,
-            batch = as.character(md[cell_barcodes, batch_col]),
+            cell_barcode = rownames(emb),
+            batch_asw = if (has_batch) as.numeric(batch_vals) else NA_real_,
+            celltype_asw = if (has_celltype) as.numeric(celltype_vals) else NA_real_,
+            batch = as.character(md[[batch_col]]),
             stringsAsFactors = FALSE
         )
-        if (!is.na(celltype_col)) {
-            cell_df$celltype <- as.character(md[cell_barcodes, celltype_col])
+        if (!is.na(celltype_col) && nzchar(celltype_col)) {
+            cell_df$celltype <- as.character(md[[celltype_col]])
         }
         write.csv(cell_df, cells_csv, row.names = FALSE)
     } else {

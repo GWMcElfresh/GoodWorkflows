@@ -4,6 +4,7 @@ suppressPackageStartupMessages({
 })
 
 prep_path <- Sys.getenv('PREP_JSON')
+reduction <- Sys.getenv('REDUCTION', unset = NA_character_)
 ilisi_csv <- Sys.getenv('ILISI_CSV')
 cilisi_csv <- Sys.getenv('CILISI_CSV')
 asw_csv <- Sys.getenv('ASW_CSV')
@@ -212,12 +213,18 @@ if (has_any_cells && !is.na(celltype_plot_out) && nzchar(celltype_plot_out) &&
             combined_plot <- non_null[[1]]
         }
         sample_label <- prep$sample_id
-        red_label <- prep$reduction %||% ''
-        combined_plot <- combined_plot +
-            ggplot2::plot_annotation(
-                title = paste0('Cell-type Assessment -- ', sample_label, ' (', ilisi_row$reduction %||% red_label, ')'),
-                theme = ggplot2::theme(plot.title = ggplot2::element_text(face = 'bold', hjust = 0.5))
-            )
+        reduction_label <- reduction
+        annotation_title <- paste0('Cell-type Assessment -- ', sample_label, ' (', reduction_label, ')')
+        if (has_patchwork) {
+            combined_plot <- combined_plot +
+                patchwork::plot_annotation(
+                    title = annotation_title,
+                    theme = ggplot2::theme(plot.title = ggplot2::element_text(face = 'bold', hjust = 0.5))
+                )
+        } else {
+            combined_plot <- combined_plot +
+                ggplot2::labs(title = annotation_title)
+        }
         ggplot2::ggsave(celltype_plot_out, combined_plot, width = 7, height = 3 * length(non_null), dpi = 150)
     }
 }

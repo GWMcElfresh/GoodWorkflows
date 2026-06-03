@@ -20,6 +20,7 @@ process COLLECT_BATCH_ASSESSMENT {
     #!/usr/bin/env bash
     set -euo pipefail
     export PREP_JSON="${prep_json}"
+    export REDUCTION='${reduction}'
     export ILISI_CSV="${ilisi_csv}"
     export CILISI_CSV="${cilisi_csv}"
     export ASW_CSV="${asw_csv}"

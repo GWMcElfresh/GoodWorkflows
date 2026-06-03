@@ -92,14 +92,14 @@ if (requireNamespace('scIntegrationMetrics', quietly = TRUE)) {
 }
 
 # Write per-cell CSV for downstream histogram visualization
+# Note: scIntegrationMetrics strips rownames via as.numeric/unlist, so use rownames(md) directly.
 if (!is.na(cells_csv) && nzchar(cells_csv)) {
-    if (length(cilisi_vals) > 0 && !all(is.na(cilisi_vals))) {
-        cell_barcodes <- if (!is.null(names(cilisi_vals))) names(cilisi_vals) else rownames(md)
+    if (length(cilisi_vals) > 0 && !all(is.na(cilisi_vals)) && length(cilisi_vals) == nrow(md)) {
         cell_df <- data.frame(
-            cell_barcode = cell_barcodes,
+            cell_barcode = rownames(md),
             cilisi_value = as.numeric(cilisi_vals),
-            celltype = as.character(md[cell_barcodes, celltype_col]),
-            batch = as.character(md[cell_barcodes, batch_col]),
+            celltype = as.character(md[[celltype_col]]),
+            batch = as.character(md[[batch_col]]),
             stringsAsFactors = FALSE
         )
         write.csv(cell_df, cells_csv, row.names = FALSE)
